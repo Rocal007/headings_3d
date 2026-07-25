@@ -230,7 +230,7 @@ function App() {
     let currentExplodeProgress = 0;
 
     const handleWheel = (event: WheelEvent) => {
-      targetExplodeProgress += event.deltaY * 0.0015;
+      targetExplodeProgress += event.deltaY * 0.0003;
       targetExplodeProgress = Math.max(0, Math.min(1, targetExplodeProgress));
     };
 
@@ -241,7 +241,7 @@ function App() {
     const handleTouchMove = (event: TouchEvent) => {
       const touchY = event.touches[0].clientY;
       const deltaY = touchStartY - touchY;
-      targetExplodeProgress += deltaY * 0.003;
+      targetExplodeProgress += deltaY * 0.001;
       targetExplodeProgress = Math.max(0, Math.min(1, targetExplodeProgress));
       touchStartY = touchY;
     };
@@ -269,8 +269,8 @@ function App() {
       animationFrameId = requestAnimationFrame(animate);
       const time = clock.getElapsedTime();
 
-      // Smooth dampening for the explosion progress
-      currentExplodeProgress += (targetExplodeProgress - currentExplodeProgress) * 0.1;
+      // Smooth dampening for the explosion progress (slower, lazier movement)
+      currentExplodeProgress += (targetExplodeProgress - currentExplodeProgress) * 0.04;
 
       // Apply effects to cubes
       wordCubes.forEach((cube, index) => {
