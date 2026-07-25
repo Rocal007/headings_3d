@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-// @ts-ignore
-import { Supertechno50Model } from '../model/Supertechno50Model.js';
+import { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
 
 export default function Crane() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,7 +65,7 @@ export default function Crane() {
     const grid = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
     scene.add(grid);
 
-    const crane = new Supertechno50Model();
+    const crane = new Supertechno50FBXModel();
     scene.add(crane.group);
 
     const keys: Record<string, boolean> = {};
