@@ -136,6 +136,29 @@ function App() {
     const technoStartX = -((technoLetters.length - 1) * spacing) / 2;
     const technoYPos = 4.0; 
 
+    // Helper: setup userData for explosion animation
+    const setupExplosionData = (cube: THREE.Mesh, baseY: number, baseX: number) => {
+      const explodeDir = new THREE.Vector3(
+        (Math.random() - 0.5) * 80,
+        (Math.random() - 0.5) * 80,
+        (Math.random() - 0.5) * 80 + 30 // push slightly towards camera
+      );
+      const explodeRot = new THREE.Euler(
+        (Math.random() - 0.5) * Math.PI * 6,
+        (Math.random() - 0.5) * Math.PI * 6,
+        (Math.random() - 0.5) * Math.PI * 6
+      );
+      cube.userData = {
+        baseX: baseX,
+        baseY: baseY,
+        baseZ: 0,
+        explodeDir,
+        explodeRot,
+        currentRotX: 0,
+        currentRotY: 0
+      };
+    };
+
     // Build TECHNOGRIPS (Black Theme)
     technoLetters.forEach((letter, index) => {
       const tex = createLetterTextures(letter, 'black');
@@ -151,9 +174,11 @@ function App() {
       materials.push(mat);
 
       const cube = new THREE.Mesh(wordGeometry, mat);
-      cube.position.x = technoStartX + index * spacing;
+      const baseX = technoStartX + index * spacing;
+      cube.position.x = baseX;
       cube.position.y = technoYPos;
-      cube.userData = { baseY: technoYPos }; // Save for animation
+      
+      setupExplosionData(cube, technoYPos, baseX);
       scene.add(cube);
       wordCubes.push(cube);
     });
@@ -177,14 +202,41 @@ function App() {
       materials.push(mat);
 
       const cube = new THREE.Mesh(wordGeometry, mat);
-      cube.position.x = viennaStartX + index * spacing;
+      const baseX = viennaStartX + index * spacing;
+      cube.position.x = baseX;
       cube.position.y = viennaYPos;
-      cube.userData = { baseY: viennaYPos }; // Save for animation
+      
+      setupExplosionData(cube, viennaYPos, baseX);
       scene.add(cube);
       wordCubes.push(cube);
     });
 
     camera.position.z = 35; // Z-Achse stark verringert für massivere optische Größe
+
+    // --- Explosion Interaction Logic ---
+    let targetExplodeProgress = 0;
+    let currentExplodeProgress = 0;
+
+    const handleWheel = (event: WheelEvent) => {
+      targetExplodeProgress += event.deltaY * 0.0015;
+      targetExplodeProgress = Math.max(0, Math.min(1, targetExplodeProgress));
+    };
+
+    let touchStartY = 0;
+    const handleTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0].clientY;
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      const touchY = event.touches[0].clientY;
+      const deltaY = touchStartY - touchY;
+      targetExplodeProgress += deltaY * 0.003;
+      targetExplodeProgress = Math.max(0, Math.min(1, targetExplodeProgress));
+      touchStartY = touchY;
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
 
     // Handle Window Resize
     const handleResize = () => {
@@ -205,11 +257,29 @@ function App() {
       animationFrameId = requestAnimationFrame(animate);
       const time = clock.getElapsedTime();
 
-      // Word cubes floating and rotation (with phase offset)
+      // Smooth dampening for the explosion progress
+      currentExplodeProgress += (targetExplodeProgress - currentExplodeProgress) * 0.1;
+
+      // Apply effects to cubes
       wordCubes.forEach((cube, index) => {
-        cube.position.y = cube.userData.baseY + Math.sin(time * 1.5 + index * 0.2) * 0.6;
-        cube.rotation.x += 0.003;
-        cube.rotation.y += 0.006;
+        // Base floating effect (only fully active when not exploded)
+        const floatY = cube.userData.baseY + Math.sin(time * 1.5 + index * 0.2) * 0.6 * (1 - currentExplodeProgress);
+        
+        // Base idle rotation
+        cube.userData.currentRotX += 0.003 * (1 - currentExplodeProgress);
+        cube.userData.currentRotY += 0.006 * (1 - currentExplodeProgress);
+
+        // Interpolate Position
+        const targetX = cube.userData.baseX + cube.userData.explodeDir.x * currentExplodeProgress;
+        const targetY = floatY + cube.userData.explodeDir.y * currentExplodeProgress;
+        const targetZ = cube.userData.baseZ + cube.userData.explodeDir.z * currentExplodeProgress;
+        cube.position.set(targetX, targetY, targetZ);
+
+        // Interpolate Rotation
+        const rotX = cube.userData.currentRotX + cube.userData.explodeRot.x * currentExplodeProgress;
+        const rotY = cube.userData.currentRotY + cube.userData.explodeRot.y * currentExplodeProgress;
+        const rotZ = cube.userData.explodeRot.z * currentExplodeProgress;
+        cube.rotation.set(rotX, rotY, rotZ);
       });
 
       renderer.render(scene, camera);
@@ -219,6 +289,9 @@ function App() {
 
     // Cleanup on unmount
     return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
       geometries.forEach(g => g.dispose());
