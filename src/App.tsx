@@ -1,0 +1,236 @@
+import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import './App.css';
+
+function App() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    // 1. Scene Setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    
+    // Check if renderer already exists to avoid recreating on hot reload
+    const renderer = new THREE.WebGLRenderer({ 
+      canvas: canvasRef.current, 
+      antialias: true,
+      alpha: true // Allow background to show through
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // 2. Licht und Environment für den metallischen Look
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight.position.set(5, 10, 5);
+    scene.add(ambientLight, directionalLight);
+
+    // Helper: Dynamische Texturen generieren für einen Buchstaben
+    function createLetterTextures(letter: string, theme: 'silver' | 'black' = 'silver') {
+      const isBlack = theme === 'black';
+
+      const canvasText = document.createElement('canvas');
+      canvasText.width = 512;
+      canvasText.height = 512;
+      const ctx = canvasText.getContext('2d');
+      
+      const colorCanvas = document.createElement('canvas');
+      colorCanvas.width = 512;
+      colorCanvas.height = 512;
+      const colorCtx = colorCanvas.getContext('2d');
+
+      if (ctx && colorCtx) {
+        // --- Bump Map (Tiefe) ---
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 512, 512);
+
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4000; i++) {
+          ctx.strokeStyle = `rgba(200, 200, 200, ${Math.random() * 0.01})`;
+          ctx.beginPath();
+          const y = Math.random() * 512;
+          ctx.moveTo(0, y);
+          ctx.lineTo(512, y);
+          ctx.stroke();
+        }
+
+        ctx.font = 'bold 350px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        const metrics = ctx.measureText(letter);
+        const yOffset = 256 + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+
+        ctx.fillStyle = '#000000';
+        ctx.filter = 'blur(8px)';
+        ctx.fillText(letter, 256, yOffset);
+        ctx.filter = 'none';
+
+        // --- Color Map (Farbe) ---
+        colorCtx.fillStyle = isBlack ? '#1a1a1a' : '#b0b0b0';
+        colorCtx.fillRect(0, 0, 512, 512);
+
+        colorCtx.lineWidth = 1;
+        for (let i = 0; i < 4000; i++) {
+          // Helle Reflexionsstreifen
+          colorCtx.strokeStyle = isBlack 
+            ? `rgba(255, 255, 255, ${Math.random() * 0.015})`
+            : `rgba(255, 255, 255, ${Math.random() * 0.05})`;
+          colorCtx.beginPath();
+          const y1 = Math.random() * 512;
+          colorCtx.moveTo(0, y1);
+          colorCtx.lineTo(512, y1);
+          colorCtx.stroke();
+          
+          // Dunkle Schmutz/Rillen-Streifen
+          colorCtx.strokeStyle = isBlack 
+            ? `rgba(0, 0, 0, ${Math.random() * 0.4})`
+            : `rgba(50, 50, 50, ${Math.random() * 0.03})`;
+          colorCtx.beginPath();
+          const y2 = Math.random() * 512;
+          colorCtx.moveTo(0, y2);
+          colorCtx.lineTo(512, y2);
+          colorCtx.stroke();
+        }
+
+        colorCtx.fillStyle = isBlack ? '#ffffff' : '#e5c500'; // Weiß für schwarze Würfel, Gold für silberne
+        colorCtx.font = 'bold 350px Arial';
+        colorCtx.textAlign = 'center';
+        colorCtx.textBaseline = 'alphabetic';
+        colorCtx.fillText(letter, 256, yOffset);
+      }
+      
+      const bumpTexture = new THREE.CanvasTexture(canvasText);
+      const colorTexture = new THREE.CanvasTexture(colorCanvas);
+      colorTexture.colorSpace = THREE.SRGBColorSpace;
+      
+      return { bumpTexture, colorTexture };
+    }
+
+    const materials: THREE.MeshStandardMaterial[] = [];
+    const geometries: THREE.BufferGeometry[] = [];
+    const textures: THREE.Texture[] = [];
+
+    // --- TECHNOGRIPS & VIENNA Cubes ---
+    const technoLetters = ['T', 'E', 'C', 'H', 'N', 'O', 'G', 'R', 'I', 'P', 'S'];
+    const viennaLetters = ['V', 'I', 'E', 'N', 'N', 'A'];
+    
+    const wordCubes: THREE.Mesh[] = [];
+    // Würfel nochmals deutlich vergrößert (6x6x6)
+    const wordGeometry = new RoundedBoxGeometry(6.0, 6.0, 6.0, 6, 0.72);
+    geometries.push(wordGeometry);
+
+    const spacing = 7.5; 
+    
+    // Positionen für TECHNOGRIPS (obere Reihe)
+    const technoStartX = -((technoLetters.length - 1) * spacing) / 2;
+    const technoYPos = 4.0; 
+
+    // Build TECHNOGRIPS (Black Theme)
+    technoLetters.forEach((letter, index) => {
+      const tex = createLetterTextures(letter, 'black');
+      textures.push(tex.bumpTexture, tex.colorTexture);
+
+      const mat = new THREE.MeshStandardMaterial({
+        map: tex.colorTexture,
+        roughness: 0.4,
+        metalness: 0.6,
+        bumpMap: tex.bumpTexture,
+        bumpScale: 15 // Tieferer Deboss-Effekt für die schwarzen Würfel
+      });
+      materials.push(mat);
+
+      const cube = new THREE.Mesh(wordGeometry, mat);
+      cube.position.x = technoStartX + index * spacing;
+      cube.position.y = technoYPos;
+      cube.userData = { baseY: technoYPos }; // Save for animation
+      scene.add(cube);
+      wordCubes.push(cube);
+    });
+
+    // Positionen für VIENNA (untere Reihe)
+    const viennaStartX = -((viennaLetters.length - 1) * spacing) / 2;
+    const viennaYPos = -4.0;
+
+    // Build VIENNA (Silver Theme)
+    viennaLetters.forEach((letter, index) => {
+      const tex = createLetterTextures(letter, 'silver');
+      textures.push(tex.bumpTexture, tex.colorTexture);
+
+      const mat = new THREE.MeshStandardMaterial({
+        map: tex.colorTexture,
+        roughness: 0.4,
+        metalness: 0.6,
+        bumpMap: tex.bumpTexture,
+        bumpScale: 5
+      });
+      materials.push(mat);
+
+      const cube = new THREE.Mesh(wordGeometry, mat);
+      cube.position.x = viennaStartX + index * spacing;
+      cube.position.y = viennaYPos;
+      cube.userData = { baseY: viennaYPos }; // Save for animation
+      scene.add(cube);
+      wordCubes.push(cube);
+    });
+
+    camera.position.z = 65; // Noch weiter zurück, um die riesigen Würfel zu fassen
+
+    // Handle Window Resize
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', handleResize);
+
+    // 5. Anti-Gravity & Render Loop
+    const clock = new THREE.Clock();
+    let animationFrameId: number;
+
+    function animate() {
+      animationFrameId = requestAnimationFrame(animate);
+      const time = clock.getElapsedTime();
+
+      // Word cubes floating and rotation (with phase offset)
+      wordCubes.forEach((cube, index) => {
+        cube.position.y = cube.userData.baseY + Math.sin(time * 1.5 + index * 0.2) * 0.6;
+        cube.rotation.x += 0.003;
+        cube.rotation.y += 0.006;
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+      geometries.forEach(g => g.dispose());
+      materials.forEach(m => m.dispose());
+      textures.forEach(t => t.dispose());
+      pmremGenerator.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  return (
+    <div className="app-container">
+      <canvas id="antigravity-canvas" ref={canvasRef}></canvas>
+    </div>
+  );
+}
+
+export default App;
