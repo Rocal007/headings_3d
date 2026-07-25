@@ -167,7 +167,8 @@ function App() {
         explodeDir,
         explodeRot,
         currentRotX: 0,
-        currentRotY: 0
+        currentRotY: 0,
+        repulsionOffset: new THREE.Vector3(0, 0, 0)
       };
     };
 
@@ -286,7 +287,43 @@ function App() {
         const targetY = floatY + cube.userData.explodeDir.y * currentExplodeProgress;
         const targetZ = cube.userData.baseZ + cube.userData.explodeDir.z * currentExplodeProgress;
         cube.position.set(targetX, targetY, targetZ);
+        
+        // Smoothly decay any existing repulsion
+        cube.userData.repulsionOffset.multiplyScalar(0.9);
+      });
 
+      // Calculate Repulsion (Bouncing off each other)
+      if (currentExplodeProgress > 0.0) {
+        // The cubes are 6x6x6, so face-to-face is 6, diagonal is ~10.4.
+        // At progress=0 they are 7.5 apart. We increase minDistance as they explode to account for rotation.
+        const minDistance = 7.5 + currentExplodeProgress * 3.5; 
+        
+        for (let i = 0; i < wordCubes.length; i++) {
+          for (let j = i + 1; j < wordCubes.length; j++) {
+            const c1 = wordCubes[i];
+            const c2 = wordCubes[j];
+            
+            const dist = c1.position.distanceTo(c2.position);
+            if (dist < minDistance) {
+              const overlap = minDistance - dist;
+              const push = new THREE.Vector3().subVectors(c1.position, c2.position);
+              if (push.lengthSq() < 0.001) push.set(1, 1, 0); // avoid zero vector
+              push.normalize();
+              
+              const force = overlap * 0.15; // spring strength
+              c1.userData.repulsionOffset.addScaledVector(push, force);
+              c2.userData.repulsionOffset.addScaledVector(push, -force);
+            }
+          }
+        }
+      }
+
+      // Apply Final Positions and Rotations
+      wordCubes.forEach((cube) => {
+        // Fade repulsion in/out based on explodeProgress so they still perfectly form the text at 0
+        const bounceIntensity = Math.min(1, currentExplodeProgress * 5);
+        cube.position.addScaledVector(cube.userData.repulsionOffset, bounceIntensity);
+        
         // Interpolate Rotation
         const rotX = cube.userData.currentRotX + cube.userData.explodeRot.x * currentExplodeProgress;
         const rotY = cube.userData.currentRotY + cube.userData.explodeRot.y * currentExplodeProgress;
