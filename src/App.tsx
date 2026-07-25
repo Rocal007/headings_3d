@@ -1,11 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import './App.css';
+import Truck from './components/Truck';
+import Crane from './components/Crane';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [viewMode, setViewMode] = useState<'text' | 'truck' | 'crane'>('text');
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -181,7 +184,7 @@ function App() {
       wordCubes.push(cube);
     });
 
-    camera.position.z = 65; // Noch weiter zurück, um die riesigen Würfel zu fassen
+    camera.position.z = 35; // Z-Achse stark verringert für massivere optische Größe
 
     // Handle Window Resize
     const handleResize = () => {
@@ -224,10 +227,50 @@ function App() {
       pmremGenerator.dispose();
       renderer.dispose();
     };
-  }, []);
+  }, [viewMode]); // re-run effect only when view changes
+
+  if (viewMode === 'truck') {
+    return (
+      <>
+        <button 
+          onClick={() => setViewMode('text')}
+          style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+        >
+          Show 3D Text
+        </button>
+        <Truck />
+      </>
+    );
+  }
+
+  if (viewMode === 'crane') {
+    return (
+      <>
+        <button 
+          onClick={() => setViewMode('text')}
+          style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+        >
+          Show 3D Text
+        </button>
+        <Crane />
+      </>
+    );
+  }
 
   return (
     <div className="app-container">
+      <button 
+        onClick={() => setViewMode('truck')}
+        style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+      >
+        Show LKW (MAN TGL)
+      </button>
+      <button 
+        onClick={() => setViewMode('crane')}
+        style={{ position: 'absolute', top: 20, left: 230, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+      >
+        Show Kran (Supertechno 50)
+      </button>
       <canvas id="antigravity-canvas" ref={canvasRef}></canvas>
     </div>
   );
