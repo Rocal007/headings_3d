@@ -5,69 +5,60 @@ export class Supertechno50FBXModel {
   group: THREE.Group;
   isLoaded: boolean = false;
   nodes: Record<string, THREE.Object3D> = {};
+  materials: THREE.Material[] = [];
+  textures: THREE.Texture[] = [];
 
   constructor(onLoad?: () => void) {
     this.group = new THREE.Group();
     
+    // 1. Texturen laden
+    const textureLoader = new THREE.TextureLoader();
+    const tColor = textureLoader.load('/models/ST50Plus_Textures/ST050PlusModel_ST050Plus_mat_BaseColor.png');
+    tColor.colorSpace = THREE.SRGBColorSpace;
+    const tNormal = textureLoader.load('/models/ST50Plus_Textures/ST050PlusModel_ST050Plus_mat_Normal.png');
+    const tORM = textureLoader.load('/models/ST50Plus_Textures/ST050PlusModel_ST050Plus_mat_OcclusionRoughnessMetallic.png');
+    this.textures.push(tColor, tNormal, tORM);
+    
     const loader = new FBXLoader();
     
-    // Load the textured FBX model
-    loader.load('/models/ST50Plus_Textured.fbx', (fbx) => {
-      // Scale down or up if necessary based on FBX export unit
+    // 2. FBX laden
+    loader.load('/models/ST50Plus_Rigged.FBX', (fbx) => {
+      // Skalierung anpassen, falls das FBX zu groß/klein exportiert wurde
       fbx.scale.set(0.01, 0.01, 0.01); 
       
-      // Improve material looks if needed
       fbx.traverse((child) => {
+        // Material anwenden
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
           mesh.castShadow = true;
           mesh.receiveShadow = true;
           
-          if (mesh.material) {
-            // Ensure textures show correctly
-            if (Array.isArray(mesh.material)) {
-              mesh.material.forEach(mat => {
-                if ('shininess' in mat) (mat as any).shininess = 30;
-              });
-            } else {
-              if ('shininess' in mesh.material) (mesh.material as any).shininess = 30;
-            }
-          }
+          const mat = new THREE.MeshStandardMaterial({
+            map: tColor,
+            normalMap: tNormal,
+            aoMap: tORM,
+            roughnessMap: tORM,
+            metalnessMap: tORM,
+            metalness: 1,
+            roughness: 1,
+          });
+          mesh.material = mat;
+          this.materials.push(mat);
         }
         
-        // Log node names to help with debugging/mapping
-        console.log("FBX Node:", child.name);
-        
-        // Save references to known joints/bones based on typical rigging naming
-        const name = child.name.toLowerCase();
-        if (name.includes('base') || name.includes('dolly') || name.includes('track')) this.nodes.base = child;
-        
-        if (name.includes('column') || name.includes('lift')) {
-          if (!this.nodes.column1) this.nodes.column1 = child;
-          else if (!this.nodes.column2) this.nodes.column2 = child;
-          else if (!this.nodes.column3) this.nodes.column3 = child;
-        }
-        
-        // The FBX parse log showed things like "jointColumn1", "jointColumn2", "jointColumn3", "jointHead"
-        if (name === 'jointcolumn1') this.nodes.column1 = child;
-        if (name === 'jointcolumn2') this.nodes.column2 = child;
-        if (name === 'jointcolumn3') this.nodes.column3 = child;
-        
-        if (name.includes('pan') && !name.includes('head')) this.nodes.basePan = child;
-        if (name.includes('boom') || name.includes('tilt') && !name.includes('head')) this.nodes.boomTilt = child;
-        
-        if (name.includes('tele') || name.includes('arm')) {
-           if (!this.nodes.arm1) this.nodes.arm1 = child;
-           else if (!this.nodes.arm2) this.nodes.arm2 = child;
-           else if (!this.nodes.arm3) this.nodes.arm3 = child;
-        }
-        
-        if (name.includes('head') && name.includes('pan')) this.nodes.headPan = child;
-        if (name.includes('head') && name.includes('tilt')) this.nodes.headTilt = child;
-        if (name.includes('head') && name.includes('roll')) this.nodes.headRoll = child;
-        
-        // General head joint from log
-        if (name === 'jointhead') this.nodes.head = child;
+        // Gelenke (Bones) aus dem FBX auslesen und speichern
+        const name = child.name;
+        if (name === 'jointRoot') this.nodes.root = child;
+        if (name === 'jointColumns') this.nodes.columns = child;
+        if (name === 'jointColumn1') this.nodes.col1 = child;
+        if (name === 'jointColumn2') this.nodes.col2 = child;
+        if (name === 'jointColumn3') this.nodes.col3 = child;
+        if (name === 'jointBeams') this.nodes.beams = child;
+        if (name === 'jointBeam2') this.nodes.beam2 = child;
+        if (name === 'jointBeam3') this.nodes.beam3 = child;
+        if (name === 'jointBeam4') this.nodes.beam4 = child;
+        if (name === 'jointNeck') this.nodes.neck = child;
+        if (name === 'jointHead') this.nodes.head = child;
       });
 
       this.group.add(fbx);
@@ -82,42 +73,42 @@ export class Supertechno50FBXModel {
   updateNodes(kinematics: any) {
     if (!this.isLoaded) return;
 
-    // Map the kinematics to the discovered nodes.
-    
-    if (this.nodes.base) {
-      this.nodes.base.position.x = kinematics.dollyTrack;
+    // Dolly Fahrt (vor/zurück)
+    if (this.nodes.root) {
+      this.nodes.root.position.x = kinematics.dollyTrack * 100; // Multiplikator evtl. anpassen wg. Skalierung
     }
     
-    if (this.nodes.basePan) {
-      this.nodes.basePan.rotation.y = THREE.MathUtils.degToRad(-kinematics.basePan);
+    // Kran Basis Rotation (Pan)
+    if (this.nodes.columns) {
+      this.nodes.columns.rotation.y = THREE.MathUtils.degToRad(-kinematics.basePan);
     }
-    if (this.nodes.boomTilt) {
-      this.nodes.boomTilt.rotation.x = THREE.MathUtils.degToRad(kinematics.boomTilt);
+    
+    // Arm Neigung (Tilt)
+    if (this.nodes.beams) {
+      // Abhängig vom Rigging-Koordinatensystem ist es meist X oder Z
+      this.nodes.beams.rotation.x = THREE.MathUtils.degToRad(kinematics.boomTilt);
     }
 
-    // Column Lift
-    if (this.nodes.column1) this.nodes.column1.position.y = kinematics.columnLift / 3;
-    if (this.nodes.column2) this.nodes.column2.position.y = kinematics.columnLift / 3;
-    if (this.nodes.column3) this.nodes.column3.position.y = kinematics.columnLift / 3;
-
-    // Telescope extension
-    const segStroke = kinematics.teleExtension / 3.0;
-    if (this.nodes.arm1) this.nodes.arm1.position.z = segStroke;
-    if (this.nodes.arm2) this.nodes.arm2.position.z = segStroke;
-    if (this.nodes.arm3) this.nodes.arm3.position.z = segStroke;
+    // Teleskop Ausfahren
+    // Das FBX hat mehrere jointBeam(s), wir teilen die Distanz auf
+    const segStroke = kinematics.teleExtension * 30; // 30 = Scale modifier
+    if (this.nodes.beam2) this.nodes.beam2.position.z = segStroke;
+    if (this.nodes.beam3) this.nodes.beam3.position.z = segStroke;
+    if (this.nodes.beam4) this.nodes.beam4.position.z = segStroke;
     
-    // Head kinematics
-    if (this.nodes.headPan) this.nodes.headPan.rotation.y = THREE.MathUtils.degToRad(-kinematics.headPan);
-    if (this.nodes.headTilt) this.nodes.headTilt.rotation.x = THREE.MathUtils.degToRad(kinematics.headTilt);
-    if (this.nodes.headRoll) this.nodes.headRoll.rotation.z = THREE.MathUtils.degToRad(kinematics.headRoll);
-    
-    // If there's just a general 'jointHead' node from rigging
-    if (this.nodes.head && !this.nodes.headPan && !this.nodes.headTilt && !this.nodes.headRoll) {
-       this.nodes.head.rotation.set(
-         THREE.MathUtils.degToRad(kinematics.headTilt),
-         THREE.MathUtils.degToRad(-kinematics.headPan),
-         THREE.MathUtils.degToRad(kinematics.headRoll)
-       );
+    // Kamerakopf (Pan, Tilt, Roll)
+    // Bei typischen Kränen hat der Neck PAN und TILT, der Head hat ROLL
+    if (this.nodes.neck) {
+       this.nodes.neck.rotation.y = THREE.MathUtils.degToRad(-kinematics.headPan);
+       this.nodes.neck.rotation.x = THREE.MathUtils.degToRad(kinematics.headTilt);
     }
+    if (this.nodes.head) {
+       this.nodes.head.rotation.z = THREE.MathUtils.degToRad(kinematics.headRoll);
+    }
+  }
+
+  dispose() {
+    this.textures.forEach(t => t.dispose());
+    this.materials.forEach(m => m.dispose());
   }
 }
