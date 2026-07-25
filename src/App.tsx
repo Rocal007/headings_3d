@@ -138,11 +138,19 @@ function App() {
 
     // Helper: setup userData for explosion animation
     const setupExplosionData = (cube: THREE.Mesh, baseY: number, baseX: number) => {
+      // Calculate radial direction from center (0, 0, 0)
+      const dir = new THREE.Vector3(baseX, baseY, (Math.random() - 0.5) * 10);
+      dir.normalize();
+      
+      // Push them far apart so they don't intersect
+      const distance = 80 + Math.random() * 40; 
+
       const explodeDir = new THREE.Vector3(
-        (Math.random() - 0.5) * 80,
-        (Math.random() - 0.5) * 80,
-        (Math.random() - 0.5) * 80 + 30 // push slightly towards camera
+        dir.x * distance,
+        dir.y * distance,
+        dir.z * distance + 30 // push slightly towards camera
       );
+      
       const explodeRot = new THREE.Euler(
         (Math.random() - 0.5) * Math.PI * 6,
         (Math.random() - 0.5) * Math.PI * 6,
