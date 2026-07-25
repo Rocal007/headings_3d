@@ -1,12 +1,108 @@
-import { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import React, { useEffect, useRef, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Environment, Grid } from '@react-three/drei';
+
 import { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
 
-export default function Crane() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+// --- INNER R3F SCENE COMPONENT ---
+function CraneScene({ 
+  kinematicsRef, 
+  sliderRefs 
+}: { 
+  kinematicsRef: React.MutableRefObject<any>,
+  sliderRefs: Record<string, React.RefObject<HTMLInputElement | null>>
+}) {
+  const [crane, setCrane] = useState<Supertechno50FBXModel | null>(null);
+  const keys = useRef<Record<string, boolean>>({});
 
+  useEffect(() => {
+    const model = new Supertechno50FBXModel(() => {
+      setCrane(model);
+    });
+    return () => {
+      model.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = true; };
+    const handleKeyUp = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = false; };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  useFrame((_, delta) => {
+    const speed = 5.0 * delta;
+    const kin = kinematicsRef.current;
+    const k = keys.current;
+
+    // Keyboard Logic
+    if (k['w']) kin.teleExtension += speed * 2;
+    if (k['s']) kin.teleExtension -= speed * 2;
+    if (k['q']) kin.boomTilt += speed * 10;
+    if (k['e']) kin.boomTilt -= speed * 10;
+    if (k['a']) kin.dollyTrack -= speed;
+    if (k['d']) kin.dollyTrack += speed;
+    if (k['r']) kin.columnLift += speed;
+    if (k['f']) kin.columnLift -= speed;
+    if (k['arrowleft'] && !k['shift']) kin.headPan -= speed * 15;
+    if (k['arrowright'] && !k['shift']) kin.headPan += speed * 15;
+    if (k['arrowup']) kin.headTilt += speed * 15;
+    if (k['arrowdown']) kin.headTilt -= speed * 15;
+    if (k['z']) kin.headRoll -= speed * 15;
+    if (k['x']) kin.headRoll += speed * 15;
+    if (k['arrowleft'] && k['shift']) kin.basePan += speed * 10;
+    if (k['arrowright'] && k['shift']) kin.basePan -= speed * 10;
+
+    // Clamp values
+    kin.teleExtension = Math.max(0, Math.min(11.4, kin.teleExtension));
+    kin.boomTilt = Math.max(-57, Math.min(60, kin.boomTilt));
+    kin.columnLift = Math.max(0, Math.min(1.54, kin.columnLift));
+    kin.headPan = Math.max(-1080, Math.min(1080, kin.headPan));
+    kin.headTilt = Math.max(-1080, Math.min(1080, kin.headTilt));
+    kin.headRoll = Math.max(-1080, Math.min(1080, kin.headRoll));
+
+    // Sync UI Sliders
+    if (sliderRefs.basePan.current) sliderRefs.basePan.current.value = kin.basePan.toString();
+    if (sliderRefs.boomTilt.current) sliderRefs.boomTilt.current.value = kin.boomTilt.toString();
+    if (sliderRefs.teleExtension.current) sliderRefs.teleExtension.current.value = kin.teleExtension.toString();
+    if (sliderRefs.dollyTrack.current) sliderRefs.dollyTrack.current.value = kin.dollyTrack.toString();
+    if (sliderRefs.headPan.current) sliderRefs.headPan.current.value = kin.headPan.toString();
+    if (sliderRefs.headTilt.current) sliderRefs.headTilt.current.value = kin.headTilt.toString();
+    if (sliderRefs.headRoll.current) sliderRefs.headRoll.current.value = kin.headRoll.toString();
+
+    // Update Model Kinematics
+    if (crane && crane.isLoaded) {
+      crane.updateNodes(kin);
+    }
+  });
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[10, 20, 15]} intensity={1.5} castShadow />
+      
+      {/* Studio Environment for Photorealistic Reflections */}
+      <Environment preset="studio" />
+      
+      {/* Floor Grid */}
+      <Grid infiniteGrid fadeDistance={50} sectionColor="#444444" cellColor="#222222" />
+      
+      {/* 3D Model Injection */}
+      {crane && <primitive object={crane.group} />}
+      
+      {/* Camera Controls */}
+      <OrbitControls target={[0, 2, 0]} enableDamping dampingFactor={0.05} />
+    </>
+  );
+}
+
+// --- MAIN CRANE COMPONENT ---
+export default function Crane() {
   const basePanRef = useRef<HTMLInputElement>(null);
   const boomTiltRef = useRef<HTMLInputElement>(null);
   const teleExtensionRef = useRef<HTMLInputElement>(null);
@@ -14,6 +110,16 @@ export default function Crane() {
   const headPanRef = useRef<HTMLInputElement>(null);
   const headTiltRef = useRef<HTMLInputElement>(null);
   const headRollRef = useRef<HTMLInputElement>(null);
+
+  const sliderRefs = {
+    basePan: basePanRef,
+    boomTilt: boomTiltRef,
+    teleExtension: teleExtensionRef,
+    dollyTrack: dollyTrackRef,
+    headPan: headPanRef,
+    headTilt: headTiltRef,
+    headRoll: headRollRef
+  };
 
   const kinematicsRef = useRef({
     dollyTrack: 0,
@@ -26,137 +132,21 @@ export default function Crane() {
     headRoll: 0,
   });
 
-  useEffect(() => {
-    if (!canvasRef.current) return;
-
-    const renderer = new THREE.WebGLRenderer({
-      canvas: canvasRef.current,
-      antialias: true,
-      alpha: true,
-    });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a);
-
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(15, 10, 20);
-
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    pmremGenerator.compileEquirectangularShader();
-    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight.position.set(10, 20, 15);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.target.set(0, 2, 0);
-
-    const grid = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
-    scene.add(grid);
-
-    const crane = new Supertechno50FBXModel();
-    scene.add(crane.group);
-
-    const keys: Record<string, boolean> = {};
-    const handleKeyDown = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true; };
-    const handleKeyUp = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false; };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    let animationId: number;
-
-    const handleResize = () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    };
-    window.addEventListener('resize', handleResize);
-
-    let lastTime = performance.now();
-
-    const animate = (currentTime: number) => {
-      animationId = requestAnimationFrame(animate);
-      const dt = (currentTime - lastTime) / 1000;
-      lastTime = currentTime;
-
-      const speed = 5.0 * dt;
-      const kin = kinematicsRef.current;
-
-      if (keys['w']) kin.teleExtension += speed * 2;
-      if (keys['s']) kin.teleExtension -= speed * 2;
-      
-      if (keys['q']) kin.boomTilt += speed * 10;
-      if (keys['e']) kin.boomTilt -= speed * 10;
-      
-      if (keys['a']) kin.dollyTrack -= speed;
-      if (keys['d']) kin.dollyTrack += speed;
-
-      if (keys['r']) kin.columnLift += speed;
-      if (keys['f']) kin.columnLift -= speed;
-
-      if (keys['arrowleft'] && !keys['shift']) kin.headPan -= speed * 15;
-      if (keys['arrowright'] && !keys['shift']) kin.headPan += speed * 15;
-      if (keys['arrowup']) kin.headTilt += speed * 15;
-      if (keys['arrowdown']) kin.headTilt -= speed * 15;
-
-      if (keys['z']) kin.headRoll -= speed * 15;
-      if (keys['x']) kin.headRoll += speed * 15;
-
-      if (keys['arrowleft'] && keys['shift']) kin.basePan += speed * 10;
-      if (keys['arrowright'] && keys['shift']) kin.basePan -= speed * 10;
-
-      // Clamp values
-      kin.teleExtension = Math.max(0, Math.min(11.4, kin.teleExtension));
-      kin.boomTilt = Math.max(-57, Math.min(60, kin.boomTilt));
-      kin.columnLift = Math.max(0, Math.min(1.54, kin.columnLift));
-      kin.headPan = Math.max(-1080, Math.min(1080, kin.headPan));
-      kin.headTilt = Math.max(-1080, Math.min(1080, kin.headTilt));
-      kin.headRoll = Math.max(-1080, Math.min(1080, kin.headRoll));
-
-      // Sync the DOM slider values with the internal kinematics
-      if (basePanRef.current) basePanRef.current.value = kin.basePan.toString();
-      if (boomTiltRef.current) boomTiltRef.current.value = kin.boomTilt.toString();
-      if (teleExtensionRef.current) teleExtensionRef.current.value = kin.teleExtension.toString();
-      if (dollyTrackRef.current) dollyTrackRef.current.value = kin.dollyTrack.toString();
-      if (headPanRef.current) headPanRef.current.value = kin.headPan.toString();
-      if (headTiltRef.current) headTiltRef.current.value = kin.headTilt.toString();
-      if (headRollRef.current) headRollRef.current.value = kin.headRoll.toString();
-
-      crane.updateNodes(kin);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animationId = requestAnimationFrame(animate);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      cancelAnimationFrame(animationId);
-      renderer.dispose();
-      pmremGenerator.dispose();
-      if (crane.dispose) crane.dispose();
-    };
-  }, []);
-
   const handleSliderChange = (key: keyof typeof kinematicsRef.current, value: number) => {
     kinematicsRef.current[key] = value;
   };
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0, zIndex: 10 }}>
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', outline: 'none', touchAction: 'none' }} />
+      {/* React Three Fiber Canvas */}
+      <Canvas 
+        shadows 
+        camera={{ position: [15, 10, 20], fov: 45 }}
+        style={{ width: '100%', height: '100%', outline: 'none', touchAction: 'none' }}
+      >
+        <color attach="background" args={['#1a1a1a']} />
+        <CraneScene kinematicsRef={kinematicsRef} sliderRefs={sliderRefs} />
+      </Canvas>
       
       {/* 2D DASHBOARD UI */}
       <div style={{
@@ -174,7 +164,7 @@ export default function Crane() {
         boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)'
       }}>
         <h3 style={{ margin: '0 0 15px 0', fontSize: '18px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '10px' }}>
-          🎛️ 2D Kran Dashboard
+          🎛️ 2D Kran Dashboard (R3F)
         </h3>
         
         <div style={{ marginBottom: '15px' }}>
