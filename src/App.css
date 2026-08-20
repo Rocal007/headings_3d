@@ -94,3 +94,132 @@ body {
   color: #00ff88;
   text-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
 }
+
+/* --- Animated Nebula Background --- */
+#nebula-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  opacity: 0;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(66, 12, 110, 0.6) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(12, 60, 110, 0.6) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(200, 20, 80, 0.3) 0%, transparent 60%);
+  background-size: 200% 200%;
+  animation: nebulaShift 15s ease infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes nebulaShift {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 100%; }
+}
+
+/* --- Crane & Truck HUD Overlays --- */
+#crane-hud, #truck-hud {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 80%;
+  max-width: 900px;
+}
+
+.hud-container {
+  background: rgba(10, 15, 25, 0.85);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.1), inset 0 0 20px rgba(0, 255, 136, 0.05);
+  border-radius: 16px;
+  padding: 2rem;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  width: 100%;
+}
+
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.3);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.hud-header h2 {
+  margin: 0;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 1.8rem;
+}
+
+.hud-status {
+  color: #00ff88;
+  font-weight: 600;
+  letter-spacing: 1px;
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 20px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+}
+
+.hud-content {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.crane-blueprint {
+  width: 45%;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  filter: sepia(1) hue-rotate(180deg) saturate(3) brightness(0.8) contrast(1.2);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.hud-data-panel {
+  width: 55%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid rgba(0, 255, 136, 0.5);
+  border-radius: 4px;
+}
+
+.data-row span:first-child {
+  color: #8b8b9e;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.data-row span:last-child {
+  color: #ffffff;
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
