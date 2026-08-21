@@ -609,8 +609,8 @@ export default function CraneCounterweight({
           <boxGeometry args={[0.48, 0.54, 0.03]} />
         </mesh>
 
-        {/* 🌟 PROMINENTER HECK-HENKEL / STEUER- & HALTEBÜGEL FÜR DEN OPERATOR */}
-        {/* Upper Main U-Shaped Handlebar ("Henkel") */}
+        {/* 🌟 PROMINENTER HECK-HENKEL / STEUER- & HALTEBÜGEL FÜR DEN OPERATOR (UNTEN & OBEN) */}
+        {/* Upper Protection Handlebar */}
         <mesh castShadow material={matDarkChassis} position={[0, 0.32, 0.16]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.016, 0.016, 0.44, 16]} />
         </mesh>
@@ -620,24 +620,35 @@ export default function CraneCounterweight({
         <mesh castShadow material={matDarkChassis} position={[0.22, 0.32, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.016, 0.016, 0.16, 16]} />
         </mesh>
+
+        {/* 🌟 UNTERER HAUPT-HALTEBÜGEL (GRIFF AUF HÜFT-/BRUSTHÖHE) */}
+        <mesh castShadow material={matDarkChassis} position={[0, -0.16, 0.16]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.016, 0.016, 0.44, 16]} />
+        </mesh>
+        <mesh castShadow material={matDarkChassis} position={[-0.22, -0.16, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.016, 0.016, 0.16, 16]} />
+        </mesh>
+        <mesh castShadow material={matDarkChassis} position={[0.22, -0.16, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.016, 0.016, 0.16, 16]} />
+        </mesh>
         {/* Flange Mounts to Girder */}
-        <mesh castShadow material={matChromeBolt} position={[-0.22, 0.32, 0.0]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh castShadow material={matChromeBolt} position={[-0.22, -0.16, 0.0]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.024, 0.024, 0.012, 16]} />
         </mesh>
-        <mesh castShadow material={matChromeBolt} position={[0.22, 0.32, 0.0]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh castShadow material={matChromeBolt} position={[0.22, -0.16, 0.0]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.024, 0.024, 0.012, 16]} />
         </mesh>
 
-        {/* Ergonomic Rubberized Hand Grips on Henkel (Left & Right) */}
-        <mesh castShadow material={matRubberBlack} position={[-0.16, 0.32, 0.16]} rotation={[0, 0, Math.PI / 2]}>
+        {/* Ergonomic Rubberized Hand Grips on Lower Handlebar (Left & Right) */}
+        <mesh castShadow material={matRubberBlack} position={[-0.16, -0.16, 0.16]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.021, 0.021, 0.11, 16]} />
         </mesh>
-        <mesh castShadow material={matRubberBlack} position={[0.16, 0.32, 0.16]} rotation={[0, 0, Math.PI / 2]}>
+        <mesh castShadow material={matRubberBlack} position={[0.16, -0.16, 0.16]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.021, 0.021, 0.11, 16]} />
         </mesh>
 
-        {/* Compact Cine Control Box Mounted in Center of Henkel */}
-        <group position={[0, 0.32, 0.16]}>
+        {/* Compact Cine Control Box Mounted in Center of Lower Handlebar */}
+        <group position={[0, -0.16, 0.16]}>
           <mesh castShadow material={matDarkChassis} position={[0, 0.02, -0.01]}>
             <boxGeometry args={[0.12, 0.06, 0.04]} />
           </mesh>
@@ -666,8 +677,8 @@ export default function CraneCounterweight({
           <cylinderGeometry args={[0.018, 0.018, 0.44, 16]} />
         </mesh>
 
-        {/* Middle Safety Crossbar */}
-        <mesh castShadow material={matDarkChassis} position={[0, 0.0, 0.16]} rotation={[0, 0, Math.PI / 2]}>
+        {/* Middle Crossbar */}
+        <mesh castShadow material={matDarkChassis} position={[0, 0.08, 0.16]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.014, 0.014, 0.44, 16]} />
         </mesh>
       </group>

@@ -1447,7 +1447,7 @@ function RearCraneOperatorRig({
     const tiltRad = THREE.MathUtils.degToRad(boomTilt); // Matches scene boom tilt
 
     const rearLeverArm = 3.74; // Distance to rear Henkel / grab rails
-    const rearHandleYLocal = 0.32; // Height above fulcrum plane
+    const rearHandleYLocal = -0.16; // Lower main handlebar height at waist/chest level
 
     // Local rotated coordinates of rear Henkel relative to pivot
     const handleZRot = rearLeverArm * Math.cos(tiltRad) + rearHandleYLocal * Math.sin(tiltRad);
