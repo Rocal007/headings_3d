@@ -1861,9 +1861,14 @@ function CraneScene({
             break;
 
           case 'operator':
-            // 🎬 Close-Up Zoom onto the Rear Crane Operator at the Fluid Wheel Console
-            targetPos.set(0, 1.35, dollyZ + 3.8);
-            desiredCamPos = new THREE.Vector3(-2.8, 1.9, dollyZ + 6.4);
+            // 🎬 Dynamic Orbit Zoom onto the Rear Crane Operator at the Rear Handles
+            const opOrbitRadius = 4.2;
+            const opX = -opOrbitRadius * Math.sin(panRad);
+            const opZ = dollyZ + opOrbitRadius * Math.cos(panRad);
+            targetPos.set(opX, 1.35, opZ);
+            const opCamOffset = new THREE.Vector3(-2.6, 0.7, 2.2);
+            opCamOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
+            desiredCamPos = new THREE.Vector3(opX, 1.35, opZ).add(opCamOffset);
             desiredCamPos.y = Math.max(1.1, desiredCamPos.y);
             break;
 
