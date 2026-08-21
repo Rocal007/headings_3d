@@ -2075,6 +2075,7 @@ function CraneScene({
 
       {/* 🎬 Interactive Two-Operator Crew (Kranführer am Heck + DoP am Bodenpult) */}
       <CraneOperator
+        crane={crane}
         mode={cableSettings.operatorMode || 'hidden'}
         onArrivedAtControls={() => {
           if (setCableSettings) {

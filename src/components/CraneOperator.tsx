@@ -6,10 +6,12 @@ import {
   getFrontLowestY,
   getRearLowestY
 } from '../utils/craneKinematics';
+import type { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
 
 export type CraneOperatorMode = 'hidden' | 'walking_in' | 'operating' | 'walking_out';
 
 export interface CraneOperatorProps {
+  crane?: Supertechno50FBXModel | null;
   mode: CraneOperatorMode;
   onArrivedAtControls?: () => void;
   onExited?: () => void;
@@ -1251,6 +1253,7 @@ function RealisticFaceFeatures({
 // 1. REAR CRANE OPERATOR (Kranführer am Ausleger/Heck)
 // =============================================================================
 function RearCraneOperatorRig({
+  crane,
   mode,
   dollyTrack = 0,
   columnElevation = 1.54,
@@ -1260,6 +1263,7 @@ function RearCraneOperatorRig({
   animT = 1.0,
   walkTime = 0
 }: {
+  crane?: Supertechno50FBXModel | null;
   mode: CraneOperatorMode;
   dollyTrack: number;
   columnElevation?: number;
@@ -1306,28 +1310,46 @@ function RearCraneOperatorRig({
   const matBoots = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.45, metalness: 0.3 }), []);
   const matBelt = useMemo(() => new THREE.MeshStandardMaterial({ color: '#475569', metalness: 0.5, roughness: 0.4 }), []);
   const matGlove = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.55, metalness: 0.25 }), []);
-  const matHandlebar = useMemo(() => new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.4, metalness: 0.8 }), []);
-  const matGripRubber = useMemo(() => new THREE.MeshStandardMaterial({ color: '#09090b', roughness: 0.85 }), []);
 
   useFrame(() => {
     if (!rootRef.current) return;
 
-    // 🎯 DYNAMIC CRANE KINEMATICS TRACKING FOR REAR CRANE OPERATOR
-    const panRad = (basePan * Math.PI) / 180;
-    const tiltRad = -(boomTilt * Math.PI) / 180; // Inverted: positive tilt raises front, lowers rear
-    const rearLeverArm = 3.74; // Exact distance to rear crane grab rails / Henkel
-    const rearHandleYLocal = 0.32; // Exact Y elevation of the Henkel
+    // 🎯 DIRECT 3D MATRIX TRACKING TO THE CRANE'S REAR HENKEL
+    let targetX = 0;
+    let targetZ = dollyTrack + 4.18;
+    let targetRotY = Math.PI;
+    let handleWorldY = (columnElevation || 1.54) + 0.32;
 
-    // Local rotated position of rear handle relative to fulcrum
-    const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);
-    const handleZRot = rearHandleYLocal * Math.sin(tiltRad) + rearLeverArm * Math.cos(tiltRad);
-    const handleWorldY = (columnElevation || 1.54) + handleYRot;
+    if (crane && crane.isLoaded && crane.nodes && crane.nodes.beams) {
+      const beamNode = crane.nodes.beams;
+      beamNode.updateWorldMatrix(true, false);
 
-    // Operator stance offset directly behind the crane handles
-    const opRadialDistance = handleZRot + 0.44;
-    const targetX = -opRadialDistance * Math.sin(panRad);
-    const targetZ = dollyTrack + opRadialDistance * Math.cos(panRad);
-    const targetRotY = Math.PI + panRad;
+      const henkelLocalPos = new THREE.Vector3(0, 0.32, 3.74);
+      const henkelWorldPos = henkelLocalPos.clone().applyMatrix4(beamNode.matrixWorld);
+
+      const rearDir = new THREE.Vector3(0, 0, 1).transformDirection(beamNode.matrixWorld);
+      rearDir.y = 0;
+      rearDir.normalize();
+
+      targetX = henkelWorldPos.x + rearDir.x * 0.44;
+      targetZ = henkelWorldPos.z + rearDir.z * 0.44;
+      targetRotY = Math.atan2(rearDir.x, rearDir.z) + Math.PI;
+      handleWorldY = henkelWorldPos.y;
+    } else {
+      const panRad = (basePan * Math.PI) / 180;
+      const tiltRad = -(boomTilt * Math.PI) / 180;
+      const rearLeverArm = 3.74;
+      const rearHandleYLocal = 0.32;
+
+      const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);
+      const handleZRot = rearHandleYLocal * Math.sin(tiltRad) + rearLeverArm * Math.cos(tiltRad);
+      handleWorldY = (columnElevation || 1.54) + handleYRot;
+
+      const opRadialDistance = handleZRot + 0.44;
+      targetX = -opRadialDistance * Math.sin(panRad);
+      targetZ = dollyTrack + opRadialDistance * Math.cos(panRad);
+      targetRotY = Math.PI + panRad;
+    }
 
     const spawnX = -6.5;
     const spawnZ = dollyTrack + 7.5;
@@ -1377,8 +1399,8 @@ function RearCraneOperatorRig({
       // Handle height tracking for shoulders & arms
       const shoulderHeight = 1.46;
       const heightDelta = handleWorldY - shoulderHeight;
-      const armPitch = THREE.MathUtils.clamp(-0.60 - heightDelta * 0.68, -1.35, 0.15);
-      const elbowPitch = THREE.MathUtils.clamp(-0.42 + heightDelta * 0.28, -0.9, -0.1);
+      const armPitch = THREE.MathUtils.clamp(-0.62 - heightDelta * 0.70, -1.35, 0.2);
+      const elbowPitch = THREE.MathUtils.clamp(-0.38 + heightDelta * 0.28, -0.9, -0.05);
 
       if (leftHipRef.current && rightHipRef.current && leftKneeRef.current && rightKneeRef.current) {
         leftHipRef.current.rotation.set(0.04, 0.08, -0.06);
@@ -1394,17 +1416,17 @@ function RearCraneOperatorRig({
         const lookUpAngle = -0.22 - (boomTilt * Math.PI / 180) * 0.35;
         headRef.current.rotation.x = lookUpAngle;
       }
-      // Left hand firmly gripping the left rear push handle / pan wheel
+      // Left hand firmly gripping the left rubber sleeve of the Henkel
       if (leftShoulderRef.current && leftElbowRef.current && leftHandRef.current) {
-        leftShoulderRef.current.rotation.set(armPitch, -0.16, -0.06);
+        leftShoulderRef.current.rotation.set(armPitch, -0.15, -0.06);
         leftElbowRef.current.rotation.set(elbowPitch, 0, 0);
-        leftHandRef.current.rotation.set(0.1, 0.1, (basePan * Math.PI / 180) * 0.8);
+        leftHandRef.current.rotation.set(0.12, 0.1, 0);
       }
-      // Right hand firmly gripping the right rear push handle / zoom/tilt joystick
+      // Right hand firmly gripping the right rubber sleeve of the Henkel & thumb on rocker switch
       if (rightShoulderRef.current && rightElbowRef.current && rightHandRef.current) {
-        rightShoulderRef.current.rotation.set(armPitch, 0.16, 0.06);
+        rightShoulderRef.current.rotation.set(armPitch, 0.15, 0.06);
         rightElbowRef.current.rotation.set(elbowPitch, 0, 0);
-        rightHandRef.current.rotation.set(0.1, -0.1, (boomTilt * Math.PI / 180) * 0.8);
+        rightHandRef.current.rotation.set(0.12, -0.1, ((teleExtension || 0) / 11.3 - 0.5) * 0.2);
       }
     }
   });
@@ -1437,29 +1459,6 @@ function RearCraneOperatorRig({
 
           {/* All-Access VIP Pass Lanyard */}
           <CrewLanyardPass passTexture={passTexture} />
-
-          {/* Rear Steering Handlebar & Dual Hand Grips */}
-          <group position={[0, 0.38, 0.28]}>
-            <mesh castShadow position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.012, 0.012, 0.48, 16]} />
-              <primitive object={matHandlebar} attach="material" />
-            </mesh>
-            {/* Left Rubber Grip */}
-            <mesh castShadow position={[-0.20, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.016, 0.016, 0.10, 16]} />
-              <primitive object={matGripRubber} attach="material" />
-            </mesh>
-            {/* Right Rubber Grip with Thumb Rocker Joystick */}
-            <mesh castShadow position={[0.20, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.016, 0.016, 0.10, 16]} />
-              <primitive object={matGripRubber} attach="material" />
-            </mesh>
-            {/* Telescopic Rocker Switch */}
-            <mesh position={[0.22, 0.02, 0]} rotation={[0, 0, (((teleExtension || 0) / 11.3) - 0.5) * 0.6]}>
-              <boxGeometry args={[0.018, 0.015, 0.025]} />
-              <meshStandardMaterial color="#f59e0b" roughness={0.3} metalness={0.5} />
-            </mesh>
-          </group>
 
           {/* Head, Cap & Facial Features */}
           <group ref={headRef} position={[0, 0.56, 0]}>
@@ -1514,7 +1513,7 @@ function RearCraneOperatorRig({
                 <ArticulatedCineHand
                   isRight={false}
                   isGlove={true}
-                  grip={0.75}
+                  grip={0.82}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1537,7 +1536,7 @@ function RearCraneOperatorRig({
                 <ArticulatedCineHand
                   isRight={true}
                   isGlove={true}
-                  grip={0.75}
+                  grip={0.82}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1582,7 +1581,7 @@ function RearCraneOperatorRig({
 
 // =============================================================================
 // 2. FLOOR CONTROL DESK & DOP OPERATOR (Boden-Steuerpult daneben)
-// =============================================================================================================================================
+// =============================================================================
 function FloorControlDeskAndOperatorRig({
   mode,
   dollyTrack = 0,
@@ -1988,6 +1987,7 @@ function FloorControlDeskAndOperatorRig({
 // 🌟 MASTER EXPORT: CRANE OPERATOR CREW (BEIDE OPERATOREN)
 // =============================================================================
 export function CraneOperatorCrew({
+  crane,
   mode,
   onArrivedAtControls,
   onExited,
@@ -2034,6 +2034,7 @@ export function CraneOperatorCrew({
     <group ref={masterGroupRef}>
       {/* 1. Kranführer am Heck (Boom & Crane Rig Operator) */}
       <RearCraneOperatorRig
+        crane={crane}
         mode={mode}
         dollyTrack={dollyTrack}
         columnElevation={columnElevation}
