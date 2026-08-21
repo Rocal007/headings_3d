@@ -1315,8 +1315,8 @@ function RearCraneOperatorRig({
     // 🎯 DYNAMIC CRANE KINEMATICS TRACKING FOR REAR CRANE OPERATOR
     const panRad = (basePan * Math.PI) / 180;
     const tiltRad = -(boomTilt * Math.PI) / 180; // Inverted: positive tilt raises front, lowers rear
-    const rearLeverArm = 3.74; // Exact distance to rear crane grab rails
-    const rearHandleYLocal = 0.08;
+    const rearLeverArm = 3.74; // Exact distance to rear crane grab rails / Henkel
+    const rearHandleYLocal = 0.32; // Exact Y elevation of the Henkel
 
     // Local rotated position of rear handle relative to fulcrum
     const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);

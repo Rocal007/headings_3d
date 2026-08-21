@@ -609,16 +609,49 @@ export default function CraneCounterweight({
           <boxGeometry args={[0.48, 0.54, 0.03]} />
         </mesh>
 
-        {/* Upper U-Shaped Safety Guard Handrail */}
+        {/* 🌟 PROMINENTER HECK-HENKEL / STEUER- & HALTEBÜGEL FÜR DEN OPERATOR */}
+        {/* Upper Main U-Shaped Handlebar ("Henkel") */}
         <mesh castShadow material={matDarkChassis} position={[0, 0.32, 0.16]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.018, 0.018, 0.44, 16]} />
+          <cylinderGeometry args={[0.016, 0.016, 0.44, 16]} />
         </mesh>
         <mesh castShadow material={matDarkChassis} position={[-0.22, 0.32, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.018, 0.018, 0.16, 16]} />
+          <cylinderGeometry args={[0.016, 0.016, 0.16, 16]} />
         </mesh>
         <mesh castShadow material={matDarkChassis} position={[0.22, 0.32, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.018, 0.018, 0.16, 16]} />
+          <cylinderGeometry args={[0.016, 0.016, 0.16, 16]} />
         </mesh>
+        {/* Flange Mounts to Girder */}
+        <mesh castShadow material={matChromeBolt} position={[-0.22, 0.32, 0.0]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.024, 0.024, 0.012, 16]} />
+        </mesh>
+        <mesh castShadow material={matChromeBolt} position={[0.22, 0.32, 0.0]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.024, 0.024, 0.012, 16]} />
+        </mesh>
+
+        {/* Ergonomic Rubberized Hand Grips on Henkel (Left & Right) */}
+        <mesh castShadow material={matRubberBlack} position={[-0.16, 0.32, 0.16]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.021, 0.021, 0.11, 16]} />
+        </mesh>
+        <mesh castShadow material={matRubberBlack} position={[0.16, 0.32, 0.16]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.021, 0.021, 0.11, 16]} />
+        </mesh>
+
+        {/* Compact Cine Control Box Mounted in Center of Henkel */}
+        <group position={[0, 0.32, 0.16]}>
+          <mesh castShadow material={matDarkChassis} position={[0, 0.02, -0.01]}>
+            <boxGeometry args={[0.12, 0.06, 0.04]} />
+          </mesh>
+          {/* Red E-Stop Mushroom Button */}
+          <mesh castShadow position={[-0.035, 0.055, -0.01]}>
+            <cylinderGeometry args={[0.014, 0.012, 0.015, 16]} />
+            <meshStandardMaterial color="#dc2626" roughness={0.3} />
+          </mesh>
+          {/* Amber Telescopic Rocker Switch */}
+          <mesh position={[0.035, 0.052, -0.01]} rotation={[0, 0, ((kinematics.teleExtension / 11.3) - 0.5) * 0.6]}>
+            <boxGeometry args={[0.018, 0.012, 0.022]} />
+            <meshStandardMaterial color="#f59e0b" roughness={0.4} metalness={0.5} />
+          </mesh>
+        </group>
 
         {/* Dual Vertical Side Tubes conforming closely to the rear boom height */}
         <mesh castShadow material={matDarkChassis} position={[-0.22, 0.0, 0.16]}>
