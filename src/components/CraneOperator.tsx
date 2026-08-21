@@ -1030,31 +1030,70 @@ function CrewLanyardPass({ passTexture }: { passTexture: THREE.CanvasTexture }) 
 }
 
 /**
- * 🥾 CATERPILLAR-STYLE RUGGED WORK SAFETY BOOTS
+ * 🥾 HIGH-DETAIL TIMBERLAND / RED-WING WORK SAFETY BOOTS
  */
 function WorkSafetyBoots({ matBoots }: { matBoots: THREE.Material }) {
   return (
     <group position={[0, -0.42, 0.04]}>
-      {/* Heavy Lugged Rubber Sole */}
-      <mesh castShadow position={[0, -0.035, 0.01]}>
-        <boxGeometry args={[0.11, 0.03, 0.24]} />
-        <meshStandardMaterial color="#09090b" roughness={0.85} />
+      {/* Heavy Lugged Rubber Sole with Heel Block */}
+      <mesh castShadow position={[0, -0.038, 0.015]}>
+        <boxGeometry args={[0.112, 0.026, 0.25]} />
+        <meshStandardMaterial color="#09090b" roughness={0.9} />
+      </mesh>
+      {/* Elevated Heel Block */}
+      <mesh castShadow position={[0, -0.048, -0.065]}>
+        <boxGeometry args={[0.108, 0.022, 0.08]} />
+        <meshStandardMaterial color="#09090b" roughness={0.9} />
+      </mesh>
+      {/* Goodyear Welt Stitched Midsole Accent */}
+      <mesh position={[0, -0.024, 0.015]}>
+        <boxGeometry args={[0.114, 0.008, 0.252]} />
+        <meshStandardMaterial color="#ca8a04" roughness={0.7} />
       </mesh>
       {/* Leather Boot Upper */}
-      <mesh castShadow position={[0, 0.015, 0.01]}>
-        <boxGeometry args={[0.10, 0.08, 0.22]} />
+      <mesh castShadow position={[0, 0.014, 0.012]}>
+        <boxGeometry args={[0.102, 0.076, 0.225]} />
         <primitive object={matBoots} attach="material" />
       </mesh>
-      {/* Reinforced Toe Box */}
-      <mesh castShadow position={[0, 0.005, 0.09]}>
-        <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.6]} />
+      {/* Reinforced Curved Safety Toe Box */}
+      <mesh castShadow position={[0, 0.005, 0.088]}>
+        <sphereGeometry args={[0.052, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
         <meshStandardMaterial color="#18181b" roughness={0.5} metalness={0.2} />
       </mesh>
-      {/* Ankle Collar & Tongue */}
-      <mesh castShadow position={[0, 0.06, -0.02]}>
-        <cylinderGeometry args={[0.052, 0.055, 0.07, 12]} />
+      {/* Ankle Collar Cushion */}
+      <mesh castShadow position={[0, 0.062, -0.02]}>
+        <cylinderGeometry args={[0.054, 0.056, 0.075, 16]} />
         <primitive object={matBoots} attach="material" />
       </mesh>
+      {/* Padded Ankle Rim */}
+      <mesh position={[0, 0.096, -0.02]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.053, 0.008, 8, 16]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.8} />
+      </mesh>
+      {/* Boot Lacing Strip & Brass Eyelets */}
+      <group position={[0, 0.045, 0.048]} rotation={[0.42, 0, 0]}>
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[0.042, 0.075, 0.008]} />
+          <meshStandardMaterial color="#78350f" roughness={0.8} />
+        </mesh>
+        {/* Yellow / Gold Kevlar Boot Laces */}
+        {[-0.024, -0.008, 0.008, 0.024].map((y, i) => (
+          <group key={`lace-${i}`} position={[0, y, 0.006]}>
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.0018, 0.0018, 0.038, 6]} />
+              <meshStandardMaterial color="#eab308" roughness={0.5} />
+            </mesh>
+            <mesh position={[-0.019, 0, 0]}>
+              <sphereGeometry args={[0.0028, 6, 6]} />
+              <meshStandardMaterial color="#ca8a04" metalness={0.8} roughness={0.2} />
+            </mesh>
+            <mesh position={[0.019, 0, 0]}>
+              <sphereGeometry args={[0.0028, 6, 6]} />
+              <meshStandardMaterial color="#ca8a04" metalness={0.8} roughness={0.2} />
+            </mesh>
+          </group>
+        ))}
+      </group>
     </group>
   );
 }
@@ -1113,7 +1152,7 @@ function BroadcastHeadsetPro() {
 }
 
 /**
- * 👤 ANATOMICAL FACE, EYES, NOSE, LIPS & OPTIONAL 3D BEARD
+ * 👤 HIGH-FIDELITY ANATOMICAL FACE, EYES, NOSE, LIPS & OPTIONAL 3D BEARD
  */
 function RealisticFaceFeatures({
   matSkin,
@@ -1128,117 +1167,188 @@ function RealisticFaceFeatures({
 }) {
   return (
     <group position={[0, 0, 0]}>
-      {/* Cranium / Head Sphere */}
-      <mesh castShadow position={[0, 0.10, 0]}>
-        <sphereGeometry args={[0.096, 24, 24]} />
+      {/* Cranium / Head Sphere (Vertically Proportioned) */}
+      <mesh castShadow position={[0, 0.10, -0.005]} scale={[1.0, 1.14, 1.06]}>
+        <sphereGeometry args={[0.094, 32, 28]} />
         <primitive object={matSkin} attach="material" />
       </mesh>
 
-      {/* Jaw / Chin Smooth Structure */}
-      <mesh castShadow position={[0, 0.045, 0.025]} rotation={[-0.15, 0, 0]}>
-        <boxGeometry args={[0.088, 0.07, 0.085]} />
+      {/* Forehead & Soft Brow Ridge */}
+      <mesh castShadow position={[0, 0.125, 0.045]} rotation={[0.15, 0, 0]}>
+        <boxGeometry args={[0.098, 0.038, 0.045]} />
         <primitive object={matSkin} attach="material" />
       </mesh>
 
-      {/* Anatomical Ears (Left & Right) */}
-      <group position={[-0.096, 0.09, -0.01]} rotation={[0, -0.15, -0.08]}>
+      {/* Jawline & Chin Structure */}
+      <mesh castShadow position={[0, 0.045, 0.022]} rotation={[-0.14, 0, 0]}>
+        <boxGeometry args={[0.086, 0.068, 0.082]} />
+        <primitive object={matSkin} attach="material" />
+      </mesh>
+      {/* Rounded Chin Prominence */}
+      <mesh castShadow position={[0, 0.028, 0.055]}>
+        <sphereGeometry args={[0.022, 16, 16]} />
+        <primitive object={matSkin} attach="material" />
+      </mesh>
+
+      {/* Anatomical Ears with Helix & Lobe (Left & Right) */}
+      <group position={[-0.096, 0.088, -0.012]} rotation={[0, -0.18, -0.08]}>
         <mesh castShadow>
-          <torusGeometry args={[0.02, 0.006, 8, 16, Math.PI * 1.3]} />
+          <torusGeometry args={[0.021, 0.0055, 8, 16, Math.PI * 1.35]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        <mesh position={[0.003, -0.015, 0]}>
+          <sphereGeometry args={[0.008, 8, 8]} />
           <primitive object={matSkin} attach="material" />
         </mesh>
       </group>
-      <group position={[0.096, 0.09, -0.01]} rotation={[0, 0.15, 0.08]}>
+      <group position={[0.096, 0.088, -0.012]} rotation={[0, 0.18, 0.08]}>
         <mesh castShadow>
-          <torusGeometry args={[0.02, 0.006, 8, 16, Math.PI * 1.3]} />
+          <torusGeometry args={[0.021, 0.0055, 8, 16, Math.PI * 1.35]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        <mesh position={[-0.003, -0.015, 0]}>
+          <sphereGeometry args={[0.008, 8, 8]} />
           <primitive object={matSkin} attach="material" />
         </mesh>
       </group>
 
-      {/* Eyes with Sclera, Iris, Pupil & Brows */}
+      {/* Almond Eyes with Eyelids, Iris, Specular Highlights & Brows */}
       {/* Left Eye */}
-      <group position={[-0.034, 0.105, 0.082]}>
+      <group position={[-0.034, 0.106, 0.083]}>
+        {/* Sclera Eyeball */}
         <mesh>
-          <sphereGeometry args={[0.011, 12, 12]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.1} />
+          <sphereGeometry args={[0.0115, 16, 16]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.15} />
         </mesh>
-        <mesh position={[0, 0, 0.009]}>
-          <circleGeometry args={[0.0055, 12]} />
-          <meshStandardMaterial color="#0284c7" roughness={0.3} />
+        {/* Iris */}
+        <mesh position={[0, 0, 0.0095]}>
+          <circleGeometry args={[0.0058, 16]} />
+          <meshStandardMaterial color="#0284c7" roughness={0.2} metalness={0.1} />
         </mesh>
-        <mesh position={[0, 0, 0.01]}>
-          <circleGeometry args={[0.0028, 12]} />
+        {/* Pupil */}
+        <mesh position={[0, 0, 0.0102]}>
+          <circleGeometry args={[0.0028, 16]} />
           <meshBasicMaterial color="#000000" />
         </mesh>
-        {/* Eyebrow */}
-        <mesh position={[0, 0.012, 0.004]} rotation={[0, 0, 0.08]}>
-          <boxGeometry args={[0.026, 0.005, 0.008]} />
+        {/* Specular Wet Highlight */}
+        <mesh position={[-0.0018, 0.0018, 0.0108]}>
+          <circleGeometry args={[0.0012, 8]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Upper Eyelid Curve */}
+        <mesh position={[0, 0.006, 0.004]} rotation={[0.22, 0, 0]}>
+          <boxGeometry args={[0.024, 0.004, 0.01]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        {/* Lower Eyelid Curve */}
+        <mesh position={[0, -0.006, 0.004]} rotation={[-0.22, 0, 0]}>
+          <boxGeometry args={[0.024, 0.003, 0.01]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        {/* Natural Eyebrow */}
+        <mesh position={[0, 0.015, 0.006]} rotation={[0, 0, 0.06]}>
+          <boxGeometry args={[0.028, 0.0055, 0.008]} />
           <primitive object={matHair} attach="material" />
         </mesh>
       </group>
 
       {/* Right Eye */}
-      <group position={[0.034, 0.105, 0.082]}>
+      <group position={[0.034, 0.106, 0.083]}>
+        {/* Sclera Eyeball */}
         <mesh>
-          <sphereGeometry args={[0.011, 12, 12]} />
-          <meshStandardMaterial color="#f8fafc" roughness={0.1} />
+          <sphereGeometry args={[0.0115, 16, 16]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.15} />
         </mesh>
-        <mesh position={[0, 0, 0.009]}>
-          <circleGeometry args={[0.0055, 12]} />
-          <meshStandardMaterial color="#0284c7" roughness={0.3} />
+        {/* Iris */}
+        <mesh position={[0, 0, 0.0095]}>
+          <circleGeometry args={[0.0058, 16]} />
+          <meshStandardMaterial color="#0284c7" roughness={0.2} metalness={0.1} />
         </mesh>
-        <mesh position={[0, 0, 0.01]}>
-          <circleGeometry args={[0.0028, 12]} />
+        {/* Pupil */}
+        <mesh position={[0, 0, 0.0102]}>
+          <circleGeometry args={[0.0028, 16]} />
           <meshBasicMaterial color="#000000" />
         </mesh>
-        {/* Eyebrow */}
-        <mesh position={[0, 0.012, 0.004]} rotation={[0, 0, -0.08]}>
-          <boxGeometry args={[0.026, 0.005, 0.008]} />
+        {/* Specular Wet Highlight */}
+        <mesh position={[-0.0018, 0.0018, 0.0108]}>
+          <circleGeometry args={[0.0012, 8]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Upper Eyelid Curve */}
+        <mesh position={[0, 0.006, 0.004]} rotation={[0.22, 0, 0]}>
+          <boxGeometry args={[0.024, 0.004, 0.01]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        {/* Lower Eyelid Curve */}
+        <mesh position={[0, -0.006, 0.004]} rotation={[-0.22, 0, 0]}>
+          <boxGeometry args={[0.024, 0.003, 0.01]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        {/* Natural Eyebrow */}
+        <mesh position={[0, 0.015, 0.006]} rotation={[0, 0, -0.06]}>
+          <boxGeometry args={[0.028, 0.0055, 0.008]} />
           <primitive object={matHair} attach="material" />
         </mesh>
       </group>
 
-      {/* Nose */}
-      <group position={[0, 0.082, 0.092]} rotation={[-0.15, 0, 0]}>
-        <mesh castShadow>
-          <coneGeometry args={[0.010, 0.028, 6]} />
+      {/* Anatomical Nose with Bridge, Tip & Nostrils */}
+      <group position={[0, 0.082, 0.093]}>
+        {/* Nasal Bridge */}
+        <mesh castShadow position={[0, 0.014, -0.004]} rotation={[-0.18, 0, 0]}>
+          <boxGeometry args={[0.013, 0.026, 0.016]} />
           <primitive object={matSkin} attach="material" />
         </mesh>
-        <mesh position={[0, -0.012, 0.004]}>
-          <sphereGeometry args={[0.007, 8, 8]} />
+        {/* Rounded Nasal Tip Bulb */}
+        <mesh castShadow position={[0, -0.002, 0.008]}>
+          <sphereGeometry args={[0.0078, 12, 12]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        {/* Left Nostril Wing */}
+        <mesh position={[-0.0075, -0.006, 0.003]} rotation={[0, 0.3, 0]}>
+          <sphereGeometry args={[0.0055, 8, 8]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        {/* Right Nostril Wing */}
+        <mesh position={[0.0075, -0.006, 0.003]} rotation={[0, -0.3, 0]}>
+          <sphereGeometry args={[0.0055, 8, 8]} />
           <primitive object={matSkin} attach="material" />
         </mesh>
       </group>
 
-      {/* Lips */}
-      <mesh position={[0, 0.048, 0.084]}>
-        <boxGeometry args={[0.024, 0.005, 0.006]} />
-        <meshStandardMaterial color="#c27d66" roughness={0.4} />
-      </mesh>
-      <mesh position={[0, 0.041, 0.082]}>
-        <boxGeometry args={[0.020, 0.004, 0.006]} />
-        <meshStandardMaterial color="#b36d56" roughness={0.4} />
-      </mesh>
+      {/* Natural Lips with Cupid's Bow */}
+      <group position={[0, 0.046, 0.085]}>
+        {/* Upper Lip */}
+        <mesh position={[0, 0.0035, 0]}>
+          <boxGeometry args={[0.025, 0.005, 0.007]} />
+          <meshStandardMaterial color="#c27762" roughness={0.35} />
+        </mesh>
+        {/* Lower Lip Cushion */}
+        <mesh position={[0, -0.0045, 0]}>
+          <boxGeometry args={[0.022, 0.006, 0.008]} />
+          <meshStandardMaterial color="#b86d58" roughness={0.35} />
+        </mesh>
+      </group>
 
-      {/* Salt & Pepper Beard */}
+      {/* Salt & Pepper Groomed 3D Beard */}
       {hasBeard && matBeard && (
         <group position={[0, 0.042, 0.04]}>
-          {/* Mustache */}
-          <mesh castShadow position={[0, 0.018, 0.046]} rotation={[0.05, 0, 0]}>
-            <boxGeometry args={[0.048, 0.012, 0.015]} />
+          {/* Mustache hugging upper lip */}
+          <mesh castShadow position={[0, 0.016, 0.048]} rotation={[0.06, 0, 0]}>
+            <boxGeometry args={[0.046, 0.014, 0.016]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
-          {/* Chin Beard */}
-          <mesh castShadow position={[0, -0.012, 0.038]}>
-            <boxGeometry args={[0.065, 0.038, 0.045]} />
+          {/* Chin Tuft / Goatee */}
+          <mesh castShadow position={[0, -0.014, 0.038]}>
+            <boxGeometry args={[0.062, 0.036, 0.044]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
-          {/* Side Beards / Jawline */}
-          <mesh position={[-0.044, 0.018, 0.008]} rotation={[0, 0.15, -0.2]}>
-            <boxGeometry args={[0.018, 0.055, 0.055]} />
+          {/* Jawline Side Beards */}
+          <mesh position={[-0.043, 0.016, 0.008]} rotation={[0, 0.16, -0.18]}>
+            <boxGeometry args={[0.018, 0.056, 0.054]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
-          <mesh position={[0.044, 0.018, 0.008]} rotation={[0, -0.15, 0.2]}>
-            <boxGeometry args={[0.018, 0.055, 0.055]} />
+          <mesh position={[0.043, 0.016, 0.008]} rotation={[0, -0.16, 0.18]}>
+            <boxGeometry args={[0.018, 0.056, 0.054]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
         </group>
@@ -1447,22 +1557,76 @@ function RearCraneOperatorRig({
     <group ref={rootRef}>
       {/* Humanoid Rig */}
       <group ref={hipsRef} position={[0, 0.96, 0]}>
+        {/* Pelvis in Work Trousers */}
         <mesh castShadow position={[0, 0, 0]}>
-          <boxGeometry args={[0.32, 0.20, 0.22]} />
+          <boxGeometry args={[0.32, 0.18, 0.22]} />
           <primitive object={matPants} attach="material" />
         </mesh>
-        <mesh castShadow position={[0, 0.11, 0]}>
-          <boxGeometry args={[0.33, 0.06, 0.23]} />
+
+        {/* Heavy Leather Work Belt & Double-Pin Steel Buckle */}
+        <mesh castShadow position={[0, 0.095, 0]}>
+          <boxGeometry args={[0.33, 0.048, 0.228]} />
           <primitive object={matBelt} attach="material" />
+        </mesh>
+        {/* Steel Belt Buckle */}
+        <mesh position={[0, 0.095, 0.116]}>
+          <boxGeometry args={[0.052, 0.042, 0.012]} />
+          <meshStandardMaterial color="#cbd5e1" metalness={0.92} roughness={0.18} />
+        </mesh>
+        <mesh position={[0, 0.095, 0.122]}>
+          <cylinderGeometry args={[0.0022, 0.0022, 0.028, 8]} />
+          <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.2} />
         </mesh>
 
         <group ref={spineRef} position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.24, 0]}>
-            <boxGeometry args={[0.38, 0.44, 0.25]} />
+          {/* Main Weatherproof Set Jacket */}
+          <mesh castShadow position={[0, 0.23, 0]}>
+            <boxGeometry args={[0.38, 0.42, 0.24]} />
             <primitive object={matJacket} attach="material" />
           </mesh>
-          <mesh castShadow position={[0, 0.46, 0]}>
-            <cylinderGeometry args={[0.12, 0.14, 0.12, 16]} />
+
+          {/* Heavy-Duty Central Steel Zipper Track */}
+          <mesh position={[0, 0.22, 0.122]}>
+            <boxGeometry args={[0.014, 0.39, 0.006]} />
+            <meshStandardMaterial color="#94a3b8" metalness={0.88} roughness={0.2} />
+          </mesh>
+          {/* Silver Zipper Pull Slider */}
+          <mesh position={[0, 0.35, 0.128]}>
+            <boxGeometry args={[0.008, 0.026, 0.008]} />
+            <meshStandardMaterial color="#f1f5f9" metalness={0.95} roughness={0.1} />
+          </mesh>
+
+          {/* Left & Right Flap Chest Pockets with Metal Snap Studs */}
+          <group position={[-0.10, 0.27, 0.122]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.088, 0.095, 0.012]} />
+              <primitive object={matJacket} attach="material" />
+            </mesh>
+            <mesh position={[0, 0.035, 0.008]}>
+              <sphereGeometry args={[0.0038, 8, 8]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.2} />
+            </mesh>
+          </group>
+          <group position={[0.10, 0.27, 0.122]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.088, 0.095, 0.012]} />
+              <primitive object={matJacket} attach="material" />
+            </mesh>
+            <mesh position={[0, 0.035, 0.008]}>
+              <sphereGeometry args={[0.0038, 8, 8]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.2} />
+            </mesh>
+          </group>
+
+          {/* Ribbed Bottom Waist Hem Band */}
+          <mesh castShadow position={[0, 0.03, 0]}>
+            <boxGeometry args={[0.36, 0.045, 0.23]} />
+            <primitive object={matJacketCollar} attach="material" />
+          </mesh>
+
+          {/* Storm Collar with Ribbed Neck Trim */}
+          <mesh castShadow position={[0, 0.45, 0]}>
+            <cylinderGeometry args={[0.11, 0.13, 0.10, 16]} />
             <primitive object={matJacketCollar} attach="material" />
           </mesh>
 
@@ -1523,20 +1687,26 @@ function RearCraneOperatorRig({
 
           {/* Left Arm with 5-Finger Articulated Hand */}
           <group ref={leftShoulderRef} position={[-0.22, 0.38, 0]}>
-            <mesh castShadow position={[0, -0.14, 0]}>
-              <cylinderGeometry args={[0.055, 0.048, 0.28, 12]} />
+            {/* Shoulder Deltoid & Upper Arm */}
+            <mesh castShadow position={[0, -0.12, 0]}>
+              <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
               <primitive object={matJacket} attach="material" />
             </mesh>
-            <group ref={leftElbowRef} position={[0, -0.28, 0]}>
-              <mesh castShadow position={[0, -0.13, 0]}>
-                <cylinderGeometry args={[0.048, 0.042, 0.26, 12]} />
+            <group ref={leftElbowRef} position={[0, -0.25, 0]}>
+              {/* Forearm & Sleeve Cuff */}
+              <mesh castShadow position={[0, -0.12, 0]}>
+                <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
                 <primitive object={matJacket} attach="material" />
               </mesh>
-              <group ref={leftHandRef} position={[0, -0.26, 0]} rotation={[0.2, 0, 0.1]}>
+              <mesh position={[0, -0.22, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.039, 0.006, 8, 16]} />
+                <primitive object={matJacketCollar} attach="material" />
+              </mesh>
+              <group ref={leftHandRef} position={[0, -0.24, 0]} rotation={[0.2, 0, 0.1]}>
                 <ArticulatedCineHand
                   isRight={false}
                   isGlove={true}
-                  grip={0.82}
+                  grip={0.92}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1546,20 +1716,26 @@ function RearCraneOperatorRig({
 
           {/* Right Arm with 5-Finger Articulated Hand */}
           <group ref={rightShoulderRef} position={[0.22, 0.38, 0]}>
-            <mesh castShadow position={[0, -0.14, 0]}>
-              <cylinderGeometry args={[0.055, 0.048, 0.28, 12]} />
+            {/* Shoulder Deltoid & Upper Arm */}
+            <mesh castShadow position={[0, -0.12, 0]}>
+              <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
               <primitive object={matJacket} attach="material" />
             </mesh>
-            <group ref={rightElbowRef} position={[0, -0.28, 0]}>
-              <mesh castShadow position={[0, -0.13, 0]}>
-                <cylinderGeometry args={[0.048, 0.042, 0.26, 12]} />
+            <group ref={rightElbowRef} position={[0, -0.25, 0]}>
+              {/* Forearm & Sleeve Cuff */}
+              <mesh castShadow position={[0, -0.12, 0]}>
+                <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
                 <primitive object={matJacket} attach="material" />
               </mesh>
-              <group ref={rightHandRef} position={[0, -0.26, 0]} rotation={[0.2, 0, -0.1]}>
+              <mesh position={[0, -0.22, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.039, 0.006, 8, 16]} />
+                <primitive object={matJacketCollar} attach="material" />
+              </mesh>
+              <group ref={rightHandRef} position={[0, -0.24, 0]} rotation={[0.2, 0, -0.1]}>
                 <ArticulatedCineHand
                   isRight={true}
                   isGlove={true}
-                  grip={0.82}
+                  grip={0.92}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1568,30 +1744,54 @@ function RearCraneOperatorRig({
           </group>
         </group>
 
-        {/* Left Leg with Rugged Boots */}
+        {/* Left Leg with Cargo Work Trousers & Boots */}
         <group ref={leftHipRef} position={[-0.12, -0.06, 0]}>
-          <mesh castShadow position={[0, -0.22, 0]}>
-            <cylinderGeometry args={[0.07, 0.06, 0.44, 12]} />
+          {/* Thigh */}
+          <mesh castShadow position={[0, -0.20, 0]}>
+            <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
             <primitive object={matPants} attach="material" />
           </mesh>
-          <group ref={leftKneeRef} position={[0, -0.44, 0]}>
-            <mesh castShadow position={[0, -0.20, 0]}>
-              <cylinderGeometry args={[0.058, 0.05, 0.40, 12]} />
+          {/* Side Cargo Pocket */}
+          <mesh castShadow position={[-0.062, -0.16, 0]}>
+            <boxGeometry args={[0.018, 0.11, 0.085]} />
+            <primitive object={matPants} attach="material" />
+          </mesh>
+          <group ref={leftKneeRef} position={[0, -0.40, 0]}>
+            {/* Knee Reinforcement Seam */}
+            <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+              <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            {/* Calf in Trousers */}
+            <mesh castShadow position={[0, -0.19, 0]}>
+              <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
               <primitive object={matPants} attach="material" />
             </mesh>
             <WorkSafetyBoots matBoots={matBoots} />
           </group>
         </group>
 
-        {/* Right Leg with Rugged Boots */}
+        {/* Right Leg with Cargo Work Trousers & Boots */}
         <group ref={rightHipRef} position={[0.12, -0.06, 0]}>
-          <mesh castShadow position={[0, -0.22, 0]}>
-            <cylinderGeometry args={[0.07, 0.06, 0.44, 12]} />
+          {/* Thigh */}
+          <mesh castShadow position={[0, -0.20, 0]}>
+            <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
             <primitive object={matPants} attach="material" />
           </mesh>
-          <group ref={rightKneeRef} position={[0, -0.44, 0]}>
-            <mesh castShadow position={[0, -0.20, 0]}>
-              <cylinderGeometry args={[0.058, 0.05, 0.40, 12]} />
+          {/* Side Cargo Pocket */}
+          <mesh castShadow position={[0.062, -0.16, 0]}>
+            <boxGeometry args={[0.018, 0.11, 0.085]} />
+            <primitive object={matPants} attach="material" />
+          </mesh>
+          <group ref={rightKneeRef} position={[0, -0.40, 0]}>
+            {/* Knee Reinforcement Seam */}
+            <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+              <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            {/* Calf in Trousers */}
+            <mesh castShadow position={[0, -0.19, 0]}>
+              <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
               <primitive object={matPants} attach="material" />
             </mesh>
             <WorkSafetyBoots matBoots={matBoots} />
@@ -1695,11 +1895,12 @@ function FloorControlDeskAndOperatorRig({
     return { cineMonitorTexture: texture, cineMonitorCanvas: canvas };
   }, []);
 
-  const matSkin = useMemo(() => new THREE.MeshStandardMaterial({ color: '#f3c5a6', roughness: 0.55, metalness: 0.05 }), []);
+  const matSkin = useMemo(() => new THREE.MeshStandardMaterial({ color: '#f2c1a0', roughness: 0.46, metalness: 0.02 }), []);
   const matHairDark = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e1b18', roughness: 0.85 }), []);
   const matShirt = useMemo(() => new THREE.MeshStandardMaterial({ map: shirtTexture, roughness: 0.8, metalness: 0.1 }), [shirtTexture]);
   const matPants = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.85, metalness: 0.05 }), []);
-  const matBoots = useMemo(() => new THREE.MeshStandardMaterial({ color: '#09090b', roughness: 0.45, metalness: 0.3 }), []);
+  const matBelt = useMemo(() => new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.4, roughness: 0.5 }), []);
+  const matBoots = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.45, metalness: 0.25 }), []);
   const matFlightcase = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.6, metalness: 0.3 }), []);
   const matAluTrim = useMemo(() => new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.35, metalness: 0.85 }), []);
   const matWheelGold = useMemo(() => new THREE.MeshStandardMaterial({ color: '#facc15', metalness: 0.85, roughness: 0.2 }), []);
@@ -1892,15 +2093,33 @@ function FloorControlDeskAndOperatorRig({
 
       {/* 2. DOP / HEAD OPERATOR HUMANOID */}
       <group position={[0, 0.96, 0]}>
+        {/* Pelvis in Work Trousers */}
         <mesh castShadow position={[0, 0, 0]}>
-          <boxGeometry args={[0.32, 0.20, 0.22]} />
+          <boxGeometry args={[0.32, 0.18, 0.22]} />
           <primitive object={matPants} attach="material" />
         </mesh>
 
+        {/* Heavy Leather Belt & Steel Buckle */}
+        <mesh castShadow position={[0, 0.095, 0]}>
+          <boxGeometry args={[0.33, 0.048, 0.228]} />
+          <primitive object={matBelt} attach="material" />
+        </mesh>
+        <mesh position={[0, 0.095, 0.116]}>
+          <boxGeometry args={[0.052, 0.042, 0.012]} />
+          <meshStandardMaterial color="#cbd5e1" metalness={0.92} roughness={0.18} />
+        </mesh>
+
         <group ref={spineRef} position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.24, 0]}>
-            <boxGeometry args={[0.38, 0.44, 0.25]} />
+          {/* Main Crew Hoodie / Shirt */}
+          <mesh castShadow position={[0, 0.23, 0]}>
+            <boxGeometry args={[0.38, 0.42, 0.24]} />
             <primitive object={matShirt} attach="material" />
+          </mesh>
+
+          {/* Solid Anatomical Neck */}
+          <mesh castShadow position={[0, 0.49, 0]}>
+            <cylinderGeometry args={[0.048, 0.052, 0.08, 16]} />
+            <primitive object={matSkin} attach="material" />
           </mesh>
 
           {/* Film Crew Walkie-Talkie on Shoulder */}
@@ -1910,7 +2129,7 @@ function FloorControlDeskAndOperatorRig({
           <CrewLanyardPass passTexture={passTexture} />
 
           {/* Head & Headset */}
-          <group ref={headRef} position={[0, 0.56, 0]}>
+          <group ref={headRef} position={[0, 0.54, 0]}>
             <RealisticFaceFeatures
               matSkin={matSkin}
               hasBeard={false}
@@ -1929,20 +2148,20 @@ function FloorControlDeskAndOperatorRig({
 
           {/* Arms with 5-Finger Articulated Hands */}
           <group ref={leftShoulderRef} position={[-0.22, 0.38, 0]}>
-            <mesh castShadow position={[0, -0.14, 0]}>
-              <cylinderGeometry args={[0.055, 0.048, 0.28, 12]} />
+            <mesh castShadow position={[0, -0.12, 0]}>
+              <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
               <primitive object={matShirt} attach="material" />
             </mesh>
-            <group ref={leftElbowRef} position={[0, -0.28, 0]}>
-              <mesh castShadow position={[0, -0.13, 0]}>
-                <cylinderGeometry args={[0.048, 0.042, 0.26, 12]} />
+            <group ref={leftElbowRef} position={[0, -0.25, 0]}>
+              <mesh castShadow position={[0, -0.12, 0]}>
+                <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
                 <primitive object={matSkin} attach="material" />
               </mesh>
-              <group ref={leftHandRef} position={[0, -0.26, 0]} rotation={[0.3, 0, 0.2]}>
+              <group ref={leftHandRef} position={[0, -0.24, 0]} rotation={[0.3, 0, 0.2]}>
                 <ArticulatedCineHand
                   isRight={false}
                   isGlove={true}
-                  grip={0.42}
+                  grip={0.62}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1951,20 +2170,20 @@ function FloorControlDeskAndOperatorRig({
           </group>
 
           <group ref={rightShoulderRef} position={[0.22, 0.38, 0]}>
-            <mesh castShadow position={[0, -0.14, 0]}>
-              <cylinderGeometry args={[0.055, 0.048, 0.28, 12]} />
+            <mesh castShadow position={[0, -0.12, 0]}>
+              <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
               <primitive object={matShirt} attach="material" />
             </mesh>
-            <group ref={rightElbowRef} position={[0, -0.28, 0]}>
-              <mesh castShadow position={[0, -0.13, 0]}>
-                <cylinderGeometry args={[0.048, 0.042, 0.26, 12]} />
+            <group ref={rightElbowRef} position={[0, -0.25, 0]}>
+              <mesh castShadow position={[0, -0.12, 0]}>
+                <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
                 <primitive object={matSkin} attach="material" />
               </mesh>
-              <group ref={rightHandRef} position={[0, -0.26, 0]} rotation={[0.3, 0, -0.2]}>
+              <group ref={rightHandRef} position={[0, -0.24, 0]} rotation={[0.3, 0, -0.2]}>
                 <ArticulatedCineHand
                   isRight={true}
                   isGlove={true}
-                  grip={0.42}
+                  grip={0.62}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1973,15 +2192,24 @@ function FloorControlDeskAndOperatorRig({
           </group>
         </group>
 
-        {/* Legs with Rugged Work Boots */}
+        {/* Legs with Cargo Work Trousers & Boots */}
         <group ref={leftHipRef} position={[-0.12, -0.06, 0]}>
-          <mesh castShadow position={[0, -0.22, 0]}>
-            <cylinderGeometry args={[0.07, 0.06, 0.44, 12]} />
+          <mesh castShadow position={[0, -0.20, 0]}>
+            <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
             <primitive object={matPants} attach="material" />
           </mesh>
-          <group ref={leftKneeRef} position={[0, -0.44, 0]}>
-            <mesh castShadow position={[0, -0.20, 0]}>
-              <cylinderGeometry args={[0.058, 0.05, 0.40, 12]} />
+          {/* Side Cargo Pocket */}
+          <mesh castShadow position={[-0.062, -0.16, 0]}>
+            <boxGeometry args={[0.018, 0.11, 0.085]} />
+            <primitive object={matPants} attach="material" />
+          </mesh>
+          <group ref={leftKneeRef} position={[0, -0.40, 0]}>
+            <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+              <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            <mesh castShadow position={[0, -0.19, 0]}>
+              <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
               <primitive object={matPants} attach="material" />
             </mesh>
             <WorkSafetyBoots matBoots={matBoots} />
@@ -1989,13 +2217,22 @@ function FloorControlDeskAndOperatorRig({
         </group>
 
         <group ref={rightHipRef} position={[0.12, -0.06, 0]}>
-          <mesh castShadow position={[0, -0.22, 0]}>
-            <cylinderGeometry args={[0.07, 0.06, 0.44, 12]} />
+          <mesh castShadow position={[0, -0.20, 0]}>
+            <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
             <primitive object={matPants} attach="material" />
           </mesh>
-          <group ref={rightKneeRef} position={[0, -0.44, 0]}>
-            <mesh castShadow position={[0, -0.20, 0]}>
-              <cylinderGeometry args={[0.058, 0.05, 0.40, 12]} />
+          {/* Side Cargo Pocket */}
+          <mesh castShadow position={[0.062, -0.16, 0]}>
+            <boxGeometry args={[0.018, 0.11, 0.085]} />
+            <primitive object={matPants} attach="material" />
+          </mesh>
+          <group ref={rightKneeRef} position={[0, -0.40, 0]}>
+            <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+              <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            <mesh castShadow position={[0, -0.19, 0]}>
+              <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
               <primitive object={matPants} attach="material" />
             </mesh>
             <WorkSafetyBoots matBoots={matBoots} />
