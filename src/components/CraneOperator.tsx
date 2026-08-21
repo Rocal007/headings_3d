@@ -6,12 +6,10 @@ import {
   getFrontLowestY,
   getRearLowestY
 } from '../utils/craneKinematics';
-import type { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
 
 export type CraneOperatorMode = 'hidden' | 'walking_in' | 'operating' | 'walking_out';
 
 export interface CraneOperatorProps {
-  crane?: Supertechno50FBXModel | null;
   mode: CraneOperatorMode;
   onArrivedAtControls?: () => void;
   onExited?: () => void;
@@ -1129,118 +1127,118 @@ function RealisticFaceFeatures({
   matHair: THREE.Material;
 }) {
   return (
-    <group>
-      {/* Sculpted Head Base */}
+    <group position={[0, 0, 0]}>
+      {/* Cranium / Head Sphere */}
       <mesh castShadow position={[0, 0.10, 0]}>
-        <sphereGeometry args={[0.105, 20, 20]} />
+        <sphereGeometry args={[0.096, 24, 24]} />
         <primitive object={matSkin} attach="material" />
       </mesh>
-      {/* Jawline & Chin Structure */}
-      <mesh castShadow position={[0, 0.04, 0.03]} rotation={[-0.2, 0, 0]}>
-        <boxGeometry args={[0.11, 0.08, 0.11]} />
+
+      {/* Jaw / Chin Smooth Structure */}
+      <mesh castShadow position={[0, 0.045, 0.025]} rotation={[-0.15, 0, 0]}>
+        <boxGeometry args={[0.088, 0.07, 0.085]} />
         <primitive object={matSkin} attach="material" />
       </mesh>
 
       {/* Anatomical Ears (Left & Right) */}
-      <group position={[-0.102, 0.09, -0.01]} rotation={[0, -0.15, -0.08]}>
+      <group position={[-0.096, 0.09, -0.01]} rotation={[0, -0.15, -0.08]}>
         <mesh castShadow>
-          <torusGeometry args={[0.022, 0.007, 8, 16, Math.PI * 1.3]} />
-          <primitive object={matSkin} attach="material" />
-        </mesh>
-        <mesh position={[0.003, -0.015, 0]}>
-          <sphereGeometry args={[0.009, 8, 8]} />
+          <torusGeometry args={[0.02, 0.006, 8, 16, Math.PI * 1.3]} />
           <primitive object={matSkin} attach="material" />
         </mesh>
       </group>
-      <group position={[0.102, 0.09, -0.01]} rotation={[0, 0.15, 0.08]}>
+      <group position={[0.096, 0.09, -0.01]} rotation={[0, 0.15, 0.08]}>
         <mesh castShadow>
-          <torusGeometry args={[0.022, 0.007, 8, 16, Math.PI * 1.3]} />
-          <primitive object={matSkin} attach="material" />
-        </mesh>
-        <mesh position={[-0.003, -0.015, 0]}>
-          <sphereGeometry args={[0.009, 8, 8]} />
+          <torusGeometry args={[0.02, 0.006, 8, 16, Math.PI * 1.3]} />
           <primitive object={matSkin} attach="material" />
         </mesh>
       </group>
 
-      {/* Realistic Eyes with Sclera, Iris, Pupil & Brows */}
+      {/* Eyes with Sclera, Iris, Pupil & Brows */}
       {/* Left Eye */}
-      <group position={[-0.036, 0.11, 0.088]} rotation={[0, -0.1, 0]}>
+      <group position={[-0.034, 0.105, 0.082]}>
         <mesh>
-          <sphereGeometry args={[0.012, 12, 12]} />
+          <sphereGeometry args={[0.011, 12, 12]} />
           <meshStandardMaterial color="#f8fafc" roughness={0.1} />
         </mesh>
         <mesh position={[0, 0, 0.009]}>
-          <circleGeometry args={[0.006, 12]} />
+          <circleGeometry args={[0.0055, 12]} />
           <meshStandardMaterial color="#0284c7" roughness={0.3} />
         </mesh>
         <mesh position={[0, 0, 0.01]}>
-          <circleGeometry args={[0.003, 12]} />
+          <circleGeometry args={[0.0028, 12]} />
           <meshBasicMaterial color="#000000" />
         </mesh>
-        <mesh position={[0, 0.014, 0.005]}>
-          <boxGeometry args={[0.028, 0.006, 0.01]} />
+        {/* Eyebrow */}
+        <mesh position={[0, 0.012, 0.004]} rotation={[0, 0, 0.08]}>
+          <boxGeometry args={[0.026, 0.005, 0.008]} />
           <primitive object={matHair} attach="material" />
         </mesh>
       </group>
 
       {/* Right Eye */}
-      <group position={[0.036, 0.11, 0.088]} rotation={[0, 0.1, 0]}>
+      <group position={[0.034, 0.105, 0.082]}>
         <mesh>
-          <sphereGeometry args={[0.012, 12, 12]} />
+          <sphereGeometry args={[0.011, 12, 12]} />
           <meshStandardMaterial color="#f8fafc" roughness={0.1} />
         </mesh>
         <mesh position={[0, 0, 0.009]}>
-          <circleGeometry args={[0.006, 12]} />
+          <circleGeometry args={[0.0055, 12]} />
           <meshStandardMaterial color="#0284c7" roughness={0.3} />
         </mesh>
         <mesh position={[0, 0, 0.01]}>
-          <circleGeometry args={[0.003, 12]} />
+          <circleGeometry args={[0.0028, 12]} />
           <meshBasicMaterial color="#000000" />
         </mesh>
-        <mesh position={[0, 0.014, 0.005]}>
-          <boxGeometry args={[0.028, 0.006, 0.01]} />
+        {/* Eyebrow */}
+        <mesh position={[0, 0.012, 0.004]} rotation={[0, 0, -0.08]}>
+          <boxGeometry args={[0.026, 0.005, 0.008]} />
           <primitive object={matHair} attach="material" />
         </mesh>
       </group>
 
-      {/* Nose Bridge & Tip */}
-      <mesh castShadow position={[0, 0.088, 0.102]} rotation={[-0.3, 0, 0]}>
-        <coneGeometry args={[0.012, 0.035, 6]} />
-        <primitive object={matSkin} attach="material" />
-      </mesh>
-      <mesh castShadow position={[0, 0.076, 0.106]}>
-        <sphereGeometry args={[0.008, 8, 8]} />
-        <primitive object={matSkin} attach="material" />
-      </mesh>
+      {/* Nose */}
+      <group position={[0, 0.082, 0.092]} rotation={[-0.15, 0, 0]}>
+        <mesh castShadow>
+          <coneGeometry args={[0.010, 0.028, 6]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+        <mesh position={[0, -0.012, 0.004]}>
+          <sphereGeometry args={[0.007, 8, 8]} />
+          <primitive object={matSkin} attach="material" />
+        </mesh>
+      </group>
 
-      {/* Lips & Mouth Contour */}
-      <mesh position={[0, 0.052, 0.098]}>
-        <boxGeometry args={[0.028, 0.006, 0.008]} />
+      {/* Lips */}
+      <mesh position={[0, 0.048, 0.084]}>
+        <boxGeometry args={[0.024, 0.005, 0.006]} />
         <meshStandardMaterial color="#c27d66" roughness={0.4} />
       </mesh>
-      <mesh position={[0, 0.044, 0.096]}>
-        <boxGeometry args={[0.024, 0.006, 0.008]} />
+      <mesh position={[0, 0.041, 0.082]}>
+        <boxGeometry args={[0.020, 0.004, 0.006]} />
         <meshStandardMaterial color="#b36d56" roughness={0.4} />
       </mesh>
 
-      {/* Optional 3D Modeled Beard */}
+      {/* Salt & Pepper Beard */}
       {hasBeard && matBeard && (
-        <group position={[0, 0.05, 0.07]}>
-          <mesh castShadow position={[0, 0.015, 0.032]} rotation={[0.1, 0, 0]}>
-            <boxGeometry args={[0.065, 0.018, 0.02]} />
+        <group position={[0, 0.042, 0.04]}>
+          {/* Mustache */}
+          <mesh castShadow position={[0, 0.018, 0.046]} rotation={[0.05, 0, 0]}>
+            <boxGeometry args={[0.048, 0.012, 0.015]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
-          <mesh castShadow position={[0, -0.015, 0.025]}>
-            <boxGeometry args={[0.095, 0.06, 0.075]} />
+          {/* Chin Beard */}
+          <mesh castShadow position={[0, -0.012, 0.038]}>
+            <boxGeometry args={[0.065, 0.038, 0.045]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
-          <mesh position={[-0.085, 0.025, -0.01]}>
-            <boxGeometry args={[0.02, 0.08, 0.04]} />
+          {/* Side Beards / Jawline */}
+          <mesh position={[-0.044, 0.018, 0.008]} rotation={[0, 0.15, -0.2]}>
+            <boxGeometry args={[0.018, 0.055, 0.055]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
-          <mesh position={[0.085, 0.025, -0.01]}>
-            <boxGeometry args={[0.02, 0.08, 0.04]} />
+          <mesh position={[0.044, 0.018, 0.008]} rotation={[0, -0.15, 0.2]}>
+            <boxGeometry args={[0.018, 0.055, 0.055]} />
             <primitive object={matBeard} attach="material" />
           </mesh>
         </group>
@@ -1253,7 +1251,6 @@ function RealisticFaceFeatures({
 // 1. REAR CRANE OPERATOR (Kranführer am Ausleger/Heck)
 // =============================================================================
 function RearCraneOperatorRig({
-  crane,
   mode,
   dollyTrack = 0,
   columnElevation = 1.54,
@@ -1263,7 +1260,6 @@ function RearCraneOperatorRig({
   animT = 1.0,
   walkTime = 0
 }: {
-  crane?: Supertechno50FBXModel | null;
   mode: CraneOperatorMode;
   dollyTrack: number;
   columnElevation?: number;
@@ -1314,45 +1310,26 @@ function RearCraneOperatorRig({
   useFrame(() => {
     if (!rootRef.current) return;
 
-    // 🎯 DIRECT 3D MATRIX TRACKING TO THE CRANE'S REAR HENKEL
-    let targetX = 0;
-    let targetZ = dollyTrack + 4.18;
-    let targetRotY = Math.PI;
-    let handleWorldY = (columnElevation || 1.54) + 0.32;
+    // 🎯 EXACT ANALYTICAL KINEMATICS FOR REAR CRANE OPERATOR AT THE HECK
+    const panRad = THREE.MathUtils.degToRad(-basePan); // Matches scene pan rotation
+    const tiltRad = THREE.MathUtils.degToRad(boomTilt); // Matches scene boom tilt
 
-    if (crane && crane.isLoaded && crane.nodes && crane.nodes.beams) {
-      const beamNode = crane.nodes.beams;
-      beamNode.updateWorldMatrix(true, false);
+    const rearLeverArm = 3.74; // Distance to rear Henkel / grab rails
+    const rearHandleYLocal = 0.32; // Height above fulcrum plane
 
-      const henkelLocalPos = new THREE.Vector3(0, 0.32, 3.74);
-      const henkelWorldPos = henkelLocalPos.clone().applyMatrix4(beamNode.matrixWorld);
+    // Local rotated coordinates of rear Henkel relative to pivot
+    const handleZRot = rearLeverArm * Math.cos(tiltRad) + rearHandleYLocal * Math.sin(tiltRad);
+    const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);
+    const handleWorldY = Math.max(0.15, (columnElevation || 1.54) + handleYRot);
 
-      const rearDir = new THREE.Vector3(0, 0, 1).transformDirection(beamNode.matrixWorld);
-      rearDir.y = 0;
-      rearDir.normalize();
-
-      targetX = henkelWorldPos.x + rearDir.x * 0.44;
-      targetZ = henkelWorldPos.z + rearDir.z * 0.44;
-      targetRotY = Math.atan2(rearDir.x, rearDir.z) + Math.PI;
-      handleWorldY = henkelWorldPos.y;
-    } else {
-      const panRad = (basePan * Math.PI) / 180;
-      const tiltRad = -(boomTilt * Math.PI) / 180;
-      const rearLeverArm = 3.74;
-      const rearHandleYLocal = 0.32;
-
-      const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);
-      const handleZRot = rearHandleYLocal * Math.sin(tiltRad) + rearLeverArm * Math.cos(tiltRad);
-      handleWorldY = (columnElevation || 1.54) + handleYRot;
-
-      const opRadialDistance = handleZRot + 0.44;
-      targetX = -opRadialDistance * Math.sin(panRad);
-      targetZ = dollyTrack + opRadialDistance * Math.cos(panRad);
-      targetRotY = Math.PI + panRad;
-    }
+    // Operator stance offset 0.44m behind the Henkel
+    const opRadius = handleZRot + 0.44;
+    const targetX = -opRadius * Math.sin(panRad);
+    const targetZ = (dollyTrack || 0) + opRadius * Math.cos(panRad);
+    const targetRotY = Math.PI + panRad; // Faces the crane boom from behind
 
     const spawnX = -6.5;
-    const spawnZ = dollyTrack + 7.5;
+    const spawnZ = (dollyTrack || 0) + 7.5;
 
     const isWalking = mode === 'walking_in' || mode === 'walking_out';
 
@@ -1409,11 +1386,11 @@ function RearCraneOperatorRig({
         rightKneeRef.current.rotation.x = 0.05;
       }
       if (spineRef.current) {
-        spineRef.current.rotation.x = -0.06 + Math.sin(walkTime * 0.25) * 0.02 - (boomTilt * Math.PI / 180) * 0.05;
+        spineRef.current.rotation.x = -0.06 + Math.sin(walkTime * 0.25) * 0.02;
         spineRef.current.position.y = breathe;
       }
       if (headRef.current) {
-        const lookUpAngle = -0.22 - (boomTilt * Math.PI / 180) * 0.35;
+        const lookUpAngle = THREE.MathUtils.clamp(-0.12 - (boomTilt * Math.PI / 180) * 0.2, -0.35, 0.25);
         headRef.current.rotation.x = lookUpAngle;
       }
       // Left hand firmly gripping the left rubber sleeve of the Henkel
@@ -1469,30 +1446,35 @@ function RearCraneOperatorRig({
               matHair={matHairSaltPepper}
             />
 
-            {/* Hair Salt & Pepper Volume */}
-            <mesh castShadow position={[0, 0.12, -0.03]}>
-              <sphereGeometry args={[0.108, 16, 16]} />
+            {/* Hair (Trimmed neatly at back and sides under cap) */}
+            <mesh castShadow position={[0, 0.085, -0.02]}>
+              <sphereGeometry args={[0.098, 16, 16]} />
               <primitive object={matHairSaltPepper} attach="material" />
             </mesh>
 
             {/* In-Ear Acoustic Secret Service Style Coil */}
-            <mesh castShadow position={[0, 0, 0]}>
-              <tubeGeometry args={[acousticCurve, 24, 0.004, 8, false]} />
-              <primitive object={matAcousticCoil} attach="material" />
-            </mesh>
+            <group position={[-0.095, 0.08, 0]}>
+              <mesh castShadow>
+                <tubeGeometry args={[acousticCurve, 24, 0.003, 8, false]} />
+                <primitive object={matAcousticCoil} attach="material" />
+              </mesh>
+            </group>
 
-            {/* Vintage Trucker Cap */}
-            <group position={[0, 0.075, 0.005]} rotation={[-0.08, 0, 0]}>
-              <mesh castShadow position={[0, 0.03, -0.02]}>
-                <sphereGeometry args={[0.108, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58]} />
+            {/* Vintage Trucker Cap (Properly Fitted on Top of Cranium) */}
+            <group position={[0, 0.11, 0]} rotation={[-0.04, 0, 0]}>
+              {/* Rear Mesh Dome */}
+              <mesh castShadow position={[0, 0.02, -0.015]}>
+                <sphereGeometry args={[0.102, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
                 <primitive object={matCapMesh} attach="material" />
               </mesh>
-              <mesh castShadow position={[0, 0.038, 0.055]} rotation={[-0.32, 0, 0]}>
-                <boxGeometry args={[0.165, 0.105, 0.045]} />
+              {/* Front Foam Panel */}
+              <mesh castShadow position={[0, 0.03, 0.045]} rotation={[-0.22, 0, 0]}>
+                <boxGeometry args={[0.125, 0.065, 0.035]} />
                 <primitive object={matCapFront} attach="material" />
               </mesh>
-              <mesh castShadow position={[0, 0.009, 0.16]} rotation={[0.22, 0, 0]}>
-                <boxGeometry args={[0.175, 0.01, 0.13]} />
+              {/* Visor / Brim */}
+              <mesh castShadow position={[0, 0.008, 0.095]} rotation={[0.14, 0, 0]}>
+                <boxGeometry args={[0.135, 0.008, 0.085]} />
                 <primitive object={matCapBrimTop} attach="material" />
               </mesh>
             </group>
@@ -1895,8 +1877,8 @@ function FloorControlDeskAndOperatorRig({
             />
 
             {/* Dark Textured Hair */}
-            <mesh castShadow position={[0, 0.12, 0]}>
-              <sphereGeometry args={[0.108, 16, 16]} />
+            <mesh castShadow position={[0, 0.102, -0.01]}>
+              <sphereGeometry args={[0.098, 16, 16]} />
               <primitive object={matHairDark} attach="material" />
             </mesh>
 
@@ -1987,7 +1969,6 @@ function FloorControlDeskAndOperatorRig({
 // 🌟 MASTER EXPORT: CRANE OPERATOR CREW (BEIDE OPERATOREN)
 // =============================================================================
 export function CraneOperatorCrew({
-  crane,
   mode,
   onArrivedAtControls,
   onExited,
@@ -2034,7 +2015,6 @@ export function CraneOperatorCrew({
     <group ref={masterGroupRef}>
       {/* 1. Kranführer am Heck (Boom & Crane Rig Operator) */}
       <RearCraneOperatorRig
-        crane={crane}
         mode={mode}
         dollyTrack={dollyTrack}
         columnElevation={columnElevation}
