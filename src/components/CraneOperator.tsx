@@ -1408,9 +1408,9 @@ function RearCraneOperatorRig({
       const cosShoulder = THREE.MathUtils.clamp((L1 * L1 + L * L - L2 * L2) / (2 * L1 * L), -1, 1);
       const shoulderOffset = Math.acos(cosShoulder);
 
-      // Shoulder and hand pitch angles
+      // Shoulder, elbow, and hand pitch angles (negative shoulderPitch swings arm FORWARD towards the crane)
       const shoulderPitch = baseAngle - shoulderOffset;
-      const handPitch = -(shoulderPitch - elbowAngle) - Math.PI * 0.48;
+      const handPitch = (shoulderPitch - elbowAngle) - Math.PI * 0.48;
 
       if (leftHipRef.current && rightHipRef.current && leftKneeRef.current && rightKneeRef.current) {
         leftHipRef.current.rotation.set(-hipPitch, 0.06, -0.05);
@@ -1427,17 +1427,17 @@ function RearCraneOperatorRig({
         headRef.current.rotation.x = lookUpAngle;
       }
 
-      // Left hand firmly grasping the left rubber grip of the Henkel
+      // Left arm reaching forward to firmly grasp the left rubber grip of the Henkel
       if (leftShoulderRef.current && leftElbowRef.current && leftHandRef.current) {
-        leftShoulderRef.current.rotation.set(shoulderPitch, 0.08, -0.04);
-        leftElbowRef.current.rotation.set(-elbowAngle, 0, 0);
+        leftShoulderRef.current.rotation.set(-shoulderPitch, 0.08, -0.04);
+        leftElbowRef.current.rotation.set(elbowAngle, 0, 0);
         leftHandRef.current.rotation.set(handPitch, 0, 0.08);
       }
 
-      // Right hand firmly grasping the right rubber grip of the Henkel & thumb on rocker switch
+      // Right arm reaching forward to firmly grasp the right rubber grip of the Henkel & thumb on rocker switch
       if (rightShoulderRef.current && rightElbowRef.current && rightHandRef.current) {
-        rightShoulderRef.current.rotation.set(shoulderPitch, -0.08, 0.04);
-        rightElbowRef.current.rotation.set(-elbowAngle, 0, 0);
+        rightShoulderRef.current.rotation.set(-shoulderPitch, -0.08, 0.04);
+        rightElbowRef.current.rotation.set(elbowAngle, 0, 0);
         rightHandRef.current.rotation.set(handPitch, 0, -0.08 + ((teleExtension || 0) / 11.3 - 0.5) * 0.15);
       }
     }
@@ -1466,6 +1466,12 @@ function RearCraneOperatorRig({
             <primitive object={matJacketCollar} attach="material" />
           </mesh>
 
+          {/* Solid Anatomical Neck */}
+          <mesh castShadow position={[0, 0.49, 0]}>
+            <cylinderGeometry args={[0.048, 0.052, 0.08, 16]} />
+            <primitive object={matSkin} attach="material" />
+          </mesh>
+
           {/* Film Crew Walkie-Talkie on Shoulder */}
           <CineCrewWalkieTalkie radioScreenTexture={radioScreenTexture} />
 
@@ -1473,7 +1479,7 @@ function RearCraneOperatorRig({
           <CrewLanyardPass passTexture={passTexture} />
 
           {/* Head, Cap & Facial Features */}
-          <group ref={headRef} position={[0, 0.56, 0]}>
+          <group ref={headRef} position={[0, 0.54, 0]}>
             <RealisticFaceFeatures
               matSkin={matSkin}
               hasBeard={true}
