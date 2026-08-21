@@ -1454,8 +1454,9 @@ function RearCraneOperatorRig({
     const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);
     const handleWorldY = Math.max(0.15, (columnElevation || 1.54) + handleYRot);
 
-    // Operator stance offset 0.44m behind the Henkel
-    const opRadius = handleZRot + 0.44;
+    // Operator stance offset 0.22m directly behind the Henkel
+    const standDist = 0.22;
+    const opRadius = handleZRot + standDist;
     const targetX = -opRadius * Math.sin(panRad);
     const targetZ = (dollyTrack || 0) + opRadius * Math.cos(panRad);
     const targetRotY = Math.PI + panRad; // Faces the crane boom from behind
@@ -1506,11 +1507,9 @@ function RearCraneOperatorRig({
       rootRef.current.rotation.y = targetRotY;
 
       // 🦾 NATURAL ATHLETIC FORWARD LEAN & 2-BONE IK TO FIRMLY GRIP THE HECK-HENKEL
-      const standDist = 0.34; // 34cm distance behind the grip bar
-
       // Natural forward lean of the upper torso towards the handle
       const crouchFactor = handleWorldY < 1.35 ? THREE.MathUtils.clamp((1.35 - handleWorldY) / 0.85, 0, 1) : 0;
-      const spinePitch = -0.12 - crouchFactor * 0.22; // Leans forward (negative X rotation)
+      const spinePitch = -0.15 - crouchFactor * 0.20; // Leans forward (negative X rotation)
       const kneeBend = 0.08 + crouchFactor * 0.40;
       const hipPitch = 0.04 + crouchFactor * 0.18;
 
@@ -1519,13 +1518,13 @@ function RearCraneOperatorRig({
       const shoulderForwardZ = -Math.sin(spinePitch) * spineLength; // Forward shift (+Z)
       const shoulderWorldY = 1.08 + Math.cos(spinePitch) * spineLength - crouchFactor * 0.15; // Vertical height
 
-      const deltaZ = Math.max(0.12, standDist - shoulderForwardZ);
+      const deltaZ = Math.max(0.10, standDist - shoulderForwardZ + 0.04);
       const deltaY = handleWorldY - shoulderWorldY;
 
       const L1 = 0.26; // Upper arm length
       const L2 = 0.24; // Forearm length
       const rawDist = Math.sqrt(deltaZ * deltaZ + deltaY * deltaY);
-      const L = Math.max(0.16, Math.min(L1 + L2 - 0.008, rawDist));
+      const L = Math.max(0.15, Math.min(L1 + L2 - 0.008, rawDist));
 
       // Base elevation angle from straight down (+Y down) to target
       const baseAngle = Math.atan2(deltaZ, -deltaY);
@@ -1538,9 +1537,10 @@ function RearCraneOperatorRig({
       const cosShoulder = THREE.MathUtils.clamp((L1 * L1 + L * L - L2 * L2) / (2 * L1 * L), -1, 1);
       const shoulderOffset = Math.acos(cosShoulder);
 
-      // Shoulder and hand pitch angles (negative shoulderPitch swings arm forward towards crane)
+      // Shoulder pitch (negative swings arm forward towards crane)
       const shoulderPitch = baseAngle - shoulderOffset;
-      const handPitch = (shoulderPitch - elbowAngle) - Math.PI * 0.50;
+      // Wrist palmar flexion (wraps palm directly onto the top of the bar and fingers curl underneath)
+      const handPitch = 0.75 + elbowAngle * 0.30;
 
       if (leftHipRef.current && rightHipRef.current && leftKneeRef.current && rightKneeRef.current) {
         leftHipRef.current.rotation.set(-hipPitch, 0.05, -0.04);
