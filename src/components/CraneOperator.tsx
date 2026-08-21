@@ -1369,41 +1369,76 @@ function RearCraneOperatorRig({
         headRef.current.rotation.x = -0.05;
       }
     } else if (mode === 'operating') {
-      const breathe = Math.sin(walkTime * 0.3) * 0.015;
+      const breathe = Math.sin(walkTime * 0.3) * 0.012;
       rootRef.current.position.set(targetX, 0, targetZ);
       rootRef.current.rotation.y = targetRotY;
 
-      // Handle height tracking for shoulders & arms
-      const shoulderHeight = 1.46;
-      const heightDelta = handleWorldY - shoulderHeight;
-      const armPitch = THREE.MathUtils.clamp(-0.62 - heightDelta * 0.70, -1.35, 0.2);
-      const elbowPitch = THREE.MathUtils.clamp(-0.38 + heightDelta * 0.28, -0.9, -0.05);
+      // 🦾 EXACT 2-BONE INVERSE KINEMATICS (IK) TO FIRMLY GRIP THE HECK-HENKEL
+      const standDist = 0.36; // 36cm distance from shoulder plane to handle
+      const deltaZ = standDist;
+      
+      // Adaptive posture (crouch slightly when handle is low, stand tall when handle is high)
+      let kneeBend = 0.05;
+      let hipPitch = 0.0;
+      let spinePitch = -0.04;
+      let shoulderWorldY = 1.46;
+
+      if (handleWorldY < 1.25) {
+        const crouchFactor = THREE.MathUtils.clamp((1.25 - handleWorldY) / 0.8, 0, 1);
+        kneeBend = 0.05 + crouchFactor * 0.45;
+        hipPitch = crouchFactor * 0.25;
+        spinePitch = -0.04 + crouchFactor * 0.32;
+        shoulderWorldY = 1.46 - crouchFactor * 0.35;
+      }
+
+      const deltaY = handleWorldY - shoulderWorldY;
+      const L1 = 0.26; // Upper arm length
+      const L2 = 0.24; // Forearm length
+      const rawDist = Math.sqrt(deltaZ * deltaZ + deltaY * deltaY);
+      const L = Math.max(0.18, Math.min(L1 + L2 - 0.015, rawDist));
+
+      // Base elevation angle from straight down (+Y down) to target
+      const baseAngle = Math.atan2(deltaZ, -deltaY);
+
+      // Law of cosines for elbow
+      const cosElbow = THREE.MathUtils.clamp((L1 * L1 + L2 * L2 - L * L) / (2 * L1 * L2), -1, 1);
+      const elbowAngle = Math.PI - Math.acos(cosElbow);
+
+      // Law of cosines for shoulder
+      const cosShoulder = THREE.MathUtils.clamp((L1 * L1 + L * L - L2 * L2) / (2 * L1 * L), -1, 1);
+      const shoulderOffset = Math.acos(cosShoulder);
+
+      // Shoulder and hand pitch angles
+      const shoulderPitch = baseAngle - shoulderOffset;
+      const handPitch = -(shoulderPitch - elbowAngle) - Math.PI * 0.48;
 
       if (leftHipRef.current && rightHipRef.current && leftKneeRef.current && rightKneeRef.current) {
-        leftHipRef.current.rotation.set(0.04, 0.08, -0.06);
-        rightHipRef.current.rotation.set(0.04, -0.08, 0.06);
-        leftKneeRef.current.rotation.x = 0.05;
-        rightKneeRef.current.rotation.x = 0.05;
+        leftHipRef.current.rotation.set(-hipPitch, 0.06, -0.05);
+        rightHipRef.current.rotation.set(-hipPitch, -0.06, 0.05);
+        leftKneeRef.current.rotation.x = kneeBend;
+        rightKneeRef.current.rotation.x = kneeBend;
       }
       if (spineRef.current) {
-        spineRef.current.rotation.x = -0.06 + Math.sin(walkTime * 0.25) * 0.02;
+        spineRef.current.rotation.x = spinePitch + Math.sin(walkTime * 0.25) * 0.015;
         spineRef.current.position.y = breathe;
       }
       if (headRef.current) {
-        const lookUpAngle = THREE.MathUtils.clamp(-0.12 - (boomTilt * Math.PI / 180) * 0.2, -0.35, 0.25);
+        const lookUpAngle = THREE.MathUtils.clamp(-0.15 - (boomTilt * Math.PI / 180) * 0.22, -0.35, 0.25);
         headRef.current.rotation.x = lookUpAngle;
       }
-      // Left hand firmly gripping the left rubber sleeve of the Henkel
+
+      // Left hand firmly grasping the left rubber grip of the Henkel
       if (leftShoulderRef.current && leftElbowRef.current && leftHandRef.current) {
-        leftShoulderRef.current.rotation.set(armPitch, -0.15, -0.06);
-        leftElbowRef.current.rotation.set(elbowPitch, 0, 0);
-        leftHandRef.current.rotation.set(0.12, 0.1, 0);
+        leftShoulderRef.current.rotation.set(shoulderPitch, 0.08, -0.04);
+        leftElbowRef.current.rotation.set(-elbowAngle, 0, 0);
+        leftHandRef.current.rotation.set(handPitch, 0, 0.08);
       }
-      // Right hand firmly gripping the right rubber sleeve of the Henkel & thumb on rocker switch
+
+      // Right hand firmly grasping the right rubber grip of the Henkel & thumb on rocker switch
       if (rightShoulderRef.current && rightElbowRef.current && rightHandRef.current) {
-        rightShoulderRef.current.rotation.set(armPitch, 0.15, 0.06);
-        rightElbowRef.current.rotation.set(elbowPitch, 0, 0);
-        rightHandRef.current.rotation.set(0.12, -0.1, ((teleExtension || 0) / 11.3 - 0.5) * 0.2);
+        rightShoulderRef.current.rotation.set(shoulderPitch, -0.08, 0.04);
+        rightElbowRef.current.rotation.set(-elbowAngle, 0, 0);
+        rightHandRef.current.rotation.set(handPitch, 0, -0.08 + ((teleExtension || 0) / 11.3 - 0.5) * 0.15);
       }
     }
   });
