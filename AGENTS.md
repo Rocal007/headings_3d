@@ -18,6 +18,8 @@ graph TD
     Boom --> Horizon[8. auto_horizon<br/>Gyro Leveling Mount]
     Horizon --> Head[9. remote_head<br/>3-Axis Pan/Tilt/Roll Gimbal]
     Head --> Camera[10. cinema_camera<br/>ARRI Cine Rig & Optics]
+    Orchestrator --> Scenery[11. scene_environment<br/>3D Scenery, Lighting & Ground]
+    Orchestrator --> Operator[12. crane_operator<br/>Human Operator, Rig & Rear Controls]
 ```
 
 ---
@@ -66,6 +68,7 @@ graph TD
   * Heck-Gegengewichtswagen mit Bleigewichten und Spindelantrieb.
   * Automatische synchrone Massenkompensation bei Ausfahren des Teleskoparms.
   * Heck-Bodenkollisionsüberwachung (`getRearLowestY`).
+  * Endanschlag und Führungsschienenbereich ($z = -1.08\,\text{m}$ bis $+3.48\,\text{m}$, Schlittenfahrt $z = -0.80\,\text{m}$ bis $+3.28\,\text{m}$).
 
 ### 7. `festoon_cable` (Schleppkabel & Festoon-Dynamik)
 * **Dateien**: [`src/components/SlopeCable.tsx`](file:///e:/3D-headings/src/components/SlopeCable.tsx), `CraneFestoonCable` in [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx)
@@ -73,6 +76,7 @@ graph TD
   * Geneigte Kabelführung (Festoon Track) entlang der Teleskopstufen.
   * Dynamische Katenoid-/Bézier-Durchhangsberechnung (`sagFactor`, Schlaufenanzahl).
   * PBR-Kabelmaterialien (schwarzer Mattgummi, Kupfer/Stahl-Geflecht, farbige SDI-Leitungen).
+  * **Kabel-Startregel (Supremacy / Guardrail)**: Das Schleppkabel und dessen Führungsschiene dürfen IMMER erst NACH den Gegengewichten beginnen (in Ausfahrrichtung des Auslegers, $z \le -1.18\,\text{m}$), sodass Kabel und Verfahrweg des Gegengewichtswagens vollständig kollisionsfrei getrennt sind.
 
 ### 8. `auto_horizon` (Auto-Horizon Nivellierung)
 * **Dateien**: [`src/components/AutoHorizonMount.tsx`](file:///e:/3D-headings/src/components/AutoHorizonMount.tsx)
@@ -94,6 +98,33 @@ graph TD
   * ARRI Alexa Mini LF Kameragehäuse mit Cine-Objektiv und Antireflex-Frontlinse.
   * Carbon-Rohre (15mm/19mm), Cforce-Motoren für Focus/Iris/Zoom, Mattebox mit Flags.
   * Funk-Bildsender (Teradek), V-Mount Akkus und Sensorebenen-Projektion.
+
+### 11. `scene_environment` (3D Scenery, Environment & Ground Manager)
+* **Dateien**: [`src/components/CraneScenery.tsx`](file:///e:/3D-headings/src/components/CraneScenery.tsx), [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx)
+* **Zuständigkeit**:
+  * Helle & dunkle 3D-Standorte: Heller Platz & Pyramiden (`bright_concrete`), Gizeh Pyramiden Wüste (`pyramids`), Machu Picchu Inka-Anden (`machu_picchu`), Helle Sommerwiese (`bright_meadow`), High-Key Studio (`bright_studio`), Grüne Wiese (`meadow`), Industrie-Beton (`concrete`), Seeufer (`lake`), Dark Studio (`studio`).
+  * 3D-Hintergrund-Monumente: Monumentale Pyramiden von Gizeh (Cheops, Chephren, Mykerinos, Sphinx), Inka-Zitadelle Machu Picchu (Zuckerhut-Gipfel Huayna Picchu, Andenes-Terrassen, Sonnentempel, Intihuatana, Inka-Steinhäuser und grasende Lamas).
+  * Fotorealistische Sonnen- und Himmelsausleuchtung, Sky-Fill-Lichter, Kontakt- & Weichschatten, atmosphärischer SkyDome mit Wolkendynamik.
+  * Prozedurale PBR-Bodentexturen (Sichtbeton, Wüstensand-Rippeln, Andengras, Grasnarben, Wildblumen, Steine, Holzdielen, Poller, Schiffscontainer).
+  * Synchronisation von Hintergrundfarben und HDRI-Presets (`city`, `park`, `studio`, `sunset`).
+
+### 12. `crane_operator` (Film Set Two-Operator Crew & Controls Master)
+* **Dateien**: [`src/components/CraneOperator.tsx`](file:///e:/3D-headings/src/components/CraneOperator.tsx), [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx)
+* **Zuständigkeit**:
+  * **1. Heck-Kranführer (Rear Crane Operator)**:
+    * 3D-Charakter-Rig mit Vintage "SUPERTECHNO CINE CRANE OPS" Trucker-Cap, Salt-&-Pepper Haar/Vollbart, In-Ear-Akustik-Spiralschlauch, Outdoor-Setjacke und Grip-Handschuhen.
+    * Steht direkt am Heck-Steuerpult hinter den Gegengewichten ($X=0\,\text{m}, Z=\text{dollyTrack}+4.1\,\text{m}$).
+    * Live-Synchronisation der goldenen Fluid-Handräder (`basePan`, `boomTilt`) und des Teleskop-Joysticks (`teleExtension`).
+    * Dynamisches Kopf-Tracking (schaut hinauf zur Kranspitze / Linsenhöhe).
+    * Kamera-Fokus & Close-Up-Zoom (`case 'operator'`).
+  * **2. DoP / Remote-Head Operator am Bodenpult (Floor Desk Operator)**:
+    * 3D-Charakter-Rig mit Film-Crew Hoodie/Shirt ("TECHNOCRANE HEAD & MOCO OPERATOR"), Pro Cine-Headset mit Boom-Mikrofon.
+    * Steht am separaten Flightcase-Bodensteuerpult neben der Schiene ($X=3.2\,\text{m}, Z=\text{dollyTrack}+0.8\,\text{m}$).
+    * Steuert 3x Master Wheels (`headPan`, `headTilt`, `headRoll`) und FIZ-Kamerasteuerung.
+    * Flightcase-Steuerpult mit Stativ, 17" ARRI Live-Master-Monitor (Frame Guides, Waveform, TC), 7" Zusatzmonitor und Snake-Bodenkabel.
+    * Kamera-Fokus & Close-Up-Zoom (`case 'desk'`).
+  * **3. Synchronisierte Walk-In/Walk-Out-Kinematik**:
+    * Beide Operatoren laufen bei Aktivierung zeitgleich von ihren Staging-Positionen flüssig an ihre jeweiligen Pulte und verlassen diese bei Deaktivierung.
 
 ---
 

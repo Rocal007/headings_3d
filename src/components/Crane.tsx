@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, Grid } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 import { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
@@ -21,9 +21,17 @@ import {
   clampBasePan,
   enforceCraneFloorLimits
 } from '../utils/craneKinematics';
+import {
+  CraneSceneryEnvironment,
+  sceneryBgColors,
+  sceneryOptions
+} from './CraneScenery';
+import type { CraneSceneryType } from './CraneScenery';
+import { CraneOperator } from './CraneOperator';
+import type { CraneOperatorMode } from './CraneOperator';
 
+export type { CraneSceneryType, CraneOperatorMode };
 export type CraneCableType = 'photo' | 'bundle' | 'flat' | 'heavy' | 'braided';
-export type CraneSceneryType = 'meadow' | 'concrete' | 'lake' | 'studio';
 
 // --- DYNAMIC SLOPED FESTOON CABLE SYSTEM FOR CRANE BOOM (MATCHING REFERENCE PHOTO) ---
 function CraneFestoonCable({
@@ -146,7 +154,8 @@ function CraneFestoonCable({
   const tipY = 0.05;
   const tipX = -0.01;
 
-  const zStart = 0.8; // Base carriage station near the crane mast / pivot
+  // Festoon cable and guide rail start strictly AFTER the counterweights (in front of front stop z = -1.08m)
+  const zStart = -1.18; // Base carriage station positioned strictly ahead of the counterweight zone (z <= -1.15m)
   const zEnd = tipZ + 0.28; // Cable rail ends right at the front nose mounting bracket
   const totalSpan = Math.abs(zEnd - zStart);
 
@@ -541,6 +550,56 @@ function CraneFestoonCable({
 
       {/* 
         ========================================================================
+        5. INFEED UMBILICAL CABLE FROM PIVOT ZONE TO FIRST FESTOON STATION
+        (As seen in reference photo: cable routes from pivot zone past the weights into station 0 at z = -1.18m)
+        ========================================================================
+      */}
+      {(() => {
+        const firstSt = stations[0];
+        if (!firstSt) return null;
+        const firstTopClamp = new THREE.Vector3(firstSt.x + clampXOffset, firstSt.y + clampYOffset, firstSt.z);
+        const infeedStart = new THREE.Vector3(-0.25, 0.22, -0.30); // Upper boom flank near fulcrum
+        
+        const infeedCurve = new THREE.CatmullRomCurve3([
+          infeedStart,
+          new THREE.Vector3(-0.28, 0.20, -0.60),
+          new THREE.Vector3(-0.31, 0.16, -0.92),
+          firstTopClamp
+        ], false, 'centripetal');
+
+        const infeedStrand1Pts = infeedCurve.getPoints(20).map(p => new THREE.Vector3(p.x - 0.014, p.y, p.z));
+        const infeedStrand2Pts = infeedCurve.getPoints(20).map(p => new THREE.Vector3(p.x + 0.014, p.y, p.z));
+        const infeedStrand1 = new THREE.CatmullRomCurve3(infeedStrand1Pts);
+        const infeedStrand2 = new THREE.CatmullRomCurve3(infeedStrand2Pts);
+
+        return (
+          <group>
+            {/* Guide clamps along the upper boom flank for infeed cable */}
+            {[-0.45, -0.80].map((cz, cIdx) => (
+              <mesh key={`infeed-clamp-${cIdx}`} castShadow material={matPhotoBlackGloss} position={[-0.27, 0.20 - cIdx * 0.035, cz]}>
+                <boxGeometry args={[0.02, 0.03, 0.04]} />
+              </mesh>
+            ))}
+            {cableType === 'photo' ? (
+              <>
+                <mesh castShadow receiveShadow material={matPhotoBlackRubber}>
+                  <tubeGeometry args={[infeedStrand1, 24, 0.020, 12, false]} />
+                </mesh>
+                <mesh castShadow receiveShadow material={matPhotoBlackRubber}>
+                  <tubeGeometry args={[infeedStrand2, 24, 0.020, 12, false]} />
+                </mesh>
+              </>
+            ) : (
+              <mesh castShadow receiveShadow material={matPhotoBlackRubber}>
+                <tubeGeometry args={[infeedCurve, 24, 0.034, 12, false]} />
+              </mesh>
+            )}
+          </group>
+        );
+      })()}
+
+      {/* 
+        ========================================================================
         PHOTO-AUTHENTIC 3-AXIS REMOTE CAMERA HEAD AT THE EXACT CRANE TIP (SPITZE)
         Always hangs down (Underslung mount) with automatic horizon leveling!
         ========================================================================
@@ -667,352 +726,6 @@ function DollyTrackRails({ visible = true }: { visible?: boolean }) {
           </mesh>
         </group>
       ))}
-    </group>
-  );
-}
-
-// --- 🌿 SCENERY 1: PROCEDURAL FLOWER MEADOW & ROLLING NATURE (WIESE) ---
-function MeadowSceneryEnvironment() {
-  const grassTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#2f6323';
-      ctx.fillRect(0, 0, 512, 512);
-
-      // Fine grass blades and color variations
-      for (let i = 0; i < 22000; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
-        const r = Math.random() * 2 + 1;
-        const colors = ['#224d17', '#3d7a2a', '#529638', '#1c3e13', '#62af42', '#365a25'];
-        ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Soil and natural earth undertones
-      for (let i = 0; i < 50; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
-        const rad = Math.random() * 28 + 10;
-        ctx.fillStyle = 'rgba(74, 53, 30, 0.09)';
-        ctx.beginPath();
-        ctx.arc(x, y, rad, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(36, 36);
-    return tex;
-  }, []);
-
-  const wildflowers = useMemo(() => {
-    const items: Array<{ x: number; z: number; color: string; size: number }> = [];
-    const colors = ['#fde047', '#f87171', '#c084fc', '#ffffff', '#fb923c', '#a78bfa', '#f43f5e'];
-    for (let i = 0; i < 180; i++) {
-      const sign = Math.random() > 0.5 ? 1 : -1;
-      const x = sign * (Math.random() * 38 + 2.6);
-      const z = (Math.random() - 0.5) * 75;
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const size = Math.random() * 0.12 + 0.06;
-      items.push({ x, z, color, size });
-    }
-    return items;
-  }, []);
-
-  const stones = useMemo(() => {
-    const items: Array<{ x: number; z: number; scale: [number, number, number]; rot: number }> = [];
-    for (let i = 0; i < 32; i++) {
-      const sign = Math.random() > 0.5 ? 1 : -1;
-      const x = sign * (Math.random() * 34 + 3.2);
-      const z = (Math.random() - 0.5) * 70;
-      const s = Math.random() * 0.45 + 0.22;
-      items.push({
-        x,
-        z,
-        scale: [s * (1 + Math.random() * 0.4), s * 0.65, s * (1 + Math.random() * 0.4)],
-        rot: Math.random() * Math.PI
-      });
-    }
-    return items;
-  }, []);
-
-  return (
-    <group>
-      {/* Meadow Lush Grass Ground Plane */}
-      <mesh receiveShadow position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[160, 160]} />
-        <meshStandardMaterial map={grassTexture} roughness={0.92} metalness={0.04} />
-      </mesh>
-
-      {/* Scattered Wildflowers */}
-      {wildflowers.map((wf, idx) => (
-        <group key={`wf-${idx}`} position={[wf.x, 0.04, wf.z]}>
-          <mesh castShadow position={[0, 0, 0]}>
-            <sphereGeometry args={[wf.size, 8, 8]} />
-            <meshStandardMaterial color={wf.color} roughness={0.5} />
-          </mesh>
-          <mesh position={[0, -0.02, 0]}>
-            <cylinderGeometry args={[0.015, 0.015, 0.06, 6]} />
-            <meshStandardMaterial color="#225419" />
-          </mesh>
-        </group>
-      ))}
-
-      {/* River Stones & Natural Boulders */}
-      {stones.map((st, idx) => (
-        <mesh
-          key={`stone-${idx}`}
-          castShadow
-          receiveShadow
-          position={[st.x, st.scale[1] * 0.45, st.z]}
-          rotation={[0, st.rot, 0]}
-          scale={st.scale}
-        >
-          <dodecahedronGeometry args={[1, 1]} />
-          <meshStandardMaterial color="#64748b" roughness={0.88} metalness={0.1} />
-        </mesh>
-      ))}
-
-      {/* Distant Forest Horizon Ring */}
-      <mesh position={[0, -1, 0]}>
-        <cylinderGeometry args={[78, 78, 5, 32, 1, true]} />
-        <meshStandardMaterial color="#162e16" roughness={1.0} side={THREE.BackSide} />
-      </mesh>
-
-      <Environment preset="park" environmentIntensity={1.2} />
-    </group>
-  );
-}
-
-// --- 🏗️ SCENERY 2: INDUSTRIAL CONCRETE SLAB PLAZA (BETONPLATZ) ---
-function ConcreteSceneryEnvironment() {
-  const concreteTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#64748b';
-      ctx.fillRect(0, 0, 512, 512);
-
-      // Fine concrete grain and surface texture
-      for (let i = 0; i < 18000; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
-        const brightness = Math.random() * 40 - 20;
-        ctx.fillStyle = brightness > 0 ? `rgba(255,255,255,${brightness / 130})` : `rgba(0,0,0,${-brightness / 130})`;
-        ctx.fillRect(x, y, Math.random() * 2 + 1, Math.random() * 2 + 1);
-      }
-
-      // Concrete Slab expansion joints (Raster von 4x4 Platten mit Bitumenfugen)
-      ctx.strokeStyle = '#272f3d';
-      ctx.lineWidth = 4;
-      for (let x = 0; x <= 512; x += 128) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, 512);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= 512; y += 128) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(512, y);
-        ctx.stroke();
-      }
-
-      // Industrial yellow hazard warning stripes along track area
-      ctx.fillStyle = 'rgba(234, 179, 8, 0.45)';
-      ctx.fillRect(20, 0, 18, 512);
-      ctx.fillRect(474, 0, 18, 512);
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(16, 16);
-    return tex;
-  }, []);
-
-  const bollards = useMemo(() => {
-    const items: Array<{ x: number; z: number }> = [];
-    for (let z = -26; z <= 26; z += 6.5) {
-      items.push({ x: -2.85, z });
-      items.push({ x: 2.85, z });
-    }
-    return items;
-  }, []);
-
-  return (
-    <group>
-      {/* Heavy-Duty Industrial Concrete Slab Ground */}
-      <mesh receiveShadow position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[160, 160]} />
-        <meshStandardMaterial map={concreteTexture} roughness={0.65} metalness={0.15} />
-      </mesh>
-
-      {/* Safety Crash Bollards (Gelb-Schwarz) */}
-      {bollards.map((b, idx) => (
-        <group key={`bollard-${idx}`} position={[b.x, 0, b.z]}>
-          <mesh castShadow receiveShadow position={[0, 0.45, 0]}>
-            <cylinderGeometry args={[0.09, 0.09, 0.9, 16]} />
-            <meshStandardMaterial color="#eab308" roughness={0.35} metalness={0.7} />
-          </mesh>
-          <mesh position={[0, 0.65, 0]}>
-            <cylinderGeometry args={[0.092, 0.092, 0.18, 16]} />
-            <meshStandardMaterial color="#0f172a" roughness={0.4} />
-          </mesh>
-          <mesh castShadow receiveShadow position={[0, 0.02, 0]}>
-            <cylinderGeometry args={[0.16, 0.16, 0.04, 16]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.4} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Distant Industrial Warehouse Shipping Containers */}
-      <group position={[-25, 1.4, -12]}>
-        <mesh castShadow receiveShadow position={[0, 0, 0]}>
-          <boxGeometry args={[3.4, 2.8, 8.5]} />
-          <meshStandardMaterial color="#1e3a8a" roughness={0.5} metalness={0.4} />
-        </mesh>
-      </group>
-      <group position={[-25, 1.4, 6]}>
-        <mesh castShadow receiveShadow position={[0, 0, 0]}>
-          <boxGeometry args={[3.4, 2.8, 8.5]} />
-          <meshStandardMaterial color="#b91c1c" roughness={0.5} metalness={0.4} />
-        </mesh>
-      </group>
-      <group position={[25, 1.4, -4]}>
-        <mesh castShadow receiveShadow position={[0, 0, 0]}>
-          <boxGeometry args={[3.4, 2.8, 8.5]} />
-          <meshStandardMaterial color="#047857" roughness={0.5} metalness={0.4} />
-        </mesh>
-      </group>
-
-      <Environment preset="city" environmentIntensity={1.2} />
-    </group>
-  );
-}
-
-// --- 🌊 SCENERY 3: SCENIC LAKE SHORE & ANIMATED WATER (SEEUFER) ---
-function LakeSceneryEnvironment() {
-  const waterRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (waterRef.current) {
-      const t = clock.getElapsedTime();
-      waterRef.current.position.y = -0.04 + Math.sin(t * 1.6) * 0.008;
-    }
-  });
-
-  const shoreTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#6b5c4c';
-      ctx.fillRect(0, 0, 512, 512);
-
-      // Wooden planks of shoreline pier
-      ctx.strokeStyle = '#3d3228';
-      ctx.lineWidth = 3;
-      for (let y = 0; y <= 512; y += 32) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(512, y);
-        ctx.stroke();
-      }
-
-      // Grain & rivets
-      for (let i = 0; i < 7000; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(40,30,20,0.14)' : 'rgba(180,160,140,0.12)';
-        ctx.fillRect(x, y, Math.random() * 8 + 1, 1);
-      }
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(8, 26);
-    return tex;
-  }, []);
-
-  const pilings = useMemo(() => {
-    const items: Array<{ x: number; z: number }> = [];
-    for (let z = -28; z <= 28; z += 4.0) {
-      items.push({ x: 2.38, z });
-    }
-    return items;
-  }, []);
-
-  return (
-    <group>
-      {/* Solid Wooden Shore Platform / Pier (X between -28m and +2.3m) */}
-      <mesh receiveShadow position={[-12, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[28, 80]} />
-        <meshStandardMaterial map={shoreTexture} roughness={0.8} metalness={0.08} />
-      </mesh>
-
-      {/* Pier Edge Heavy Timber Guard Beam */}
-      <mesh castShadow receiveShadow position={[2.3, 0.05, 0]}>
-        <boxGeometry args={[0.22, 0.16, 80]} />
-        <meshStandardMaterial color="#4a3728" roughness={0.88} />
-      </mesh>
-
-      {/* Wooden Mooring Pilings / Shore Posts */}
-      {pilings.map((p, idx) => (
-        <group key={`piling-${idx}`} position={[p.x, 0, p.z]}>
-          <mesh castShadow receiveShadow position={[0, 0.4, 0]}>
-            <cylinderGeometry args={[0.11, 0.12, 1.2, 16]} />
-            <meshStandardMaterial color="#5c4532" roughness={0.9} />
-          </mesh>
-          <mesh castShadow position={[0, 0.65, 0]}>
-            <torusGeometry args={[0.13, 0.025, 8, 24]} />
-            <meshStandardMaterial color="#a1805b" roughness={0.95} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Shimmering Animated Reflective Lake Water Surface (X = 2.3m to X = 120m) */}
-      <mesh
-        ref={waterRef}
-        position={[42, -0.04, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[80, 140, 64, 64]} />
-        <meshStandardMaterial
-          color="#0284c7"
-          roughness={0.08}
-          metalness={0.88}
-          transparent
-          opacity={0.88}
-        />
-      </mesh>
-
-      {/* Deep Lake Bed Ground */}
-      <mesh position={[42, -1.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[80, 140]} />
-        <meshStandardMaterial color="#082f49" roughness={1.0} />
-      </mesh>
-
-      {/* Distant Alpine Shore Mountain Silhouette */}
-      <group position={[70, 0, 0]}>
-        {[-32, -12, 8, 28].map((zPos, mIdx) => (
-          <mesh key={`mount-${mIdx}`} position={[0, 8 + (mIdx % 2) * 4, zPos]}>
-            <coneGeometry args={[16 + (mIdx % 3) * 6, 22 + (mIdx % 2) * 8, 5]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.95} />
-          </mesh>
-        ))}
-      </group>
-
-      <Environment preset="sunset" environmentIntensity={1.25} />
     </group>
   );
 }
@@ -1705,7 +1418,7 @@ function CraneBlueprintOverlay({
 }
 
 // --- INNER R3F SCENE COMPONENT ---
-export type CameraViewMode = 'cinematic' | 'full' | 'profile' | 'head' | 'weight' | 'cable' | 'pov' | 'top' | 'dolly' | 'free';
+export type CameraViewMode = 'cinematic' | 'full' | 'profile' | 'head' | 'weight' | 'cable' | 'operator' | 'desk' | 'pov' | 'top' | 'dolly' | 'free';
 
 export interface RoundTripStageInfo {
   idx: number;
@@ -1862,11 +1575,12 @@ function CraneScene({
   kinematicsRef, 
   sliderRefs,
   cableSettings,
-  sceneryMode = 'meadow',
+  sceneryMode = 'bright_concrete',
   cameraViewMode,
   setCameraViewMode,
   orbitControlsRef,
-  onStageChange
+  onStageChange,
+  setCableSettings
 }: { 
   kinematicsRef: React.MutableRefObject<any>,
   sliderRefs: Record<string, React.RefObject<HTMLInputElement | null>>,
@@ -1882,12 +1596,14 @@ function CraneScene({
     showBlueprint: boolean;
     blueprintMode: 'all' | 'profile' | 'top';
     panRangeMode?: '180' | '360';
+    operatorMode?: CraneOperatorMode;
   },
   sceneryMode?: CraneSceneryType,
   cameraViewMode: CameraViewMode,
   setCameraViewMode: (mode: CameraViewMode) => void,
   orbitControlsRef: React.RefObject<any>,
-  onStageChange?: (stage: RoundTripStageInfo) => void
+  onStageChange?: (stage: RoundTripStageInfo) => void,
+  setCableSettings?: React.Dispatch<React.SetStateAction<any>>
 }) {
   const [crane, setCrane] = useState<Supertechno50FBXModel | null>(null);
   const [kinState, setKinState] = useState(kinematicsRef.current);
@@ -2060,8 +1776,8 @@ function CraneScene({
     localHeadPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
     localHeadPos.add(mastWorld);
 
-    // Local Cable middle world position
-    const localCablePos = new THREE.Vector3(-0.34, -0.18, (0.8 + tipZ) * 0.5);
+    // Local Cable middle world position (centered along the festoon rail starting at z = -1.18m)
+    const localCablePos = new THREE.Vector3(-0.34, -0.18, (-1.18 + tipZ) * 0.5);
     localCablePos.applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltRad);
     localCablePos.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
     localCablePos.add(mastWorld);
@@ -2142,6 +1858,20 @@ function CraneScene({
             cableCamOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
             desiredCamPos = localCablePos.clone().add(cableCamOffset);
             desiredCamPos.y = Math.max(1.2, desiredCamPos.y);
+            break;
+
+          case 'operator':
+            // 🎬 Close-Up Zoom onto the Rear Crane Operator at the Fluid Wheel Console
+            targetPos.set(0, 1.35, dollyZ + 3.8);
+            desiredCamPos = new THREE.Vector3(-2.8, 1.9, dollyZ + 6.4);
+            desiredCamPos.y = Math.max(1.1, desiredCamPos.y);
+            break;
+
+          case 'desk':
+            // 🎛️ Close-Up Zoom onto the Floor Control Desk and DoP/Head Operator
+            targetPos.set(3.2, 1.25, dollyZ + 0.8);
+            desiredCamPos = new THREE.Vector3(5.8, 1.85, dollyZ + 2.4);
+            desiredCamPos.y = Math.max(1.1, desiredCamPos.y);
             break;
 
           case 'pov':
@@ -2292,23 +2022,8 @@ function CraneScene({
         color="#0284c7"
       />
 
-      {/* --- DYNAMIC 3D SCENERY & GROUND TERRAIN (WIESE, BETON, SEEUFER, STUDIO) --- */}
-      {sceneryMode === 'studio' && (
-        <>
-          <Environment preset="studio" environmentIntensity={1.15} />
-          <Grid
-            infiniteGrid
-            fadeDistance={65}
-            sectionColor="#38bdf8"
-            sectionSize={5}
-            cellColor="#1e293b"
-            cellSize={1}
-          />
-        </>
-      )}
-      {sceneryMode === 'meadow' && <MeadowSceneryEnvironment />}
-      {sceneryMode === 'concrete' && <ConcreteSceneryEnvironment />}
-      {sceneryMode === 'lake' && <LakeSceneryEnvironment />}
+      {/* --- DYNAMIC 3D SCENERY & GROUND TERRAIN (HELLER BETON, HELLE WIESE, WHITE STUDIO, KLASSISCH) --- */}
+      <CraneSceneryEnvironment sceneryMode={sceneryMode} />
 
       {/* High-Precision Precision Studio Dolly Rails along Z */}
       <DollyTrackRails visible={true} />
@@ -2352,6 +2067,29 @@ function CraneScene({
         visible={cableSettings.showBlueprint}
         mode={cableSettings.blueprintMode}
       />
+
+      {/* 🎬 Interactive Two-Operator Crew (Kranführer am Heck + DoP am Bodenpult) */}
+      <CraneOperator
+        mode={cableSettings.operatorMode || 'hidden'}
+        onArrivedAtControls={() => {
+          if (setCableSettings) {
+            setCableSettings((s: any) => ({ ...s, operatorMode: 'operating' }));
+          }
+        }}
+        onExited={() => {
+          if (setCableSettings) {
+            setCableSettings((s: any) => ({ ...s, operatorMode: 'hidden' }));
+          }
+        }}
+        dollyTrack={kinState.dollyTrack || 0}
+        columnElevation={kinState.columnElevation || 1.54}
+        basePan={kinState.basePan || 0}
+        boomTilt={kinState.boomTilt || 0}
+        teleExtension={kinState.teleExtension || 0}
+        headPan={kinState.headPan || 0}
+        headTilt={kinState.headTilt || 0}
+        headRoll={kinState.headRoll || 0}
+      />
       
       {/* Camera Controls with Strict Floor Safety Constraints */}
       <OrbitControls 
@@ -2368,7 +2106,7 @@ function CraneScene({
 }
 
 // --- MAIN CRANE COMPONENT ---
-export default function Crane() {
+export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneStudio?: () => void } = {}) {
   const orbitControlsRef = useRef<any>(null);
   const [cameraViewMode, setCameraViewMode] = useState<CameraViewMode>('cinematic');
   const [stageInfo, setStageInfo] = useState<RoundTripStageInfo>({
@@ -2388,7 +2126,7 @@ export default function Crane() {
   const headTiltRef = useRef<HTMLInputElement>(null);
   const headRollRef = useRef<HTMLInputElement>(null);
 
-  const [sceneryMode, setSceneryMode] = useState<CraneSceneryType>('meadow');
+  const [sceneryMode, setSceneryMode] = useState<CraneSceneryType>('bright_concrete');
 
   const [cableSettings, setCableSettings] = useState({
     visible: true,
@@ -2401,17 +2139,11 @@ export default function Crane() {
     directorInterval: 18,
     showBlueprint: true,
     blueprintMode: 'all' as 'all' | 'profile' | 'top',
-    panRangeMode: '180' as '180' | '360'
+    panRangeMode: '180' as '180' | '360',
+    operatorMode: 'hidden' as CraneOperatorMode
   });
 
   const [showSpecsModal, setShowSpecsModal] = useState(false);
-
-  const bgColors: Record<CraneSceneryType, string> = {
-    meadow: '#60a5fa',
-    concrete: '#334155',
-    lake: '#38bdf8',
-    studio: '#0b0f17'
-  };
 
   const sliderRefs = {
     basePan: basePanRef,
@@ -2512,10 +2244,10 @@ export default function Crane() {
       {/* React Three Fiber Canvas */}
       <Canvas 
         shadows 
-        camera={{ position: [-26, 7.5, -3.5], fov: 45 }}
+        camera={{ position: [-26, 7.5, -3.5], fov: 45, near: 0.1, far: 2000 }}
         style={{ width: '100%', height: '100%', outline: 'none', touchAction: 'none' }}
       >
-        <color attach="background" args={[bgColors[sceneryMode]]} />
+        <color attach="background" args={[sceneryBgColors[sceneryMode]]} />
         <CraneScene
           kinematicsRef={kinematicsRef}
           sliderRefs={sliderRefs}
@@ -2525,6 +2257,7 @@ export default function Crane() {
           setCameraViewMode={setCameraViewMode}
           orbitControlsRef={orbitControlsRef}
           onStageChange={setStageInfo}
+          setCableSettings={setCableSettings}
         />
       </Canvas>
 
@@ -2537,50 +2270,106 @@ export default function Crane() {
         border: '1px solid rgba(255, 255, 255, 0.18)',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
         borderRadius: '30px',
-        padding: '5px 8px',
+        padding: '4px 6px',
         display: 'flex',
         alignItems: 'center',
-        gap: '6px',
+        gap: '4px',
         zIndex: 60,
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        fontFamily: 'Inter, system-ui, sans-serif'
+        fontFamily: 'Inter, system-ui, sans-serif',
+        maxWidth: 'calc(100vw - 40px)',
+        overflowX: 'auto'
       }}>
-        <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', padding: '0 6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', padding: '0 4px', display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
           <span>🌍</span> <span>STANDORT:</span>
         </span>
-        {[
-          { id: 'meadow' as const, label: 'Wiese', icon: '🌿', color: '#4ade80' },
-          { id: 'concrete' as const, label: 'Beton', icon: '🏗️', color: '#facc15' },
-          { id: 'lake' as const, label: 'Seeufer', icon: '🌊', color: '#38bdf8' },
-          { id: 'studio' as const, label: 'Studio', icon: '🎬', color: '#c084fc' }
-        ].map(item => {
+        {sceneryOptions.map(item => {
           const isActive = sceneryMode === item.id;
           return (
             <button
               key={`quick-scenery-${item.id}`}
               onClick={() => setSceneryMode(item.id)}
+              title={item.desc}
               style={{
-                padding: '6px 12px',
-                fontSize: '11px',
+                padding: '5px 9px',
+                fontSize: '10px',
                 fontWeight: 700,
                 borderRadius: '20px',
                 border: `1px solid ${isActive ? item.color : 'rgba(255,255,255,0.1)'}`,
-                background: isActive ? `${item.color}25` : 'rgba(255,255,255,0.05)',
-                color: isActive ? item.color : '#94a3b8',
+                background: isActive ? `${item.color}28` : 'rgba(255,255,255,0.05)',
+                color: isActive ? (item.isBright ? '#38bdf8' : item.color) : '#94a3b8',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
+                whiteSpace: 'nowrap',
                 boxShadow: isActive ? `0 0 12px ${item.color}40` : 'none',
                 transition: 'all 0.2s ease'
               }}
             >
               <span>{item.icon}</span>
-              <span>{item.label}</span>
+              <span>{item.shortLabel}</span>
             </button>
           );
         })}
+
+        {/* 🎬 Quick Operator Walk-In Button */}
+        <div style={{ width: '1px', height: '18px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 2px' }} />
+        <button
+          onClick={() => {
+            setCableSettings(s => {
+              const isOff = s.operatorMode === 'hidden' || s.operatorMode === 'walking_out';
+              const nextMode: CraneOperatorMode = isOff ? 'walking_in' : 'walking_out';
+              if (isOff) {
+                setCameraViewMode('operator');
+              }
+              return { ...s, operatorMode: nextMode };
+            });
+          }}
+          title="Kran-Operator ins Bild laufen lassen und am Heck-Steuerpult bedienen (Zoomt heran)"
+          style={{
+            padding: '5px 11px',
+            fontSize: '10px',
+            fontWeight: 800,
+            borderRadius: '20px',
+            border: `1px solid ${
+              cableSettings.operatorMode === 'operating' 
+                ? '#4ade80' 
+                : cableSettings.operatorMode === 'walking_in' 
+                ? '#facc15' 
+                : 'rgba(56, 189, 248, 0.5)'
+            }`,
+            background: 
+              cableSettings.operatorMode === 'operating' 
+                ? 'rgba(34, 197, 94, 0.25)' 
+                : cableSettings.operatorMode === 'walking_in' 
+                ? 'rgba(250, 204, 21, 0.25)' 
+                : 'rgba(56, 189, 248, 0.15)',
+            color: 
+              cableSettings.operatorMode === 'operating' 
+                ? '#4ade80' 
+                : cableSettings.operatorMode === 'walking_in' 
+                ? '#facc15' 
+                : '#38bdf8',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            whiteSpace: 'nowrap',
+            boxShadow: cableSettings.operatorMode !== 'hidden' ? '0 0 14px rgba(56, 189, 248, 0.35)' : 'none',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>{cableSettings.operatorMode === 'operating' ? '👥' : '🚶'}</span>
+          <span>
+            {cableSettings.operatorMode === 'operating' 
+              ? '👥 2 Operatoren (Heck + Pult aktiv)' 
+              : cableSettings.operatorMode === 'walking_in' 
+              ? '⏳ 2 Operatoren laufen an...' 
+              : '👥 2 Operatoren rufen (Heck + Pult)'}
+          </span>
+        </button>
       </div>
 
       {/* --- CINEMATIC ROUND-TRIP LIVE DIRECTOR HUD BANNER --- */}
@@ -2734,21 +2523,41 @@ export default function Crane() {
             </h3>
             <div style={{ fontSize: '10px', color: '#94a3b8' }}>Kinematik, Profil & Grundriss-Maße</div>
           </div>
-          <button
-            onClick={() => setShowSpecsModal(!showSpecsModal)}
-            style={{
-              fontSize: '10px',
-              background: showSpecsModal ? 'rgba(56,189,248,0.35)' : 'rgba(56,189,248,0.15)',
-              color: '#38bdf8',
-              border: '1px solid rgba(56,189,248,0.4)',
-              padding: '3px 7px',
-              borderRadius: '4px',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-          >
-            {showSpecsModal ? '✕ Datenblatt' : '📋 SPECS 50+'}
-          </button>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {onOpenTechnocraneStudio && (
+              <button
+                onClick={onOpenTechnocraneStudio}
+                style={{
+                  fontSize: '10px',
+                  background: 'linear-gradient(135deg, #facc15, #eab308)',
+                  color: '#0f172a',
+                  border: 'none',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(250, 204, 21, 0.4)'
+                }}
+              >
+                🎬 STUDIO
+              </button>
+            )}
+            <button
+              onClick={() => setShowSpecsModal(!showSpecsModal)}
+              style={{
+                fontSize: '10px',
+                background: showSpecsModal ? 'rgba(56,189,248,0.35)' : 'rgba(56,189,248,0.15)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56,189,248,0.4)',
+                padding: '3px 7px',
+                borderRadius: '4px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              {showSpecsModal ? '✕ Datenblatt' : '📋 SPECS 50+'}
+            </button>
+          </div>
         </div>
 
         {/* --- BLUEPRINT DATASHEET MODAL / PANEL --- */}
@@ -2813,12 +2622,7 @@ export default function Crane() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-            {[
-              { id: 'meadow' as const, label: '🌿 Grüne Wiese', desc: 'Natur, Gras & Blumen', color: '#4ade80' },
-              { id: 'concrete' as const, label: '🏗️ Betonplatz', desc: 'Industrie, Fugen & Poller', color: '#facc15' },
-              { id: 'lake' as const, label: '🌊 Seeufer', desc: 'Wasserreflexion & Steg', color: '#38bdf8' },
-              { id: 'studio' as const, label: '🎬 Filmstudio', desc: 'High-Tech Grid & Dark Floor', color: '#c084fc' }
-            ].map(item => (
+            {sceneryOptions.map(item => (
               <button
                 key={`dash-scenery-${item.id}`}
                 onClick={() => setSceneryMode(item.id)}
@@ -2836,8 +2640,16 @@ export default function Crane() {
                   transition: 'all 0.2s ease'
                 }}
               >
-                <div>{item.label}</div>
-                <div style={{ fontSize: '8px', color: sceneryMode === item.id ? '#bae6fd' : '#64748b', fontWeight: 400 }}>{item.desc}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                  {item.isBright && (
+                    <span style={{ fontSize: '7px', background: 'rgba(56, 189, 248, 0.25)', color: '#38bdf8', padding: '1px 3px', borderRadius: '3px', marginLeft: 'auto' }}>
+                      HELL
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '8px', color: sceneryMode === item.id ? '#bae6fd' : '#64748b', fontWeight: 400, marginTop: '2px' }}>{item.desc}</div>
               </button>
             ))}
           </div>
@@ -2963,6 +2775,8 @@ export default function Crane() {
               { id: 'cinematic', label: '🎬 Orbit', desc: 'Round-Trip' },
               { id: 'profile', label: '📐 Profil', desc: 'Seitenriss' },
               { id: 'top', label: '🦅 Draufsicht', desc: 'Grundriss' },
+              { id: 'operator', label: '🚶 Heck-Op', desc: 'Kranführer' },
+              { id: 'desk', label: '🎛️ Pult-DoP', desc: 'Bodenpult' },
               { id: 'full', label: '🌟 Gesamt', desc: 'Studio' },
               { id: 'head', label: '🎥 Head', desc: 'Optik' },
               { id: 'weight', label: '⚖️ Heck', desc: 'Schlitten' },
@@ -3739,6 +3553,109 @@ export default function Crane() {
             onChange={(e) => setCableSettings(s => ({ ...s, demoSpeed: parseFloat(e.target.value) }))}
             style={{ width: '100%', accentColor: '#4ade80', cursor: 'pointer' }}
           />
+        </div>
+
+        {/* --- 🎬 5.1 FILMSET 2-OPERATOREN CREW (HECK-KRANFÜHRER + BODENPULT-DOP) --- */}
+        <div style={{
+          background: cableSettings.operatorMode !== 'hidden' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+          border: `1px solid ${cableSettings.operatorMode !== 'hidden' ? 'rgba(56, 189, 248, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
+          boxShadow: cableSettings.operatorMode !== 'hidden' ? '0 0 20px rgba(56, 189, 248, 0.15)' : 'none',
+          borderRadius: '8px',
+          padding: '12px',
+          marginBottom: '14px',
+          transition: 'all 0.3s ease'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: cableSettings.operatorMode !== 'hidden' ? '#38bdf8' : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>👥</span> <span>2x Filmset Operatoren (Live)</span>
+            </span>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '4px',
+              background: cableSettings.operatorMode === 'operating' ? 'rgba(34, 197, 94, 0.2)' : cableSettings.operatorMode === 'walking_in' ? 'rgba(250, 204, 21, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+              color: cableSettings.operatorMode === 'operating' ? '#4ade80' : cableSettings.operatorMode === 'walking_in' ? '#facc15' : '#94a3b8'
+            }}>
+              {cableSettings.operatorMode === 'operating' ? '● 2 Operatoren aktiv' : cableSettings.operatorMode === 'walking_in' ? '⏳ Laufen ins Bild...' : cableSettings.operatorMode === 'walking_out' ? '🚶 Gehen...' : '○ Inaktiv'}
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              setCableSettings(s => {
+                const isOff = s.operatorMode === 'hidden' || s.operatorMode === 'walking_out';
+                const nextMode: CraneOperatorMode = isOff ? 'walking_in' : 'walking_out';
+                if (isOff) {
+                  setCameraViewMode('operator');
+                }
+                return { ...s, operatorMode: nextMode };
+              });
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: '12px',
+              fontWeight: 800,
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              background: cableSettings.operatorMode === 'operating'
+                ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                : cableSettings.operatorMode === 'walking_in'
+                ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                : 'linear-gradient(135deg, #0284c7, #0369a1)',
+              color: '#fff',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              marginBottom: cableSettings.operatorMode === 'operating' ? '8px' : '0'
+            }}
+          >
+            {cableSettings.operatorMode === 'operating' 
+              ? '⏹ Operatoren entlassen (Walk-Out)' 
+              : cableSettings.operatorMode === 'walking_in' 
+              ? '⏳ 2 Operatoren laufen an ihre Pulte...' 
+              : '▶ 👥 2 Operatoren rufen (Heck + Bodenpult)'}
+          </button>
+
+          {cableSettings.operatorMode === 'operating' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <button
+                onClick={() => setCameraViewMode('operator')}
+                style={{
+                  padding: '6px 4px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  border: `1px solid ${cameraViewMode === 'operator' ? '#facc15' : 'rgba(255,255,255,0.15)'}`,
+                  background: cameraViewMode === 'operator' ? 'rgba(250,204,21,0.2)' : 'rgba(255,255,255,0.06)',
+                  color: cameraViewMode === 'operator' ? '#facc15' : '#e2e8f0',
+                  cursor: 'pointer'
+                }}
+              >
+                🚶 Heck-Kranführer
+              </button>
+              <button
+                onClick={() => setCameraViewMode('desk')}
+                style={{
+                  padding: '6px 4px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  border: `1px solid ${cameraViewMode === 'desk' ? '#38bdf8' : 'rgba(255,255,255,0.15)'}`,
+                  background: cameraViewMode === 'desk' ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.06)',
+                  color: cameraViewMode === 'desk' ? '#38bdf8' : '#e2e8f0',
+                  cursor: 'pointer'
+                }}
+              >
+                🎛️ Bodenpult-DoP
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Base Pan & Dolly Sliders */}

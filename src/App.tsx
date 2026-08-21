@@ -7,13 +7,14 @@ import Truck from './components/Truck';
 import Crane from './components/Crane';
 import SlopeCable from './components/SlopeCable';
 import CraneTennis from './components/CraneTennis';
+import TechnocraneStudio from './components/TechnocraneStudio';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const nebulaRef = useRef<HTMLDivElement>(null);
   const craneHudRef = useRef<HTMLDivElement>(null);
   const truckHudRef = useRef<HTMLDivElement>(null);
-  const [viewMode, setViewMode] = useState<'text' | 'truck' | 'crane' | 'cable' | 'tennis'>('text');
+  const [viewMode, setViewMode] = useState<'text' | 'truck' | 'crane' | 'cable' | 'tennis' | 'technocrane'>('text');
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -508,13 +509,21 @@ function App() {
   if (viewMode === 'crane') {
     return (
       <>
-        <button 
-          onClick={() => setViewMode('text')}
-          style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
-        >
-          Show 3D Text
-        </button>
-        <Crane />
+        <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => setViewMode('text')}
+            style={{ padding: '10px 18px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+          >
+            ← Zurück zum 3D Text
+          </button>
+          <button 
+            onClick={() => setViewMode('technocrane')}
+            style={{ padding: '10px 18px', cursor: 'pointer', background: 'linear-gradient(135deg, #facc15, #eab308)', color: '#0f172a', border: 'none', borderRadius: '6px', fontWeight: 900, boxShadow: '0 4px 16px rgba(250, 204, 21, 0.45)' }}
+          >
+            🎬 Zu Technocrane VP & MoCo Studio
+          </button>
+        </div>
+        <Crane onOpenTechnocraneStudio={() => setViewMode('technocrane')} />
       </>
     );
   }
@@ -547,6 +556,20 @@ function App() {
     );
   }
 
+  if (viewMode === 'technocrane') {
+    return (
+      <>
+        <button 
+          onClick={() => setViewMode('text')}
+          style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#facc15', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 14px rgba(0,0,0,0.4)' }}
+        >
+          ← Zurück zum 3D Text
+        </button>
+        <TechnocraneStudio />
+      </>
+    );
+  }
+
   return (
     <div className="app-container">
       <div id="nebula-bg" ref={nebulaRef}></div>
@@ -562,6 +585,12 @@ function App() {
           style={{ padding: '10px 18px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
         >
           Show Kran (Supertechno 50)
+        </button>
+        <button 
+          onClick={() => setViewMode('technocrane')}
+          style={{ padding: '10px 18px', cursor: 'pointer', background: 'linear-gradient(135deg, #facc15, #eab308)', color: '#0f172a', border: 'none', borderRadius: '6px', fontWeight: 900, boxShadow: '0 4px 16px rgba(250, 204, 21, 0.45)' }}
+        >
+          🎬 Technocrane VP & MoCo Studio
         </button>
         <button 
           onClick={() => setViewMode('cable')}
