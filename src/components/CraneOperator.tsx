@@ -876,7 +876,7 @@ function createAcousticSpiralCurve(): THREE.CatmullRomCurve3 {
 }
 
 /**
- * 🖐️ HIGH-FIDELITY ARTICULATED 5-FINGER CINE HAND
+ * 🖐️ HIGH-FIDELITY 5-FINGER ARTICULATED CINE HAND (3-PHALANX POWER GRIP)
  */
 function ArticulatedCineHand({
   isRight,
@@ -896,60 +896,82 @@ function ArticulatedCineHand({
 
   return (
     <group scale={[sideMul, 1, 1]}>
-      {/* Palm Base */}
-      <mesh castShadow position={[0, -0.038, 0]}>
-        <boxGeometry args={[0.074, 0.076, 0.028]} />
+      {/* Palm Base / Metacarpal Arch */}
+      <mesh castShadow position={[0, -0.036, 0]}>
+        <boxGeometry args={[0.076, 0.072, 0.026]} />
         <primitive object={matMain} attach="material" />
       </mesh>
-      {/* Tactical Knuckle Reinforcement Pad */}
+      {/* Tactical Knuckle Guard Bar */}
       {isGlove && (
-        <mesh position={[0, -0.014, 0.009]}>
-          <boxGeometry args={[0.076, 0.018, 0.012]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.3} />
+        <mesh position={[0, -0.012, 0.010]}>
+          <boxGeometry args={[0.078, 0.016, 0.012]} />
+          <meshStandardMaterial color="#0f172a" roughness={0.35} metalness={0.4} />
         </mesh>
       )}
 
-      {/* Opposable Thumb */}
-      <group position={[0.036, -0.024, 0.008]} rotation={[0.2 * grip, -0.35, 0.55 + grip * 0.4]}>
-        <mesh castShadow position={[0, -0.016, 0]}>
-          <cylinderGeometry args={[0.011, 0.01, 0.032, 8]} />
+      {/* Opposable Thumb with Metacarpal, Proximal & Distal Phalanges */}
+      <group position={[0.036, -0.018, -0.004]} rotation={[0.45 * grip, -0.42, 0.62 + grip * 0.55]}>
+        {/* Thumb Metacarpal */}
+        <mesh castShadow position={[0, -0.014, 0]}>
+          <cylinderGeometry args={[0.011, 0.010, 0.028, 8]} />
           <primitive object={matMain} attach="material" />
         </mesh>
-        <group position={[0, -0.032, 0]} rotation={[0, 0, 0.45 * grip]}>
-          <mesh castShadow position={[0, -0.014, 0]}>
-            <cylinderGeometry args={[0.0095, 0.008, 0.028, 8]} />
+        {/* Thumb Proximal Phalanx */}
+        <group position={[0, -0.028, 0]} rotation={[-0.65 * grip, 0, 0.40 * grip]}>
+          <mesh castShadow position={[0, -0.012, 0]}>
+            <cylinderGeometry args={[0.0095, 0.0085, 0.024, 8]} />
             <primitive object={matMain} attach="material" />
           </mesh>
+          {/* Thumb Distal Tip */}
+          <group position={[0, -0.024, 0]} rotation={[-0.55 * grip, 0, 0]}>
+            <mesh castShadow position={[0, -0.010, 0]}>
+              <sphereGeometry args={[0.0082, 8, 8]} />
+              <primitive object={matMain} attach="material" />
+            </mesh>
+          </group>
         </group>
       </group>
 
-      {/* 4 Articulated Fingers (Index, Middle, Ring, Pinky) */}
+      {/* 4 Articulated Fingers (Index, Middle, Ring, Pinky) with 3 Phalanges Each */}
       {[
-        { x: 0.026, l: 0.036, w: 0.0092 }, // Index
-        { x: 0.009, l: 0.040, w: 0.0098 }, // Middle
-        { x: -0.009, l: 0.037, w: 0.0092 }, // Ring
-        { x: -0.025, l: 0.030, w: 0.0082 }  // Pinky
+        { x: 0.027, l: 0.038, w: 0.0092 }, // Index
+        { x: 0.009, l: 0.042, w: 0.0098 }, // Middle
+        { x: -0.009, l: 0.039, w: 0.0092 }, // Ring
+        { x: -0.026, l: 0.032, w: 0.0082 }  // Pinky
       ].map((f, i) => (
-        <group key={`finger-${i}`} position={[f.x, -0.076, 0]} rotation={[-grip * 0.95, 0, 0]}>
-          {/* Proximal Knuckle & Phalanx */}
+        <group key={`finger-${i}`} position={[f.x, -0.072, 0]} rotation={[-grip * 0.85, 0, 0]}>
+          {/* 1. Proximal Phalanx */}
           <mesh castShadow position={[0, 0, 0]}>
             <sphereGeometry args={[f.w * 1.05, 8, 8]} />
             <primitive object={matMain} attach="material" />
           </mesh>
-          <mesh castShadow position={[0, -f.l * 0.32, 0]}>
-            <cylinderGeometry args={[f.w, f.w * 0.95, f.l * 0.65, 8]} />
+          <mesh castShadow position={[0, -f.l * 0.22, 0]}>
+            <cylinderGeometry args={[f.w, f.w * 0.95, f.l * 0.44, 8]} />
             <primitive object={matMain} attach="material" />
           </mesh>
-          {/* Distal Knuckle & Phalanx */}
-          <group position={[0, -f.l * 0.65, 0]} rotation={[-grip * 1.15, 0, 0]}>
+
+          {/* 2. Intermediate Phalanx */}
+          <group position={[0, -f.l * 0.44, 0]} rotation={[-grip * 0.85, 0, 0]}>
             <mesh castShadow position={[0, 0, 0]}>
-              <sphereGeometry args={[f.w * 0.92, 8, 8]} />
+              <sphereGeometry args={[f.w * 0.95, 8, 8]} />
               <primitive object={matMain} attach="material" />
             </mesh>
-            <mesh castShadow position={[0, -f.l * 0.28, 0]}>
-              <cylinderGeometry args={[f.w * 0.9, f.w * 0.72, f.l * 0.55, 8]} />
+            <mesh castShadow position={[0, -f.l * 0.18, 0]}>
+              <cylinderGeometry args={[f.w * 0.92, f.w * 0.85, f.l * 0.36, 8]} />
               <primitive object={matMain} attach="material" />
             </mesh>
+
+            {/* 3. Distal Phalanx & Fingertip */}
+            <group position={[0, -f.l * 0.36, 0]} rotation={[-grip * 0.65, 0, 0]}>
+              <mesh castShadow position={[0, 0, 0]}>
+                <sphereGeometry args={[f.w * 0.85, 8, 8]} />
+                <primitive object={matMain} attach="material" />
+              </mesh>
+              <mesh castShadow position={[0, -f.l * 0.12, 0]}>
+                <cylinderGeometry args={[f.w * 0.82, f.w * 0.68, f.l * 0.24, 8]} />
+                <primitive object={matMain} attach="material" />
+              </mesh>
+            </group>
           </group>
         </group>
       ))}
@@ -1483,29 +1505,27 @@ function RearCraneOperatorRig({
       rootRef.current.position.set(targetX, 0, targetZ);
       rootRef.current.rotation.y = targetRotY;
 
-      // 🦾 EXACT 2-BONE INVERSE KINEMATICS (IK) TO FIRMLY GRIP THE HECK-HENKEL
-      const standDist = 0.36; // 36cm distance from shoulder plane to handle
-      const deltaZ = standDist;
-      
-      // Adaptive posture (crouch slightly when handle is low, stand tall when handle is high)
-      let kneeBend = 0.05;
-      let hipPitch = 0.0;
-      let spinePitch = -0.04;
-      let shoulderWorldY = 1.46;
+      // 🦾 NATURAL ATHLETIC FORWARD LEAN & 2-BONE IK TO FIRMLY GRIP THE HECK-HENKEL
+      const standDist = 0.34; // 34cm distance behind the grip bar
 
-      if (handleWorldY < 1.25) {
-        const crouchFactor = THREE.MathUtils.clamp((1.25 - handleWorldY) / 0.8, 0, 1);
-        kneeBend = 0.05 + crouchFactor * 0.45;
-        hipPitch = crouchFactor * 0.25;
-        spinePitch = -0.04 + crouchFactor * 0.32;
-        shoulderWorldY = 1.46 - crouchFactor * 0.35;
-      }
+      // Natural forward lean of the upper torso towards the handle
+      const crouchFactor = handleWorldY < 1.35 ? THREE.MathUtils.clamp((1.35 - handleWorldY) / 0.85, 0, 1) : 0;
+      const spinePitch = -0.12 - crouchFactor * 0.22; // Leans forward (negative X rotation)
+      const kneeBend = 0.08 + crouchFactor * 0.40;
+      const hipPitch = 0.04 + crouchFactor * 0.18;
 
+      // Exact shoulder joint position accounting for forward spine lean
+      const spineLength = 0.38;
+      const shoulderForwardZ = -Math.sin(spinePitch) * spineLength; // Forward shift (+Z)
+      const shoulderWorldY = 1.08 + Math.cos(spinePitch) * spineLength - crouchFactor * 0.15; // Vertical height
+
+      const deltaZ = Math.max(0.12, standDist - shoulderForwardZ);
       const deltaY = handleWorldY - shoulderWorldY;
+
       const L1 = 0.26; // Upper arm length
       const L2 = 0.24; // Forearm length
       const rawDist = Math.sqrt(deltaZ * deltaZ + deltaY * deltaY);
-      const L = Math.max(0.18, Math.min(L1 + L2 - 0.015, rawDist));
+      const L = Math.max(0.16, Math.min(L1 + L2 - 0.008, rawDist));
 
       // Base elevation angle from straight down (+Y down) to target
       const baseAngle = Math.atan2(deltaZ, -deltaY);
@@ -1518,37 +1538,38 @@ function RearCraneOperatorRig({
       const cosShoulder = THREE.MathUtils.clamp((L1 * L1 + L * L - L2 * L2) / (2 * L1 * L), -1, 1);
       const shoulderOffset = Math.acos(cosShoulder);
 
-      // Shoulder, elbow, and hand pitch angles (negative shoulderPitch swings arm FORWARD towards the crane)
+      // Shoulder and hand pitch angles (negative shoulderPitch swings arm forward towards crane)
       const shoulderPitch = baseAngle - shoulderOffset;
-      const handPitch = (shoulderPitch - elbowAngle) - Math.PI * 0.48;
+      const handPitch = (shoulderPitch - elbowAngle) - Math.PI * 0.50;
 
       if (leftHipRef.current && rightHipRef.current && leftKneeRef.current && rightKneeRef.current) {
-        leftHipRef.current.rotation.set(-hipPitch, 0.06, -0.05);
-        rightHipRef.current.rotation.set(-hipPitch, -0.06, 0.05);
+        leftHipRef.current.rotation.set(-hipPitch, 0.05, -0.04);
+        rightHipRef.current.rotation.set(-hipPitch, -0.05, 0.04);
         leftKneeRef.current.rotation.x = kneeBend;
         rightKneeRef.current.rotation.x = kneeBend;
       }
       if (spineRef.current) {
-        spineRef.current.rotation.x = spinePitch + Math.sin(walkTime * 0.25) * 0.015;
+        spineRef.current.rotation.x = spinePitch + Math.sin(walkTime * 0.25) * 0.012;
+        spineRef.current.scale.set(1 + breathe * 0.02, 1 + breathe * 0.008, 1 + breathe * 0.025);
         spineRef.current.position.y = breathe;
       }
       if (headRef.current) {
-        const lookUpAngle = THREE.MathUtils.clamp(-0.15 - (boomTilt * Math.PI / 180) * 0.22, -0.35, 0.25);
+        const lookUpAngle = THREE.MathUtils.clamp(-0.16 - (boomTilt * Math.PI / 180) * 0.24, -0.38, 0.22);
         headRef.current.rotation.x = lookUpAngle;
       }
 
-      // Left arm reaching forward to firmly grasp the left rubber grip of the Henkel
+      // Left hand firmly locked onto the left rubber grip sleeve of the Henkel
       if (leftShoulderRef.current && leftElbowRef.current && leftHandRef.current) {
-        leftShoulderRef.current.rotation.set(-shoulderPitch, 0.08, -0.04);
+        leftShoulderRef.current.rotation.set(-shoulderPitch, 0.06, -0.04);
         leftElbowRef.current.rotation.set(elbowAngle, 0, 0);
-        leftHandRef.current.rotation.set(handPitch, 0, 0.08);
+        leftHandRef.current.rotation.set(handPitch, 0.04, 0.06);
       }
 
-      // Right arm reaching forward to firmly grasp the right rubber grip of the Henkel & thumb on rocker switch
+      // Right hand firmly locked onto the right rubber grip sleeve of the Henkel & thumb on rocker switch
       if (rightShoulderRef.current && rightElbowRef.current && rightHandRef.current) {
-        rightShoulderRef.current.rotation.set(-shoulderPitch, -0.08, 0.04);
+        rightShoulderRef.current.rotation.set(-shoulderPitch, -0.06, 0.04);
         rightElbowRef.current.rotation.set(elbowAngle, 0, 0);
-        rightHandRef.current.rotation.set(handPitch, 0, -0.08 + ((teleExtension || 0) / 11.3 - 0.5) * 0.15);
+        rightHandRef.current.rotation.set(handPitch, -0.04, -0.06 + ((teleExtension || 0) / 11.3 - 0.5) * 0.15);
       }
     }
   });
@@ -1702,11 +1723,11 @@ function RearCraneOperatorRig({
                 <torusGeometry args={[0.039, 0.006, 8, 16]} />
                 <primitive object={matJacketCollar} attach="material" />
               </mesh>
-              <group ref={leftHandRef} position={[0, -0.24, 0]} rotation={[0.2, 0, 0.1]}>
+              <group ref={leftHandRef} position={[0, -0.24, 0]}>
                 <ArticulatedCineHand
                   isRight={false}
                   isGlove={true}
-                  grip={0.92}
+                  grip={1.0}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
@@ -1731,11 +1752,11 @@ function RearCraneOperatorRig({
                 <torusGeometry args={[0.039, 0.006, 8, 16]} />
                 <primitive object={matJacketCollar} attach="material" />
               </mesh>
-              <group ref={rightHandRef} position={[0, -0.24, 0]} rotation={[0.2, 0, -0.1]}>
+              <group ref={rightHandRef} position={[0, -0.24, 0]}>
                 <ArticulatedCineHand
                   isRight={true}
                   isGlove={true}
-                  grip={0.92}
+                  grip={1.0}
                   matSkin={matSkin}
                   matGlove={matGlove}
                 />
