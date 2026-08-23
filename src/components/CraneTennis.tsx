@@ -3352,6 +3352,24 @@ export default function CraneTennis() {
     return '0';
   };
 
+  const handleRestartMatch = () => {
+    setManualResetTrigger(n => n + 1);
+    setMatchScore({
+      p1Points: 0,
+      p2Points: 0,
+      p1Games: 0,
+      p2Games: 0,
+      p1Sets: 0,
+      p2Sets: 0,
+      server: 1,
+      lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
+      umpireCall: 'Love-All (0:0)',
+      rallyCount: 0,
+      isCheering: false,
+      cheerIntensity: 0.0
+    });
+  };
+
   const isNetErrorActive = matchScore.lastMessage.includes('NETZFEHLER') || (matchScore.lastMessage.includes('NETZ') && !matchScore.lastMessage.includes('VOLLEY') && !matchScore.lastMessage.includes('NETZANGRIFF') && !matchScore.lastMessage.includes('NETZROLLER'));
   const isOutActive = matchScore.lastMessage.includes('OUT') || matchScore.lastMessage.includes('AUS');
   const isNetCordActive = matchScore.lastMessage.includes('NETZROLLER');
@@ -3626,6 +3644,29 @@ export default function CraneTennis() {
             {matchScore.isCheering ? `👏 JUBEL! ${matchScore.lastMessage}` : matchScore.lastMessage}
           </div>
         </div>
+
+        <button
+          onClick={handleRestartMatch}
+          title="Match komplett neu starten (11.3m Ausleger-Show)"
+          style={{
+            background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(249,115,22,0.25))',
+            border: '1px solid rgba(239,68,68,0.6)',
+            color: '#fee2e2',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.25)'
+          }}
+        >
+          <span>🔄</span>
+          <span>Restart Match</span>
+        </button>
 
         <button
           onClick={() => setShowH2HStats(true)}
@@ -4186,36 +4227,24 @@ export default function CraneTennis() {
         {/* 7. Match Actions */}
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
-            onClick={() => {
-              setManualResetTrigger(n => n + 1);
-              setMatchScore({
-                p1Points: 0,
-                p2Points: 0,
-                p1Games: 0,
-                p2Games: 0,
-                p1Sets: 0,
-                p2Sets: 0,
-                server: 1,
-                lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
-                umpireCall: 'Love-All (0:0)',
-                rallyCount: 0,
-                isCheering: false,
-                cheerIntensity: 0.0
-              });
-            }}
+            onClick={handleRestartMatch}
             style={{
               flex: 1,
               padding: '8px',
               fontSize: '11px',
               fontWeight: 800,
               borderRadius: '6px',
-              border: '1px solid rgba(239,68,68,0.4)',
-              background: 'rgba(239,68,68,0.15)',
+              border: '1px solid rgba(239,68,68,0.5)',
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(220,38,38,0.15))',
               color: '#fca5a5',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
             }}
           >
-            🔄 Match Reset
+            <span>🔄</span> <span>Restart Match</span>
           </button>
 
           <button
