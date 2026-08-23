@@ -76,14 +76,16 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
 
 ### 4. Emotionen & Gestik zwischen den Ballwechseln (`celebrationTimerRef`)
 - **2.4 Sekunden Jubel- & Frust-Phase nach jedem Punktgewinn**:
-  - **🇮🇹 Jannik Sinner (#1) Winner**:
-    - *"Ice-Cold Focus Nod & Steely Fist"*: Ruhiges, fokussiertes Nicken des Remote Heads (`headTilt \leftrightarrow \pm 14°`), leichtes rhythmisch-entschlossenes Schlägertippen (`headRoll \leftrightarrow \pm 10°`), Hubsäule fährt majestätisch auf $2.35\,\text{m}$ hoch.
-  - **🇪🇸 Carlos Alcaraz (#2) Winner**:
-    - *"Explosive Vamos-Faustballung & 360° Racket Twirl"*: Ausleger schnellt triumphierend auf $34°$ Neigung empor, Head pumpt wie eine geballte Faust bei 14 Hz auf und ab (`headTilt \to -24° \pm 22°`), Schläger vollführt eine dynamische $360°$-Spirale (`headRoll \to \pm 55°`), Dolly schreitet stolz zur Feldmitte.
-  - **Verlierer des Punktes (Frustration & Disbelief)**:
-    - *"Kopfschütteln & Blick zum Himmel/Flutlicht"*: Enttäuschtes Absenken des Auslegers (`boomTilt \to -6°`), ungläubiges links-rechts Kopfschütteln des Heads (`headPan = \sin(t) \cdot 26°`), gefolgt von einem Blick nach oben zu den Flutlichtern (`headTilt \to 32°`).
+  - **Gewinner des Punktes**:
+    - **🇮🇹 Jannik Sinner (#1) Winner**: *"Ice-Cold Focus Nod & Steely Fist"* – Majestätisches Aufrichten der Hubsäule auf $2.65\,\text{m}$, Ausleger auf $+22^\circ$, entschlossenes, rhythmisches Nicken des Schlägerkopfs (`headTilt \leftrightarrow \pm 18^\circ`), Fäuste und Schläger energisch angezogen.
+    - **🇪🇸 Carlos Alcaraz (#2) Winner**: *"Explosive Vamos-Faustballung & 360° Racket Twirl"* – Ausleger schnellt triumphierend auf $3.05\,\text{m}$ Hubhöhe und $+36^\circ$ Steigung in den Himmel, Schläger pumpt wie eine geballte Faust bei 15 Hz auf und ab (`headTilt \to -20^\circ \pm 26^\circ`) und vollführt eine dynamische $360^\circ$-Spirale (`headRoll \to \pm 60^\circ`).
+  - **Verlierer des Punktes (Enttäuschung & Frustration)**:
+    - **Vollständiges Einfahren**: Der Kranarm zieht sich komplett auf **`teleExtension = 0.0m`** an die Grundlinie zurück.
+    - **Geduckte Frust-Haltung**: Hubsäule senkt sich auf $1.60\,\text{m}$ ab, Ausleger neigt sich nach unten (`boomTilt \to -8^\circ`).
+    - **Blick starr zu Boden**: Der Schlägerkopf neigt sich tief nach unten (`headTilt \to -52^\circ`) und blickt direkt auf den Court-Boden / die eigenen Schienen.
+    - **Langsames, ungläubiges Kopfschütteln**: Der Kopf wendet sich langsam von links nach rechts (`headPan = \sin(t \cdot 5) \cdot 20^\circ`), während der Schläger kraftlos herabhängt (`headRoll \to \pm 14^\circ`).
 - **Aufschlag-Vorbereitung & Saiten-Zupfen**:
-  - **Server**: 3x rhythmisches Dribbeln auf dem Boden, gefolgt von einem kurzen Kontrollblick und Saiten-Zurechtzupfen (`headPan \to 24°, headRoll \to 32°`) unmittelbar vor dem Ballaufwurf.
+  - **Server**: 3x rhythmisches Dribbeln auf dem Boden, gefolgt von einem kurzen Kontrollblick und Saiten-Zurechtzupfen unmittelbar vor dem Ballaufwurf.
   - **Receiver**: Nervöser "Ready-Step" auf den Zehenspitzen / Schienen ($\pm 0.22\,\text{m}$ Bouncing), gebeugter Schwerpunkt ($Y=1.82\,\text{m}$) und aufmerksames Schlägerwippen in Erwartung des Aufschlags.
 
 ### 5. Grand Slam Match Engine & Schiedsrichter (`TennisUmpire`, `MatchScore`)

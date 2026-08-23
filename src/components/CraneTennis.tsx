@@ -2410,37 +2410,39 @@ function CraneTennisScene({
       if (winner === 1) {
         // 🇮🇹 JANNIK SINNER WINNER: "Ice-Cold Focused Nod & Steely Fist"
         kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 4.0);
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.35, dt * 5.0);
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 18, dt * 6.0);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 3.8, dt * 4.0);
-        kin1.headTilt = Math.sin(tElapsed * 6.5) * 14.0; // Entschlossenes Nicken
-        kin1.headRoll = Math.sin(tElapsed * 4.0) * 10.0;
+        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.65, dt * 6.0); // Majestätisch aufgerichtet
+        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 22, dt * 6.0);
+        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 1.2, dt * 5.0);
+        kin1.headTilt = Math.sin(tElapsed * 7.0) * 18.0; // Entschlossenes Sieger-Nicken
+        kin1.headRoll = Math.sin(tElapsed * 4.5) * 12.0;
         kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 5.0);
 
-        // 🇪🇸 CARLOS ALCARAZ FRUSTRATION: "Kopfschütteln & Blick zum Himmel"
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.72, dt * 5.0);
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, -6, dt * 5.0);
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.2, dt * 4.0);
-        kin2.headPan = Math.sin(tElapsed * 7.5) * 26.0; // Ungläubiges Kopfschütteln
-        kin2.headTilt = 32 + Math.sin(tElapsed * 3.0) * 14.0; // Blick frustriert nach oben
-        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 0, dt * 5.0);
+        // 🇪🇸 CARLOS ALCARAZ ENTTÄUSCHUNG: Fährt voll ein, senkt sich ab & schaut zu Boden!
+        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 5.0);
+        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 0.0, dt * 7.0); // VOLL EINGEFAHREN
+        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.60, dt * 6.0); // Geduckte Frust-Haltung
+        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, -8.0, dt * 6.0); // Ausleger neigt sich nach unten
+        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -52.0, dt * 8.0); // Blickt tief auf den Boden / Court!
+        kin2.headPan = Math.sin(tElapsed * 5.0) * 20.0; // Ungläubiges links-rechts Kopfschütteln
+        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 14.0, dt * 5.0);
       } else if (winner === 2) {
         // 🇪🇸 CARLOS ALCARAZ WINNER: "Explosives Vamos-Faustballen & 360° Racket Twirl"
         kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 5.0);
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 2.85, dt * 7.0);
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 34, dt * 7.0); // Ausleger reckt sich empor!
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.5, dt * 5.0);
-        kin2.headTilt = -24 + Math.sin(tElapsed * 14.0) * 22.0; // Kraftvolles Faust-Pumpen!
-        kin2.headRoll = Math.sin(tElapsed * 9.0) * 55.0; // Dynamischer Schläger-Twirl
+        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 3.05, dt * 7.0); // Explosiv emporgeschnellt
+        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 36, dt * 7.0); // Ausleger reckt sich triumphierend in die Luft!
+        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 2.2, dt * 5.0);
+        kin2.headTilt = -20 + Math.sin(tElapsed * 15.0) * 26.0; // Kraftvolles Faust-Pumpen!
+        kin2.headRoll = Math.sin(tElapsed * 9.5) * 60.0; // Dynamischer 360° Schläger-Twirl
         kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 5.0);
 
-        // 🇮🇹 JANNIK SINNER FRUSTRATION: "Konzentriertes Frust-Kopfschütteln & Saiten-Zupfen"
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.78, dt * 5.0);
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, -4, dt * 5.0);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 4.0, dt * 4.0);
-        kin1.headPan = Math.sin(tElapsed * 6.0) * 22.0; // Kopfschütteln
-        kin1.headTilt = 28 + Math.sin(tElapsed * 3.0) * 10.0;
-        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 5.0);
+        // 🇮🇹 JANNIK SINNER ENTTÄUSCHUNG: Fährt voll ein, senkt sich ab & schaut zu Boden!
+        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 5.0);
+        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 0.0, dt * 7.0); // VOLL EINGEFAHREN
+        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.60, dt * 6.0); // Geduckte Frust-Haltung
+        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, -8.0, dt * 6.0); // Ausleger neigt sich nach unten
+        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -52.0, dt * 8.0); // Blickt tief auf den Boden / Court!
+        kin1.headPan = Math.sin(tElapsed * 5.0) * 20.0; // Konzentriertes Frust-Kopfschütteln
+        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, -14.0, dt * 5.0);
       }
 
       // 🎾 Ballistische Auslauf-Physik während der Jubel- & Frust-Phase (Ball fliegt & dotzt weiter!)
