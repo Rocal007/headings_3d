@@ -410,14 +410,14 @@ function CraneTennisRacket({
 // --- 🏗️ CRANE BOOM TIP RIG ---
 function CraneBoomTipRig({
   crane,
-  kinematics,
+  kinematicsRef,
   teamColor,
   stringGlow,
   racketWorldPosRef,
   racketWorldQuatRef
 }: {
   crane: Supertechno50FBXModel | null;
-  kinematics: {
+  kinematicsRef: React.MutableRefObject<{
     dollyTrack: number;
     columnElevation: number;
     basePan: number;
@@ -426,17 +426,21 @@ function CraneBoomTipRig({
     headPan: number;
     headTilt: number;
     headRoll: number;
-  };
+  }>;
   teamColor: string;
   stringGlow: string;
   racketWorldPosRef: React.MutableRefObject<THREE.Vector3>;
   racketWorldQuatRef?: React.MutableRefObject<THREE.Quaternion>;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const headWrapperRef = useRef<THREE.Group>(null);
   const racketTargetRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
     if (!groupRef.current || !crane || !crane.isLoaded || !crane.nodes.beams) return;
+    const kin = kinematicsRef.current;
+    
+    // 1. Fulcrum World Transform (Pivot)
     const beamNode = crane.nodes.beams;
     const worldPos = new THREE.Vector3();
     const worldQuat = new THREE.Quaternion();
@@ -446,6 +450,15 @@ function CraneBoomTipRig({
     groupRef.current.position.copy(worldPos);
     groupRef.current.quaternion.copy(worldQuat);
 
+    // 2. Telescopic Boom Tip Position along local Z axis in useFrame on EVERY FRAME
+    if (headWrapperRef.current) {
+      const ext = Math.max(0, Math.min(11.3, kin.teleExtension || 0));
+      const tExt = ext / 11.3;
+      const tipZ = -3.34 - tExt * 11.40;
+      headWrapperRef.current.position.set(-0.01, 0.05, tipZ);
+    }
+
+    // 3. World Position & Quaternion of Racket Sweet Spot for Hit detection & Racket-Cam POV
     if (racketTargetRef.current) {
       const rPos = new THREE.Vector3();
       const rQuat = new THREE.Quaternion();
@@ -458,31 +471,24 @@ function CraneBoomTipRig({
     }
   });
 
-  const ext = kinematics.teleExtension || 0;
-  const tExt = Math.max(0, Math.min(1.0, ext / 11.3));
-  const tipZ = -3.34 - tExt * 11.40;
-  const tipY = 0.05;
-  const tipX = -0.01;
-
   return (
     <group ref={groupRef}>
-      <RemoteCameraHead
-        headPan={kinematics.headPan || 0}
-        headTilt={kinematics.headTilt || 0}
-        headRoll={kinematics.headRoll || 0}
-        boomTilt={kinematics.boomTilt || 0}
-        autoLevel={true}
-        position={[tipX, tipY, tipZ]}
-        scale={1.0}
-        showCableLead={false}
-        customPayload={
-          <group position={[0, -0.06, 0.04]}>
-            {/* 🎾 IN DIESEM VIEW IST DIE KAMERA IM HEAD DER TENNISSCHLÄGER! */}
-            <group ref={racketTargetRef} position={[0, 0.42, 0]} />
-            <CraneTennisRacket teamColor={teamColor} stringGlow={stringGlow} racketScale={1.0} />
-          </group>
-        }
-      />
+      <group ref={headWrapperRef} position={[-0.01, 0.05, -3.34]}>
+        <RemoteCameraHead
+          kinematicsRef={kinematicsRef}
+          autoLevel={true}
+          position={[0, 0, 0]}
+          scale={1.0}
+          showCableLead={false}
+          customPayload={
+            <group position={[0, -0.06, 0.04]}>
+              {/* 🎾 IN DIESEM VIEW IST DIE KAMERA IM HEAD DER TENNISSCHLÄGER! */}
+              <group ref={racketTargetRef} position={[0, 0.42, 0]} />
+              <CraneTennisRacket teamColor={teamColor} stringGlow={stringGlow} racketScale={1.0} />
+            </group>
+          }
+        />
+      </group>
     </group>
   );
 }
@@ -1335,6 +1341,9 @@ function CraneTennisScene({
 
   const crane1BaseZ = -15.2;
   const crane2BaseZ = 15.2;
+
+  const dolly1GroupRef = useRef<THREE.Group>(null);
+  const dolly2GroupRef = useRef<THREE.Group>(null);
 
   const racket1WorldPos = useRef(new THREE.Vector3(0, 2.2, -9.8));
   const racket2WorldPos = useRef(new THREE.Vector3(0, 2.2, 9.8));
@@ -2977,6 +2986,13 @@ function CraneTennisScene({
       }
     }
 
+    if (dolly1GroupRef.current) {
+      dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -15.2);
+    }
+    if (dolly2GroupRef.current) {
+      dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 15.2);
+    }
+
     if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
     if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
 
@@ -3081,7 +3097,7 @@ function CraneTennisScene({
       <ConfettiCelebration active={matchScore.isCheering} />
 
       {/* KRAN 1 (SÜD) - MIT DEDIZIERTER SCHWERLAST-DOLLY BASE AUF SCHIENEN */}
-      <group position={[kin1Ref.current.dollyTrack, 0, -15.2]}>
+      <group ref={dolly1GroupRef} position={[0, 0, -15.2]}>
         <SupertechnoDollyBase teamColor="#38bdf8" />
         <group rotation={[0, Math.PI, 0]}>
           {crane1 && <primitive object={crane1.group} />}
@@ -3090,7 +3106,7 @@ function CraneTennisScene({
 
       <CraneBoomTipRig
         crane={crane1}
-        kinematics={kin1Ref.current}
+        kinematicsRef={kin1Ref}
         teamColor="#38bdf8"
         stringGlow="#bae6fd"
         racketWorldPosRef={racket1WorldPos}
@@ -3098,7 +3114,7 @@ function CraneTennisScene({
       />
 
       {/* KRAN 2 (NORD) - MIT DEDIZIERTER SCHWERLAST-DOLLY BASE AUF SCHIENEN */}
-      <group position={[kin2Ref.current.dollyTrack, 0, 15.2]}>
+      <group ref={dolly2GroupRef} position={[0, 0, 15.2]}>
         <SupertechnoDollyBase teamColor="#facc15" />
         <group rotation={[0, 0, 0]}>
           {crane2 && <primitive object={crane2.group} />}
@@ -3107,7 +3123,7 @@ function CraneTennisScene({
 
       <CraneBoomTipRig
         crane={crane2}
-        kinematics={kin2Ref.current}
+        kinematicsRef={kin2Ref}
         teamColor="#facc15"
         stringGlow="#fef08a"
         racketWorldPosRef={racket2WorldPos}

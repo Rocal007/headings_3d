@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import AutoHorizonMount from './AutoHorizonMount';
 import ArriCinemaCamera from './ArriCinemaCamera';
@@ -210,6 +211,12 @@ export interface RemoteCameraHeadProps {
   showCableLead?: boolean;
   customPayload?: React.ReactNode;
   hideCamera?: boolean;
+  kinematicsRef?: React.MutableRefObject<{
+    headPan?: number;
+    headTilt?: number;
+    headRoll?: number;
+    boomTilt?: number;
+  }>;
 }
 
 export function RemoteCameraHead({
@@ -224,7 +231,8 @@ export function RemoteCameraHead({
   useCadColors = false,
   showCableLead = true,
   customPayload,
-  hideCamera = false
+  hideCamera = false,
+  kinematicsRef
 }: RemoteCameraHeadProps) {
   // Textures
   const texVernier = useMemo(() => createVernierScaleTexture(), []);
@@ -408,6 +416,31 @@ export function RemoteCameraHead({
     new THREE.Vector3(-0.065, -0.098, -0.080)
   ]), []);
 
+  const levelPitchRef = useRef<THREE.Group>(null);
+  const panRef = useRef<THREE.Group>(null);
+  const tiltRef = useRef<THREE.Group>(null);
+  const rollRef = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    if (kinematicsRef && kinematicsRef.current) {
+      const kin = kinematicsRef.current;
+      const bTilt = kin.boomTilt ?? boomTilt;
+      const hPan = kin.headPan ?? headPan;
+      const hTilt = kin.headTilt ?? headTilt;
+      const hRoll = kin.headRoll ?? headRoll;
+
+      const curLevelPitchOffset = autoLevel ? -THREE.MathUtils.degToRad(bTilt) : 0;
+      const curPanRad = THREE.MathUtils.degToRad(-hPan + 180);
+      const curTiltRad = THREE.MathUtils.degToRad(hTilt);
+      const curRollRad = THREE.MathUtils.degToRad(hRoll);
+
+      if (levelPitchRef.current) levelPitchRef.current.rotation.x = curLevelPitchOffset;
+      if (panRef.current) panRef.current.rotation.y = curPanRad;
+      if (tiltRef.current) tiltRef.current.rotation.x = curTiltRad;
+      if (rollRef.current) rollRef.current.rotation.z = curRollRad;
+    }
+  });
+
   const levelPitchOffset = autoLevel ? -THREE.MathUtils.degToRad(boomTilt) : 0;
   const panRad = THREE.MathUtils.degToRad(-headPan + 180);
   const tiltRad = THREE.MathUtils.degToRad(headTilt);
@@ -424,8 +457,8 @@ export function RemoteCameraHead({
       />
 
       {/* 2. S-Head Pan Axis (Yaw) */}
-      <group position={[0, -0.11, 0]} rotation={[levelPitchOffset, 0, 0]}>
-        <group position={[0, -0.165, 0]} rotation={[0, panRad, 0]}>
+      <group ref={levelPitchRef} position={[0, -0.11, 0]} rotation={[levelPitchOffset, 0, 0]}>
+        <group ref={panRef} position={[0, -0.165, 0]} rotation={[0, panRad, 0]}>
 
           {/* Top Mitchell Mount Adapter Hub & Damping Ring */}
           <mesh castShadow receiveShadow material={matDarkComposite} position={[0, 0.08, 0]}>
@@ -699,13 +732,13 @@ export function RemoteCameraHead({
           </group>
 
           {/* 3. S-Head Tilt Axis (Pitch) */}
-          <group position={[0, -0.32, 0]} rotation={[tiltRad, 0, 0]}>
+          <group ref={tiltRef} position={[0, -0.32, 0]} rotation={[tiltRad, 0, 0]}>
             {/* Tilt Shaft Pivot Bearings */}
             <mesh castShadow material={matChromeSteel} position={[-0.21, 0, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.026, 0.026, 0.07, 24]} /></mesh>
             <mesh castShadow material={matChromeSteel} position={[0.21, 0, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.026, 0.026, 0.07, 24]} /></mesh>
 
             {/* 4. S-Head Roll Axis (360° Continuous Roll Gimbal Ring) */}
-            <group rotation={[0, 0, rollRad]}>
+            <group ref={rollRef} rotation={[0, 0, rollRad]}>
 
               {/* CNC Roll Ring Plate (Exact Match to Reference Photo) */}
               <mesh castShadow receiveShadow material={matBlackAnodized} geometry={geomRollRingPlate} position={[0, 0, -0.009]} />
