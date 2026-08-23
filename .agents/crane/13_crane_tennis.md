@@ -109,14 +109,14 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
 
 ### 7. TV-Broadcast-Regie & Scoreboard (`TennisCameraMode`)
 - **8 Kameraperspektiven**:
-  1. `broadcast`: Klassische TV-Hauptkamera (Center Court Vogelperspektive).
-  2. `smash`: **🎾 💥 Tennisschläger-Kamera (Racket Cam POV)** – Die Kamera ist direkt am Herzen des Tennisschlägers des schlagenden Krans montiert und blickt durch die Carbon-Saitenbespannung auf Ball, Ausholbewegung und den gegnerischen Platz (gilt exklusiv in diesem View!).
-  3. `ball`: Action-Kamera, die dem Ball in Flugrichtung folgt.
-  4. `crane1`: Close-Up Verfolgung von Kran 1 (Team Blau).
-  5. `umpire`: Schiedsrichter-Perspektive von der Stuhlkanzel.
-  6. `spectator`: Front-Row Zuschauerperspektive von der Tribüne.
-  7. `coach`: Trainerkabinen-Blickwinkel.
-  8. `free`: Frei rotierbare 360° Orbit-Kamera.
+  1. `free`: **🔓 Frei rotierbare 360° Orbit-Kamera (Default)** – Unbeschränkte freie Kamerasteuerung per Maus/Touch (Drehen, Schwenken, Zoomen).
+  2. `broadcast`: Klassische TV-Hauptkamera (Center Court Vogelperspektive).
+  3. `smash`: **🎾 💥 Tennisschläger-Kamera (Racket Cam POV)** – Die Kamera ist direkt am Herzen des Tennisschlägers des schlagenden Krans montiert und blickt durch die Carbon-Saitenbespannung auf Ball, Ausholbewegung und den gegnerischen Platz (gilt exklusiv in diesem View!).
+  4. `ball`: Action-Kamera, die dem Ball in Flugrichtung folgt.
+  5. `crane1`: Close-Up Verfolgung von Kran 1 (Team Blau).
+  6. `umpire`: Schiedsrichter-Perspektive von der Stuhlkanzel.
+  7. `spectator`: Front-Row Zuschauerperspektive von der Tribüne.
+  8. `coach`: Trainerkabinen-Blickwinkel.
 - **Offizielles TV Broadcast Scoreboard Overlay (Links unten)**:
   - **Authentisches 2-Zeilen-Format (ATP Tour & Grand Slam Standard)**:
     - **Positionierung**: Unten links (`bottom: 20px, left: 20px`), wie bei echten TV-Übertragungen (BBC Wimbledon, ESPN, Eurosport).

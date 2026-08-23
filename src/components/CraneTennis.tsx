@@ -3242,7 +3242,7 @@ function CraneTennisScene({
 // --- 🎾 MAIN TENNIS EXPORT CONTAINER & BROADCAST HUD UI ---
 export default function CraneTennis() {
   const [courtSurface, setCourtSurface] = useState<CourtSurface>('clay');
-  const [cameraMode, setCameraMode] = useState<TennisCameraMode>('broadcast');
+  const [cameraMode, setCameraMode] = useState<TennisCameraMode>('free');
   const [isAIvsAI, setIsAIvsAI] = useState(true);
   const [gameSpeed, setGameSpeed] = useState(1.2);
   const [showSpectators, setShowSpectators] = useState(false);
@@ -3953,14 +3953,14 @@ export default function CraneTennis() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
             {[
+              { id: 'free' as const, label: '🔓 Freie Kamera (360°)' },
               { id: 'broadcast' as const, label: '📺 TV Broadcast' },
               { id: 'smash' as const, label: '🎾 Schläger-Cam (POV)' },
               { id: 'spectator' as const, label: '👥 Tribüne (Fan)' },
               { id: 'umpire' as const, label: '🪑 Schiedsrichter' },
               { id: 'coach' as const, label: '📋 Trainer-Bank' },
               { id: 'ball' as const, label: '🎾 Ball-Kamera' },
-              { id: 'crane1' as const, label: '🏗️ Kran 1 POV' },
-              { id: 'free' as const, label: '🔓 Freier Orbit' }
+              { id: 'crane1' as const, label: '🏗️ Kran 1 POV' }
             ].map(item => (
               <button
                 key={item.id}
