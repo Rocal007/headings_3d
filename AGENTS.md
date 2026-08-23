@@ -138,6 +138,10 @@ graph TD
   * **Courtside Staff & Tribünen-Atmosphäre**: 4x Ballkinder, 6x Linienrichter mit Signalflaggen, Grand-Stand Tribünen mit 3D-Zuschauern und La-Ola-Jubel.
   * **Grand Slam Court Arena (`TennisCourtArena`)**: 4 umschaltbare PBR-Beläge (Sandplatz/Clay, Rasen/Grass, Hartplatz/Hardcourt, Cyber Neon/Cyber), weiße Markierungslinien, Turniertennisnetz mit Pfosten, LED-Sponsorbanden und 4x Flutlichtmasten.
   * **TV Broadcast Regie & Scoreboard (`TennisCameraMode`)**: 8 dynamische Kameraperspektiven (`broadcast`, `smash` [exklusive First-Person Tennisschläger-Kamera], `ball`, `crane1`, `umpire`, `spectator`, `coach`, `free`) und TV-Grafik-Scoreboard mit Radar-Geschwindigkeitsanzeige, `🔥 248 km/h SMASH`-, `⚡ NETZ-VOLLEY`-, `🕸️ NETZFEHLER`- und `⚠️ OUT`-Status-Badges.
+  * **Offizieller Grand Slam Seitenwechsel (Change of Ends / Changeover)**: Automatische Erkennung nach ungerader Spielanzahl eines Satzes (`(g1 + g2) % 2 === 1`) sowie nach Satzgewinn:
+    * **5.2s Seitenwechsel-Sequenz**: Beide Kräne fahren zentriert ein ($0.2\,\text{m}$ Teleskoplänge), schwenken $48^\circ$ zur Spielerbank am Seitenrand für eine Handtuch- und Trinkpause, während die TV-Kamera eine elegante Halbtotale der Bank & des Schiedsrichterstuhls zeigt.
+    * **Dynamischer Seiten-Swap (`playerSouth: 1 | 2`)**: Automatische Umkehr der Spielfeldseiten ($Z = \pm 16.8\,\text{m}$), der Teamfarben (Süd-Schiene `#38bdf8` / `#facc15`), der Schuss- und Aufschlagtrajektorien und des First-Person Racket-POV-Trackings.
+    * **TV-Broadcast Banner**: Großes animiertes `🔄 CHANGEOVER • SEITENWECHSEL`-Center-Banner mit Spieler-Seitenindikatoren (`(SÜD)` / `(NORD)`).
   * **Emotionen & Körpersprache zwischen den Ballwechseln (`celebrationTimerRef`)**: 2.4s authentische Gesten nach jedem Punkt: 🇮🇹 Sinner mit ruhigem, fokussiertem Nicken & Steely Fist, 🇪🇸 Alcaraz mit explosivem 34° Vamos-Ausleger, Faustpumpen und 360° Racket-Twirl; Verlierer mit ungläubigem links-rechts Kopfschütteln & Blick zum Himmel; Vor-Aufschlag-Rituale mit Ball-Dribbeln, Saitenzupfen und Receiver im federnden Ready-Stance.
 
 ---

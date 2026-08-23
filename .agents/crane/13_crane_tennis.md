@@ -151,6 +151,17 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **Auslöser**: Bei jedem Matchstart (Initialisierung / Match-Reset) und unmittelbar nach jedem gewonnenen Spiel (Game-Wechsel).
   - **4.8s Kinematik-Ablauf**: Beide Supertechno 50 Kräne heben ihre Hubsäulen auf 3.25m an, neigen die Ausleger auf 30° und **fahren synchron bis zum mechanischen Endanschlag von 11.3m voll aus**, vollführen eine Schläger-Glow-Kalibrierung und fahren anschließend sanft zurück auf die 5.5m Service-Grundlinie.
   - **Cinematische Kamera-Tour**: Dynamischer 3-Phasen Kameraflug (Tiefe Weitwinkel-Aufnahme von Südwest -> Kurvenflug über das Netz -> sanfte Landung in TV-Broadcast-Perspektive).
+- **Offizieller Grand Slam Seitenwechsel (Change of Ends / Changeover)**:
+  - **Regelkonforme Trigger**: Automatischer Seitenwechsel nach jedem ungeraden Spiel in einem Satz (1:0, 2:1, 3:2, 4:3, 5:4, usw.) sowie bei jedem Satzgewinn.
+  - **5.2s Seitenwechsel-Choreografie**:
+    - Beide Kräne ziehen sich auf $0.2\,\text{m}$ Teleskopauszug ein, Hubsäule $1.80\,\text{m}$, Ausleger $8^\circ$.
+    - Schwenken synchron um $48^\circ$ bzw. $-48^\circ$ zur Spielerbank am Seitenrand (`basePan \to \pm 48^\circ, headTilt \to -22^\circ`) für eine Handtuch- und Trinkpause.
+    - Drehen sich anschließend wieder auf den Court und bereiten sich auf den neuen Aufschlag vor.
+  - **Dynamische Spielfeld-Umkehr (`playerSouth: 1 | 2`)**:
+    - Tauscht dynamisch die Z-Achsen-Zuordnung ($Z = \pm 16.8\,\text{m}$), Schienen-Teamfarben (`#38bdf8` / `#facc15`), Schuss- und Balltrajektorien und Racket-POV-Kamerazuweisung.
+  - **TV-Broadcast Overlay & Scoreboard-Badges**:
+    - Großes TV-Broadcast-Zentralbanner: `🔄 CHANGEOVER • SEITENWECHSEL ([1] J. Sinner ↔️ [2] C. Alcaraz)`.
+    - Spielerzeilen im Scoreboard zeigen stets aktuelle Seiten-Badges (`(SÜD)` / `(NORD)`).
 - **Match-Freeze / Stop-Modus & Match-Restart**:
   - **`⏸️ Stop / Freeze`**: Sofortiges Einfrieren aller Ballflugkurven, Dolly-Fahrten und Ausleger-Bewegungen bei laufendem Match, um beliebige Spielsituationen und Kran-Posen mit der freien 360° Orbit-Kamera im Detail zu inspizieren.
   - **`🔄 Restart Match`**: Setzt das gesamte Match auf 0:0 zurück und startet unmittelbar die 11.3m Voll-Ausfahr-Zeremonie.

@@ -50,6 +50,8 @@ interface MatchScore {
   p1Sets: number;
   p2Sets: number;
   server: 1 | 2;
+  playerSouth: 1 | 2; // 1 = Sinner auf Südseite (Z = -16.8), 2 = Alcaraz auf Südseite
+  isChangeover: boolean;
   lastMessage: string;
   umpireCall: string;
   rallyCount: number;
@@ -1211,7 +1213,7 @@ function CraneTennisScene({
   const [crane2, setCrane2] = useState<Supertechno50FBXModel | null>(null);
 
   const showcaseTimerRef = useRef(4.8); // 4.8s Voll-Ausfahr- & Intro-Kamera-Sequenz
-  const showcaseTypeRef = useRef<'intro' | 'gamewin'>('intro');
+  const showcaseTypeRef = useRef<'intro' | 'gamewin' | 'changeover'>('intro');
 
   useEffect(() => {
     if (manualResetTrigger && manualResetTrigger > 0) {
@@ -1285,13 +1287,14 @@ function CraneTennisScene({
 
   const triggerGrandSlamServe = (server: 1 | 2, forceWinner?: boolean, serveAttempt: 1 | 2 = 1) => {
     const isSinner = server === 1;
+    const isSouthServer = (server === (matchScore.playerSouth || 1));
     const receiver = isSinner ? 2 : 1;
     const totalPoints = (matchScore.p1Points || 0) + (matchScore.p2Points || 0);
     const isDeuceCourt = totalPoints % 2 === 0; // Gerade Punktzahl ➜ Einstand/Deuce (Rechts), Ungerade ➜ Vorteil/Ad (Links)
 
     // Position hinter der Grundlinie (Kran voll eingefahren teleExtension = 0.0)
-    const serverZ = isSinner ? -12.6 : 12.6;
-    const serverX = isSinner 
+    const serverZ = isSouthServer ? -12.6 : 12.6;
+    const serverX = isSouthServer 
       ? (isDeuceCourt ? -2.2 : 2.2) 
       : (isDeuceCourt ? 2.2 : -2.2);
 
@@ -1300,12 +1303,12 @@ function CraneTennisScene({
     ballVelocityRef.current.set(0, 0, 0);
 
     // Diagonales Zielfeld (Aufschlagfeld des Gegners bei Z = ±6.2m)
-    const targetServiceZ = isSinner ? 6.2 : -6.2;
+    const targetServiceZ = isSouthServer ? 6.2 : -6.2;
     const servePlacement = Math.random();
     let targetX = 0;
     let targetDescription = '';
 
-    if (isSinner) {
+    if (isSouthServer) {
       if (isDeuceCourt) {
         // Von Süd-Rechts (-2.2) diagonal in Nord-Rechts (+0.35 bis +3.65)
         if (servePlacement < 0.45) { targetX = 0.40; targetDescription = 'T-LINIE (FLAT)'; }
@@ -1331,7 +1334,7 @@ function CraneTennisScene({
       }
     }
 
-    const receiverTargetZ = isSinner ? 11.2 : -11.2;
+    const receiverTargetZ = isSouthServer ? 11.2 : -11.2;
 
     if (serveAttempt === 1) {
       // --- 1. AUFSCHLAG (FIRST SERVICE) ---
@@ -1472,6 +1475,7 @@ function CraneTennisScene({
     const nextHitter = fromHitter === 1 ? 2 : 1;
     const isSinner = fromHitter === 1;
     const isAlcaraz = fromHitter === 2;
+    const isNextHitterSouth = (nextHitter === (matchScore.playerSouth || 1));
     const prevShot = shotRef.current;
     
     // Prüfen, ob der vorherige Schlag eine hohe defensive Kerze (Lob) war
@@ -1551,7 +1555,7 @@ function CraneTennisScene({
         // Deep Out: Ball segelt über die Grundlinie (Z = 11.885m) hinaus
         cmOut = Math.round(2 + Math.random() * 12);
         const outDistM = cmOut / 100;
-        targetZ = nextHitter === 1 ? (-11.885 - outDistM - 0.4) : (11.885 + outDistM + 0.4);
+        targetZ = isNextHitterSouth ? (-11.885 - outDistM - 0.4) : (11.885 + outDistM + 0.4);
         targetX = (Math.random() - 0.5) * 5.6;
         targetY = 0.9 + Math.random() * 0.4;
 
@@ -1572,7 +1576,7 @@ function CraneTennisScene({
         const isRight = Math.random() > 0.5;
         const outDistM = cmOut / 100;
         targetX = isRight ? (4.115 + outDistM + 0.3) : (-4.115 - outDistM - 0.3);
-        targetZ = nextHitter === 1 ? (-7.0 - Math.random() * 4.2) : (7.0 + Math.random() * 4.2);
+        targetZ = isNextHitterSouth ? (-7.0 - Math.random() * 4.2) : (7.0 + Math.random() * 4.2);
         targetY = 0.8 + Math.random() * 0.4;
 
         if (isSinner) {
@@ -1585,7 +1589,7 @@ function CraneTennisScene({
       }
 
       const bouncePos = new THREE.Vector3(targetX, 0.16, targetZ);
-      const postBounceTargetZ = isDeepOut ? (nextHitter === 1 ? -18.5 : 18.5) : (targetZ + (nextHitter === 1 ? -3.5 : 3.5));
+      const postBounceTargetZ = isDeepOut ? (isNextHitterSouth ? -18.5 : 18.5) : (targetZ + (isNextHitterSouth ? -3.5 : 3.5));
       const postBounceTargetX = isDeepOut ? targetX * 1.35 : targetX * 1.5;
       const postBounceTargetY = 1.45;
 
@@ -1616,7 +1620,7 @@ function CraneTennisScene({
       isDecisive = true;
       pointWinner = nextHitter; // Punkt für den Gegner!
       speed = Math.round(135 + Math.random() * 25);
-      targetZ = nextHitter === 1 ? -0.1 : 0.1;
+      targetZ = isNextHitterSouth ? -0.1 : 0.1;
       targetY = 0.72 + Math.random() * 0.15;
       targetX = (Math.random() - 0.5) * 3.5;
       
@@ -1659,7 +1663,7 @@ function CraneTennisScene({
       isDecisive = true;
       pointWinner = fromHitter;
       speed = 118;
-      targetZ = nextHitter === 1 ? (-2.4 - Math.random() * 1.4) : (2.4 + Math.random() * 1.4);
+      targetZ = isNextHitterSouth ? (-2.4 - Math.random() * 1.4) : (2.4 + Math.random() * 1.4);
       targetX = (Math.random() - 0.5) * 3.5;
       targetY = 0.4;
       chosenType = '💫 NETZROLLER! (Ball touchiert das Netzkabel und tropft unerreichbar ins Feld)';
@@ -1697,9 +1701,9 @@ function CraneTennisScene({
       rpm = isAlcaraz ? 3250 : 2600;
       
       targetX = (Math.random() - 0.5) * 4.6;
-      targetZ = nextHitter === 1 ? (-12.8 - Math.random() * 1.4) : (12.8 + Math.random() * 1.4);
+      targetZ = isNextHitterSouth ? (-12.8 - Math.random() * 1.4) : (12.8 + Math.random() * 1.4);
       targetY = 1.1;
-      const bounceZ = nextHitter === 1 ? -11.4 : 11.4;
+      const bounceZ = isNextHitterSouth ? -11.4 : 11.4;
       const bouncePosition = new THREE.Vector3(targetX, 0.16, bounceZ);
 
       if (isSinner) {
@@ -1740,7 +1744,7 @@ function CraneTennisScene({
       speed = 110;
       spinType = 'slice';
       rpm = 1800;
-      targetZ = nextHitter === 1 ? -6.5 : 6.5;
+      targetZ = isNextHitterSouth ? -6.5 : 6.5;
       targetY = 2.9;
       const bouncePosition = new THREE.Vector3(targetX * 0.5, 0.16, targetZ);
 
@@ -1778,10 +1782,10 @@ function CraneTennisScene({
       isDecisive = isSmashWinner;
       pointWinner = fromHitter;
 
-      const frontCourtZ = nextHitter === 1 ? (-2.8 - Math.random() * 2.2) : (2.8 + Math.random() * 2.2);
+      const frontCourtZ = isNextHitterSouth ? (-2.8 - Math.random() * 2.2) : (2.8 + Math.random() * 2.2);
 
       if (isSmashWinner) {
-        const grandstandZ = nextHitter === 1 ? -17.8 : 17.8;
+        const grandstandZ = isNextHitterSouth ? -17.8 : 17.8;
         if (isAlcaraz) {
           chosenType = '🔥 248 km/h CARLITOS MONSTER-SMASH WINNER (Rebound über die Stadionwand)';
           endReason = `ALCARAZ SMASH (${speed} km/h)`;
@@ -1795,7 +1799,7 @@ function CraneTennisScene({
         targetZ = grandstandZ;
       } else {
         // 🛡️ SMASH WIRD AN DER GRUNDLINIE ERWISCHT
-        const returnZ = nextHitter === 1 ? (-11.2 - Math.random() * 2.2) : (11.2 + Math.random() * 2.2);
+        const returnZ = isNextHitterSouth ? (-11.2 - Math.random() * 2.2) : (11.2 + Math.random() * 2.2);
         chosenType = nextHitter === 1 ? '🔥 242 km/h SCHMETTERBALL ➜ 🛡️ SINNER REFLEX-DIG AN DER GRUNDLINIE!' : '🔥 242 km/h SCHMETTERBALL ➜ 🛡️ ALCARAZ HECHTSPRUNG-RETURN!';
         endReason = '';
 
@@ -1833,11 +1837,11 @@ function CraneTennisScene({
       speed = Math.round(88 + Math.random() * 20);
       spinType = 'dropshot';
       rpm = isAlcaraz ? 2600 : 2100;
-      targetZ = nextHitter === 1 ? (-2.2 - Math.random() * 1.4) : (2.2 + Math.random() * 1.4);
+      targetZ = isNextHitterSouth ? (-2.2 - Math.random() * 1.4) : (2.2 + Math.random() * 1.4);
       targetY = 1.1;
       targetX = (Math.random() - 0.5) * 4.4;
 
-      const dropBounceZ = nextHitter === 1 ? (-1.8 - Math.random() * 0.8) : (1.8 + Math.random() * 0.8);
+      const dropBounceZ = isNextHitterSouth ? (-1.8 - Math.random() * 0.8) : (1.8 + Math.random() * 0.8);
       const dropBouncePos = new THREE.Vector3(targetX, 0.16, dropBounceZ);
 
       if (isAlcaraz) {
@@ -1876,7 +1880,7 @@ function CraneTennisScene({
       // 🎾 RECEIVER RÜCKT WEIT VOR ANS NETZ
       isVolley = true;
       isNetRush = true;
-      targetZ = nextHitter === 1 ? (-1.8 - Math.random() * 2.0) : (1.8 + Math.random() * 2.0);
+      targetZ = isNextHitterSouth ? (-1.8 - Math.random() * 2.0) : (1.8 + Math.random() * 2.0);
 
       if (forceMode === 'volley') {
         volleyKind = 'drive';
@@ -1938,15 +1942,15 @@ function CraneTennisScene({
     } else if (wasShooterAtNet) {
       const isDrop = Math.random() < 0.35;
       if (isDrop) {
-        targetZ = nextHitter === 1 ? (-2.8 - Math.random() * 1.8) : (2.8 + Math.random() * 1.8);
+        targetZ = isNextHitterSouth ? (-2.8 - Math.random() * 1.8) : (2.8 + Math.random() * 1.8);
         targetY = 1.3 + Math.random() * 0.4;
         targetX = (Math.random() - 0.5) * 4.2;
       } else {
-        targetZ = nextHitter === 1 ? -10.2 : 10.2;
+        targetZ = isNextHitterSouth ? -10.2 : 10.2;
         targetY = 1.6 + Math.random() * 0.8;
       }
     } else {
-      targetZ = nextHitter === 1 ? -9.8 : 9.8;
+      targetZ = isNextHitterSouth ? -9.8 : 9.8;
       targetY = 1.7 + Math.random() * 0.9;
     }
 
@@ -2052,7 +2056,7 @@ function CraneTennisScene({
     const duration = isNetError ? 0.95 : isNetCord ? 1.45 : (isVolley ? 0.92 : (isFast ? 1.02 : (spinType === 'slice' ? 1.35 : 1.25)));
     const netHeight = isNetError ? (0.75 + Math.random() * 0.14) : isNetCord ? 1.05 : (isVolley ? (1.30 + Math.random() * 0.35) : (spinType === 'slice' ? 1.25 : (spinType === 'topspin' ? 1.95 : 1.65)));
 
-    const bounceZ = nextHitter === 1 ? (-5.5 - Math.random() * 3.0) : (5.5 + Math.random() * 3.0);
+    const bounceZ = isNextHitterSouth ? (-5.5 - Math.random() * 3.0) : (5.5 + Math.random() * 3.0);
     const bounceX = THREE.MathUtils.lerp(startPosition.x, targetX, 0.70);
     const bouncePosition = new THREE.Vector3(bounceX, 0.16, bounceZ);
 
@@ -2268,86 +2272,135 @@ function CraneTennisScene({
     const kin1 = kin1Ref.current;
     const kin2 = kin2Ref.current;
 
-    // --- 🌟 FULL EXTENSION SHOWCASE & INTRODUCTORY CAMERA TOUR (MATCH START & AFTER EACH GAME) ---
+    // --- 🌟 FULL EXTENSION SHOWCASE / CHANGEOVER (SEITENWECHSEL) & INTRO CAMERA TOUR ---
     if (showcaseTimerRef.current > 0) {
       showcaseTimerRef.current -= dt;
-      const totalDuration = 4.8;
+      const isChangeoverMode = showcaseTypeRef.current === 'changeover';
+      const totalDuration = isChangeoverMode ? 5.2 : 4.8;
       const tElapsed = totalDuration - showcaseTimerRef.current;
       const progress = Math.min(1.0, Math.max(0.0, tElapsed / totalDuration));
 
-      if (progress < 0.50) {
-        // Phase 1 (0.0 - 2.4s): MAJESTÄTISCHES VOLLES AUSFAHREN (bis 11.3m) & HUB (3.25m)
-        const p1 = progress / 0.50;
-        const smoothP = Math.sin(p1 * Math.PI / 2);
+      if (isChangeoverMode) {
+        // 🔄 SEITENWECHSEL-CHOREOGRAFIE (5.2s)
+        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 3.5);
+        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 3.5);
+        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 0.2, dt * 3.0);
+        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 0.2, dt * 3.0);
+        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.80, dt * 4.0);
+        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.80, dt * 4.0);
+        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 8, dt * 4.0);
+        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 8, dt * 4.0);
 
-        const ext = THREE.MathUtils.lerp(5.5, 11.3, smoothP);
-        const col = THREE.MathUtils.lerp(1.85, 3.25, smoothP);
-        const tilt = THREE.MathUtils.lerp(8, 30, smoothP);
-
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 4.0);
-        kin1.columnElevation = col;
-        kin1.boomTilt = tilt;
-        kin1.teleExtension = ext;
-        kin1.headPan = Math.sin(tElapsed * 2.5) * 22.0;
-        kin1.headTilt = -16 + Math.cos(tElapsed * 2.0) * 12.0;
-        kin1.headRoll = Math.sin(tElapsed * 3.0) * 28.0;
-
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 4.0);
-        kin2.columnElevation = col;
-        kin2.boomTilt = tilt;
-        kin2.teleExtension = ext;
-        kin2.headPan = -Math.sin(tElapsed * 2.5) * 22.0;
-        kin2.headTilt = -16 + Math.cos(tElapsed * 2.0) * 12.0;
-        kin2.headRoll = -Math.sin(tElapsed * 3.0) * 28.0;
-      } else {
-        // Phase 2 (2.4 - 4.8s): MAJESTÄTISCHES EINFIEHREN & READY-STANCE (11.3m -> 5.5m)
-        const p2 = (progress - 0.50) / 0.50;
-        const smoothP = Math.sin(p2 * Math.PI / 2);
-
-        const ext = THREE.MathUtils.lerp(11.3, 5.5, smoothP);
-        const col = THREE.MathUtils.lerp(3.25, 1.85, smoothP);
-        const tilt = THREE.MathUtils.lerp(30, 8, smoothP);
-
-        kin1.columnElevation = col;
-        kin1.boomTilt = tilt;
-        kin1.teleExtension = ext;
-        kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 6.0);
-        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 6.0);
-        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 6.0);
-
-        kin2.columnElevation = col;
-        kin2.boomTilt = tilt;
-        kin2.teleExtension = ext;
-        kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 6.0);
-        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 6.0);
-        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 0, dt * 6.0);
-      }
-
-      // 🎥 INTRODUKTORISCHER PERSPEKTIVENWECHSEL (Einführender Kamera-Flug)
-      if (orbitControlsRef.current) {
-        const controls = orbitControlsRef.current;
-        if (progress < 0.35) {
-          // Perspektive 1: Spektakuläre Weitwinkel-Aufnahme von Südwest, blickt empor auf die 11.3m ausfahrenden Kräne
-          const subP = progress / 0.35;
-          const camX = THREE.MathUtils.lerp(-28, -22, subP);
-          const camY = THREE.MathUtils.lerp(18, 14, subP);
-          const camZ = THREE.MathUtils.lerp(-18, -4, subP);
-          camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
-          controls.target.lerp(new THREE.Vector3(0, 3.8, 0), 0.12);
-        } else if (progress < 0.70) {
-          // Perspektive 2: Dynamischer Kurvenflug über das Center-Court Netz mit Blick auf beide Ausleger
-          const subP = (progress - 0.35) / 0.35;
-          const camX = THREE.MathUtils.lerp(-22, -18, subP);
-          const camY = THREE.MathUtils.lerp(14, 11, subP);
-          const camZ = THREE.MathUtils.lerp(-4, 16, subP);
-          camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
-          controls.target.lerp(new THREE.Vector3(0, 2.5, 0), 0.12);
+        if (progress < 0.65) {
+          // Phase 1: Wenden zur Spielerbank am Seitenrand (Handtuch / Trinken / Verschnaufen)
+          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, 48, dt * 4.0);
+          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, -48, dt * 4.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -22, dt * 4.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -22, dt * 4.0);
+          kin1.headRoll = Math.sin(tElapsed * 4.0) * 18.0;
+          kin2.headRoll = -Math.sin(tElapsed * 4.0) * 18.0;
         } else {
-          // Perspektive 3: Sanfte Landung in TV-Broadcast Position [-24, 16, 0]
-          camera.position.lerp(new THREE.Vector3(-24, 16.0, 0), 0.14);
-          controls.target.lerp(new THREE.Vector3(0, 1.2, 0), 0.14);
+          // Phase 2: Bereitmachen auf der neuen Seite für den nächsten Aufschlag
+          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, 0, dt * 5.0);
+          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, 0, dt * 5.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 5.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 5.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 5.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 0, dt * 5.0);
         }
-        controls.update();
+
+        // 🎥 TV-Kamerafahrt beim Seitenwechsel (Halbtotale Bank & Umpire)
+        if (orbitControlsRef.current && cameraMode !== 'free') {
+          const controls = orbitControlsRef.current;
+          if (progress < 0.40) {
+            const subP = progress / 0.40;
+            const camX = THREE.MathUtils.lerp(-24, -16, subP);
+            const camY = THREE.MathUtils.lerp(16, 7.5, subP);
+            const camZ = THREE.MathUtils.lerp(0, -5, subP);
+            camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+            controls.target.lerp(new THREE.Vector3(0, 1.8, 0), 0.12);
+          } else if (progress < 0.75) {
+            camera.position.lerp(new THREE.Vector3(-14, 6.8, 0), 0.10);
+            controls.target.lerp(new THREE.Vector3(0, 1.8, 0), 0.10);
+          } else {
+            camera.position.lerp(new THREE.Vector3(-24, 16.0, 0), 0.12);
+            controls.target.lerp(new THREE.Vector3(0, 1.2, 0), 0.12);
+          }
+          controls.update();
+        }
+      } else {
+        // 🌟 REGULÄRE GAME-WIN SHOW (11.3m Ausleger-Show)
+        if (progress < 0.50) {
+          // Phase 1 (0.0 - 2.4s): MAJESTÄTISCHES VOLLES AUSFAHREN (bis 11.3m) & HUB (3.25m)
+          const p1 = progress / 0.50;
+          const smoothP = Math.sin(p1 * Math.PI / 2);
+
+          const ext = THREE.MathUtils.lerp(5.5, 11.3, smoothP);
+          const col = THREE.MathUtils.lerp(1.85, 3.25, smoothP);
+          const tilt = THREE.MathUtils.lerp(8, 30, smoothP);
+
+          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 4.0);
+          kin1.columnElevation = col;
+          kin1.boomTilt = tilt;
+          kin1.teleExtension = ext;
+          kin1.headPan = Math.sin(tElapsed * 2.5) * 22.0;
+          kin1.headTilt = -16 + Math.cos(tElapsed * 2.0) * 12.0;
+          kin1.headRoll = Math.sin(tElapsed * 3.0) * 28.0;
+
+          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 4.0);
+          kin2.columnElevation = col;
+          kin2.boomTilt = tilt;
+          kin2.teleExtension = ext;
+          kin2.headPan = -Math.sin(tElapsed * 2.5) * 22.0;
+          kin2.headTilt = -16 + Math.cos(tElapsed * 2.0) * 12.0;
+          kin2.headRoll = -Math.sin(tElapsed * 3.0) * 28.0;
+        } else {
+          // Phase 2 (2.4 - 4.8s): MAJESTÄTISCHES EINFIEHREN & READY-STANCE (11.3m -> 5.5m)
+          const p2 = (progress - 0.50) / 0.50;
+          const smoothP = Math.sin(p2 * Math.PI / 2);
+
+          const ext = THREE.MathUtils.lerp(11.3, 5.5, smoothP);
+          const col = THREE.MathUtils.lerp(3.25, 1.85, smoothP);
+          const tilt = THREE.MathUtils.lerp(30, 8, smoothP);
+
+          kin1.columnElevation = col;
+          kin1.boomTilt = tilt;
+          kin1.teleExtension = ext;
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 6.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 6.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 6.0);
+
+          kin2.columnElevation = col;
+          kin2.boomTilt = tilt;
+          kin2.teleExtension = ext;
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 6.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 6.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 0, dt * 6.0);
+        }
+
+        // 🎥 INTRODUKTORISCHER PERSPEKTIVENWECHSEL (Einführender Kamera-Flug)
+        if (orbitControlsRef.current && cameraMode !== 'free') {
+          const controls = orbitControlsRef.current;
+          if (progress < 0.35) {
+            const subP = progress / 0.35;
+            const camX = THREE.MathUtils.lerp(-28, -22, subP);
+            const camY = THREE.MathUtils.lerp(18, 14, subP);
+            const camZ = THREE.MathUtils.lerp(-18, -4, subP);
+            camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+            controls.target.lerp(new THREE.Vector3(0, 3.8, 0), 0.12);
+          } else if (progress < 0.70) {
+            const subP = (progress - 0.35) / 0.35;
+            const camX = THREE.MathUtils.lerp(-22, -18, subP);
+            const camY = THREE.MathUtils.lerp(14, 11, subP);
+            const camZ = THREE.MathUtils.lerp(-4, 16, subP);
+            camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+            controls.target.lerp(new THREE.Vector3(0, 2.5, 0), 0.12);
+          } else {
+            camera.position.lerp(new THREE.Vector3(-24, 16.0, 0), 0.14);
+            controls.target.lerp(new THREE.Vector3(0, 1.2, 0), 0.14);
+          }
+          controls.update();
+        }
       }
 
       if (dolly1GroupRef.current) dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -16.8);
@@ -2359,7 +2412,8 @@ function CraneTennisScene({
       stepBallPhysicsContinuation(dt);
 
       if (showcaseTimerRef.current <= 0) {
-        const nextServer = celebrationWinnerRef.current || 1;
+        setMatchScore(s => ({ ...s, isChangeover: false }));
+        const nextServer = matchScore.server || 1;
         triggerGrandSlamServe(nextServer);
       }
       return;
@@ -3120,14 +3174,39 @@ function CraneTennisScene({
             g2 = 0;
           }
 
-          const call = getUmpireScoreCall(p1, p2, g1, g2);
-          const isGameOrSetWon = (p1 === 0 && p2 === 0 && (g1 !== s.p1Games || g2 !== s.p2Games || s1 !== s.p1Sets || s2 !== s.p2Sets));
+          const isGameWon = (g1 !== s.p1Games || g2 !== s.p2Games);
+          const isSetWon = (s1 !== s.p1Sets || s2 !== s.p2Sets);
+          const isGameOrSetWon = (p1 === 0 && p2 === 0 && (isGameWon || isSetWon));
+
+          // In standard tennis, change of ends occurs after every odd game of a set (1:0, 2:1, 3:2...) and after set ends!
+          const totalGames = g1 + g2;
+          const isChangeover = isGameOrSetWon && (isSetWon || (totalGames % 2 === 1));
+
+          let nextPlayerSouth = s.playerSouth || 1;
+          let nextServer = s.server;
 
           if (isGameOrSetWon) {
-            showcaseTimerRef.current = 4.8;
-            showcaseTypeRef.current = 'gamewin';
-            celebrationTimerRef.current = 0; // Direkt in die 11.3m Ausleger-Show übergehen!
+            nextServer = s.server === 1 ? 2 : 1; // Aufschlagrecht wechselt nach jedem Spiel
+
+            if (isChangeover) {
+              nextPlayerSouth = (s.playerSouth === 1 ? 2 : 1);
+              showcaseTimerRef.current = 5.2;
+              showcaseTypeRef.current = 'changeover';
+              celebrationTimerRef.current = 0;
+            } else {
+              showcaseTimerRef.current = 4.2;
+              showcaseTypeRef.current = 'gamewin';
+              celebrationTimerRef.current = 0;
+            }
           }
+
+          const call = isGameOrSetWon
+            ? (isChangeover
+                ? (isSetWon 
+                    ? `Satz ${winner === 1 ? 'Sinner' : 'Alcaraz'}. ${g1}:${g2}. Seitenwechsel (Change of ends)!`
+                    : `Spiel ${winner === 1 ? 'Sinner' : 'Alcaraz'}. ${g1}:${g2}. Seitenwechsel (Change of ends)!`)
+                : `Spiel ${winner === 1 ? 'Sinner' : 'Alcaraz'} (${g1}:${g2}). Aufschlagwechsel...`)
+            : getUmpireScoreCall(p1, p2, g1, g2);
 
           return {
             ...s,
@@ -3137,14 +3216,18 @@ function CraneTennisScene({
             p2Games: g2,
             p1Sets: s1,
             p2Sets: s2,
-            server: winner,
+            server: nextServer,
+            playerSouth: nextPlayerSouth,
+            isChangeover,
             rallyCount: 0,
             isCheering: true,
-            cheerIntensity: isGameOrSetWon ? 2.0 : 1.5,
+            cheerIntensity: isGameOrSetWon ? 2.2 : 1.5,
             umpireCall: call,
-            lastMessage: isGameOrSetWon 
-              ? `🎮 GAME-WECHSEL (${g1}:${g2}) • 11.3m Ausleger-Show & Seitenwechsel!` 
-              : `🏆 Punkt für Kran ${winner}! (${shot.endReason})`
+            lastMessage: isChangeover
+              ? `🔄 SEITENWECHSEL (${g1}:${g2}) • Spieler wechseln die Seiten!`
+              : (isGameOrSetWon
+                  ? `🎮 GAME (${g1}:${g2}) für ${winner === 1 ? 'Sinner' : 'Alcaraz'} • Aufschlagwechsel!`
+                  : `🏆 Punkt für ${winner === 1 ? 'Sinner' : 'Alcaraz'}! (${shot.endReason || shot.shotType})`)
           };
         });
       } else if (shot.isServe && shot.isFault && shot.serveAttempt === 1) {
@@ -3206,12 +3289,13 @@ function CraneTennisScene({
       } else if (cameraMode === 'smash') {
         // 🎾 ECHTE SCHLÄGER-KAMERA (FIRST-PERSON RACKET POV - NUR IN DIESEM VIEW!)
         // Die Kamera ist direkt auf dem Tennisschläger des aktiven Krans montiert
-        const activeHitter = shot.shooter;
-        const rPos = (activeHitter === 1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
-        const rQuat = (activeHitter === 1 ? racket1WorldQuat.current : racket2WorldQuat.current).clone();
+        const isP1South = (matchScore.playerSouth || 1) === 1;
+        const activeCrane = (shot.shooter === 1) ? (isP1South ? 1 : 2) : (isP1South ? 2 : 1);
+        const rPos = (activeCrane === 1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
+        const rQuat = (activeCrane === 1 ? racket1WorldQuat.current : racket2WorldQuat.current).clone();
 
         // Vorwärtsvektor & Aufwärtsvektor des Schlägers
-        const forwardDir = new THREE.Vector3(0, 0, activeHitter === 1 ? 1 : -1).applyQuaternion(rQuat).normalize();
+        const forwardDir = new THREE.Vector3(0, 0, activeCrane === 1 ? 1 : -1).applyQuaternion(rQuat).normalize();
         const upDir = new THREE.Vector3(0, 1, 0).applyQuaternion(rQuat).normalize();
 
         // Kamera sitzt 55cm hinter dem Sweet Spot und 10cm darüber
@@ -3265,8 +3349,8 @@ function CraneTennisScene({
       <TennisCourtArena surface={courtSurface} />
 
       {/* 🛤️ DOLLY SCHIENEN / RAILS UNTER DEN KRÄNEN */}
-      <CraneDollyRailTrack zPos={-16.8} teamColor="#38bdf8" />
-      <CraneDollyRailTrack zPos={16.8} teamColor="#facc15" />
+      <CraneDollyRailTrack zPos={-16.8} teamColor={(matchScore.playerSouth || 1) === 1 ? "#38bdf8" : "#facc15"} />
+      <CraneDollyRailTrack zPos={16.8} teamColor={(matchScore.playerSouth || 1) === 1 ? "#facc15" : "#38bdf8"} />
 
       {/* 🪑 Official Chair Umpire & Staff (Togglable) */}
       {showCourtsideStaff && (
@@ -3287,12 +3371,12 @@ function CraneTennisScene({
 
       <ConfettiCelebration active={matchScore.isCheering} />
 
-      {/* 🇮🇹 KRAN 1 (SÜD / JANNIK SINNER) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
+      {/* 🇮🇹/🇪🇸 KRAN 1 (SÜD / Z = -16.8m) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
       <MountedCranePlayer
         crane={crane1}
         kinematicsRef={kin1Ref}
-        teamColor="#38bdf8"
-        stringGlow="#bae6fd"
+        teamColor={(matchScore.playerSouth || 1) === 1 ? "#38bdf8" : "#facc15"}
+        stringGlow={(matchScore.playerSouth || 1) === 1 ? "#bae6fd" : "#fef08a"}
         racketWorldPosRef={racket1WorldPos}
         racketWorldQuatRef={racket1WorldQuat}
         baseRotation={Math.PI}
@@ -3300,12 +3384,12 @@ function CraneTennisScene({
         dollyGroupRef={dolly1GroupRef}
       />
 
-      {/* 🇪🇸 KRAN 2 (NORD / CARLOS ALCARAZ) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
+      {/* 🇪🇸/🇮🇹 KRAN 2 (NORD / Z = 16.8m) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
       <MountedCranePlayer
         crane={crane2}
         kinematicsRef={kin2Ref}
-        teamColor="#facc15"
-        stringGlow="#fef08a"
+        teamColor={(matchScore.playerSouth || 1) === 1 ? "#facc15" : "#38bdf8"}
+        stringGlow={(matchScore.playerSouth || 1) === 1 ? "#fef08a" : "#bae6fd"}
         racketWorldPosRef={racket2WorldPos}
         racketWorldQuatRef={racket2WorldQuat}
         baseRotation={0}
@@ -3404,6 +3488,8 @@ export default function CraneTennis() {
     p1Sets: 1,
     p2Sets: 0,
     server: 1,
+    playerSouth: 1,
+    isChangeover: false,
     lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
     umpireCall: '15 - 30 (4:3)',
     rallyCount: 4,
@@ -3430,6 +3516,8 @@ export default function CraneTennis() {
       p1Sets: 0,
       p2Sets: 0,
       server: 1,
+      playerSouth: 1,
+      isChangeover: false,
       lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
       umpireCall: 'Love-All (0:0)',
       rallyCount: 0,
@@ -3450,6 +3538,7 @@ export default function CraneTennis() {
   const isVolleyActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && !isServiceWinnerActive && !isAceActive && (matchScore.lastMessage.includes('VOLLEY') || matchScore.lastMessage.includes('NETZANGRIFF'));
   const isTopspinActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && (matchScore.lastMessage.includes('TOPSPIN') || matchScore.lastMessage.includes('3.200 RPM'));
   const isLaserActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && !isTopspinActive && (matchScore.lastMessage.includes('LASER') || matchScore.lastMessage.includes('FLAT'));
+  const isChangeoverActive = matchScore.isChangeover;
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0, zIndex: 10 }}>
@@ -3646,6 +3735,17 @@ export default function CraneTennis() {
               <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 900, letterSpacing: '0.3px' }}>
                 J. SINNER
               </span>
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 800,
+                color: (matchScore.playerSouth || 1) === 1 ? '#38bdf8' : '#94a3b8',
+                background: (matchScore.playerSouth || 1) === 1 ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.06)',
+                border: (matchScore.playerSouth || 1) === 1 ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255,255,255,0.1)',
+                padding: '1px 5px',
+                borderRadius: '3px'
+              }}>
+                {(matchScore.playerSouth || 1) === 1 ? 'SÜD' : 'NORD'}
+              </span>
               {matchScore.server === 1 && (
                 <span 
                   title="Aufschläger (Service)"
@@ -3704,6 +3804,17 @@ export default function CraneTennis() {
               <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 800 }}>[2]</span>
               <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 900, letterSpacing: '0.3px' }}>
                 C. ALCARAZ
+              </span>
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 800,
+                color: (matchScore.playerSouth || 1) === 2 ? '#facc15' : '#94a3b8',
+                background: (matchScore.playerSouth || 1) === 2 ? 'rgba(250, 204, 21, 0.15)' : 'rgba(255,255,255,0.06)',
+                border: (matchScore.playerSouth || 1) === 2 ? '1px solid rgba(250, 204, 21, 0.4)' : '1px solid rgba(255,255,255,0.1)',
+                padding: '1px 5px',
+                borderRadius: '3px'
+              }}>
+                {(matchScore.playerSouth || 1) === 2 ? 'SÜD' : 'NORD'}
               </span>
               {matchScore.server === 2 && (
                 <span 
@@ -3767,6 +3878,20 @@ export default function CraneTennis() {
 
               {/* DYNAMIC TV BADGES */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {isChangeoverActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #0284c7, #6366f1)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(2, 132, 199, 0.9)'
+                  }}>
+                    🔄 SEITENWECHSEL
+                  </span>
+                )}
                 {isNetErrorActive && (
                   <span style={{
                     background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
@@ -3964,6 +4089,68 @@ export default function CraneTennis() {
           </div>
         </div>
       </div>
+
+      {/* 🔄 GRAND SLAM CHANGEOVER / SEITENWECHSEL BROADCAST BANNER OVERLAY */}
+      {matchScore.isChangeover && (
+        <div style={{
+          position: 'absolute',
+          top: '30px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 50,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 43, 72, 0.95), rgba(49, 16, 66, 0.95))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '2px solid rgba(56, 189, 248, 0.65)',
+            borderRadius: '14px',
+            padding: '12px 28px',
+            boxShadow: '0 0 40px rgba(56, 189, 248, 0.5), 0 16px 36px rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '6px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: 900,
+              letterSpacing: '2px',
+              color: '#38bdf8',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>🔄</span>
+              <span>CHANGEOVER • SEITENWECHSEL ({matchScore.p1Games} : {matchScore.p2Games})</span>
+              <span>🔄</span>
+            </div>
+            <div style={{
+              fontSize: '16px',
+              fontWeight: 900,
+              color: '#ffffff',
+              letterSpacing: '0.5px'
+            }}>
+              <span style={{ color: (matchScore.playerSouth || 1) === 1 ? '#38bdf8' : '#94a3b8' }}>🇮🇹 [1] J. Sinner</span>
+              <span style={{ color: '#facc15', margin: '0 10px' }}>↔️</span>
+              <span style={{ color: (matchScore.playerSouth || 1) === 2 ? '#facc15' : '#94a3b8' }}>🇪🇸 [2] C. Alcaraz</span>
+            </div>
+            <div style={{
+              fontSize: '11px',
+              color: '#cbd5e1',
+              fontWeight: 700
+            }}>
+              Kräne wechseln ihre Spielfeldseiten • Handtuch- & Trinkpause an der Spielerbank
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- CONTROL DRAWER (RIGHT SIDE) - COLLAPSIBLE --- */}
       {!isControlsOpen ? (
