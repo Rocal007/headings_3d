@@ -4,7 +4,7 @@
 Teleskop-Ausleger Spezialist für die 4 synchron ausfahrenden Trägerstufen, Seilzüge und Rollenlager.
 
 ## Dateien
-- `src/components/CraneTennis.tsx`
+- `src/components/Crane.tsx`
 - `src/model/Supertechno50FBXModel.ts`
 
 ## Mechanische Spezifikation

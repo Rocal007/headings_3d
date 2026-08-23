@@ -208,6 +208,8 @@ export interface RemoteCameraHeadProps {
   scale?: number;
   useCadColors?: boolean;
   showCableLead?: boolean;
+  customPayload?: React.ReactNode;
+  hideCamera?: boolean;
 }
 
 export function RemoteCameraHead({
@@ -220,7 +222,9 @@ export function RemoteCameraHead({
   rotation = [0, 0, 0],
   scale = 1.0,
   useCadColors = false,
-  showCableLead = true
+  showCableLead = true,
+  customPayload,
+  hideCamera = false
 }: RemoteCameraHeadProps) {
   // Textures
   const texVernier = useMemo(() => createVernierScaleTexture(), []);
@@ -892,8 +896,12 @@ export function RemoteCameraHead({
                 </group>
               )}
 
-              {/* 5. MODULAR ARRI CINEMA CAMERA RIG & BP-8 BRIDGEPLATE */}
-              <ArriCinemaCamera showCableLead={showCableLead} />
+              {/* 5. MODULAR ARRI CINEMA CAMERA RIG OR CUSTOM PAYLOAD (E.G. TENNIS RACKET) */}
+              {customPayload ? (
+                customPayload
+              ) : !hideCamera ? (
+                <ArriCinemaCamera showCableLead={showCableLead} />
+              ) : null}
             </group>
           </group>
         </group>
