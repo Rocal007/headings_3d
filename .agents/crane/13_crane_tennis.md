@@ -111,3 +111,7 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **Live-Status-Badges**: Flammendes `🔥 248 km/h SMASH`, leuchtendes `⚡ NETZ-VOLLEY`, `🕸️ NETZFEHLER` und `⚠️ OUT (BALL IM AUS)`.
   - **Einklappbare Steuerung (`isControlsOpen`)**: Aufgeräumtes UI mit platzsparendem, einklappbarem Steuerungs-Drawer (`🎾 Steuerung & Schläge ▶` / `◀ Einklappen`), positioniert unterhalb des Back-Buttons.
   - **Standardmäßig ausgeblendete Stadion-Elemente**: Zuschauer (`showSpectators`), Schiedsrichter & Ballkinder (`showCourtsideStaff`) sowie Tribünen (`showGrandstands`) sind initial auf `false` geschaltet für einen sauberen, performanten und unverstellten Blick auf die Kran-Kinematik, und können bei Bedarf jederzeit im Menü aktiviert werden.
+- **Voll-Ausfahr-Showcase & Einführender Perspektivenwechsel (`showcaseTimerRef`)**:
+  - **Auslöser**: Bei jedem Matchstart (Initialisierung / Match-Reset) und unmittelbar nach jedem gewonnenen Spiel (Game-Wechsel).
+  - **4.8s Kinematik-Ablauf**: Beide Supertechno 50 Kräne heben ihre Hubsäulen auf 3.25m an, neigen die Ausleger auf 30° und **fahren synchron bis zum mechanischen Endanschlag von 11.3m voll aus**, vollführen eine Schläger-Glow-Kalibrierung und fahren anschließend sanft zurück auf die 5.5m Service-Grundlinie.
+  - **Cinematische Kamera-Tour**: Dynamischer 3-Phasen Kameraflug (Tiefe Weitwinkel-Aufnahme von Südwest -> Kurvenflug über das Netz -> sanfte Landung in TV-Broadcast-Perspektive).

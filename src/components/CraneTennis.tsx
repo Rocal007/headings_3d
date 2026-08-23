@@ -1290,7 +1290,8 @@ function CraneTennisScene({
   manualLaserTrigger,
   manualSliceTrigger,
   manualNetErrorTrigger,
-  manualOutErrorTrigger
+  manualOutErrorTrigger,
+  manualResetTrigger
 }: {
   courtSurface: CourtSurface;
   cameraMode: TennisCameraMode;
@@ -1313,9 +1314,20 @@ function CraneTennisScene({
   manualSliceTrigger?: number;
   manualNetErrorTrigger?: number;
   manualOutErrorTrigger?: number;
+  manualResetTrigger?: number;
 }) {
   const [crane1, setCrane1] = useState<Supertechno50FBXModel | null>(null);
   const [crane2, setCrane2] = useState<Supertechno50FBXModel | null>(null);
+
+  const showcaseTimerRef = useRef(4.8); // 4.8s Voll-Ausfahr- & Intro-Kamera-Sequenz
+  const showcaseTypeRef = useRef<'intro' | 'gamewin'>('intro');
+
+  useEffect(() => {
+    if (manualResetTrigger && manualResetTrigger > 0) {
+      showcaseTimerRef.current = 4.8;
+      showcaseTypeRef.current = 'intro';
+    }
+  }, [manualResetTrigger]);
 
   const kin1Ref = useRef({
     dollyTrack: 0,
@@ -2319,6 +2331,100 @@ function CraneTennisScene({
     const kin1 = kin1Ref.current;
     const kin2 = kin2Ref.current;
 
+    // --- 🌟 FULL EXTENSION SHOWCASE & INTRODUCTORY CAMERA TOUR (MATCH START & AFTER EACH GAME) ---
+    if (showcaseTimerRef.current > 0) {
+      showcaseTimerRef.current -= dt;
+      const totalDuration = 4.8;
+      const tElapsed = totalDuration - showcaseTimerRef.current;
+      const progress = Math.min(1.0, Math.max(0.0, tElapsed / totalDuration));
+
+      if (progress < 0.50) {
+        // Phase 1 (0.0 - 2.4s): MAJESTÄTISCHES VOLLES AUSFAHREN (bis 11.3m) & HUB (3.25m)
+        const p1 = progress / 0.50;
+        const smoothP = Math.sin(p1 * Math.PI / 2);
+
+        const ext = THREE.MathUtils.lerp(5.5, 11.3, smoothP);
+        const col = THREE.MathUtils.lerp(1.85, 3.25, smoothP);
+        const tilt = THREE.MathUtils.lerp(8, 30, smoothP);
+
+        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 4.0);
+        kin1.columnElevation = col;
+        kin1.boomTilt = tilt;
+        kin1.teleExtension = ext;
+        kin1.headPan = Math.sin(tElapsed * 2.5) * 22.0;
+        kin1.headTilt = -16 + Math.cos(tElapsed * 2.0) * 12.0;
+        kin1.headRoll = Math.sin(tElapsed * 3.0) * 28.0;
+
+        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 4.0);
+        kin2.columnElevation = col;
+        kin2.boomTilt = tilt;
+        kin2.teleExtension = ext;
+        kin2.headPan = -Math.sin(tElapsed * 2.5) * 22.0;
+        kin2.headTilt = -16 + Math.cos(tElapsed * 2.0) * 12.0;
+        kin2.headRoll = -Math.sin(tElapsed * 3.0) * 28.0;
+      } else {
+        // Phase 2 (2.4 - 4.8s): MAJESTÄTISCHES EINFIEHREN & READY-STANCE (11.3m -> 5.5m)
+        const p2 = (progress - 0.50) / 0.50;
+        const smoothP = Math.sin(p2 * Math.PI / 2);
+
+        const ext = THREE.MathUtils.lerp(11.3, 5.5, smoothP);
+        const col = THREE.MathUtils.lerp(3.25, 1.85, smoothP);
+        const tilt = THREE.MathUtils.lerp(30, 8, smoothP);
+
+        kin1.columnElevation = col;
+        kin1.boomTilt = tilt;
+        kin1.teleExtension = ext;
+        kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 6.0);
+        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 6.0);
+        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 6.0);
+
+        kin2.columnElevation = col;
+        kin2.boomTilt = tilt;
+        kin2.teleExtension = ext;
+        kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 6.0);
+        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 6.0);
+        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 0, dt * 6.0);
+      }
+
+      // 🎥 INTRODUKTORISCHER PERSPEKTIVENWECHSEL (Einführender Kamera-Flug)
+      if (orbitControlsRef.current) {
+        const controls = orbitControlsRef.current;
+        if (progress < 0.35) {
+          // Perspektive 1: Spektakuläre Weitwinkel-Aufnahme von Südwest, blickt empor auf die 11.3m ausfahrenden Kräne
+          const subP = progress / 0.35;
+          const camX = THREE.MathUtils.lerp(-28, -22, subP);
+          const camY = THREE.MathUtils.lerp(18, 14, subP);
+          const camZ = THREE.MathUtils.lerp(-18, -4, subP);
+          camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+          controls.target.lerp(new THREE.Vector3(0, 3.8, 0), 0.12);
+        } else if (progress < 0.70) {
+          // Perspektive 2: Dynamischer Kurvenflug über das Center-Court Netz mit Blick auf beide Ausleger
+          const subP = (progress - 0.35) / 0.35;
+          const camX = THREE.MathUtils.lerp(-22, -18, subP);
+          const camY = THREE.MathUtils.lerp(14, 11, subP);
+          const camZ = THREE.MathUtils.lerp(-4, 16, subP);
+          camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.12);
+          controls.target.lerp(new THREE.Vector3(0, 2.5, 0), 0.12);
+        } else {
+          // Perspektive 3: Sanfte Landung in TV-Broadcast Position [-24, 16, 0]
+          camera.position.lerp(new THREE.Vector3(-24, 16.0, 0), 0.14);
+          controls.target.lerp(new THREE.Vector3(0, 1.2, 0), 0.14);
+        }
+        controls.update();
+      }
+
+      if (dolly1GroupRef.current) dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -15.2);
+      if (dolly2GroupRef.current) dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 15.2);
+      if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
+      if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
+
+      if (showcaseTimerRef.current <= 0) {
+        const nextServer = celebrationWinnerRef.current || 1;
+        triggerGrandSlamServe(nextServer);
+      }
+      return;
+    }
+
     // --- 🏆 EMOTIONAL GESTURES & CELEBRATION BETWEEN POINTS ---
     if (celebrationTimerRef.current > 0) {
       celebrationTimerRef.current -= dt;
@@ -2939,6 +3045,13 @@ function CraneTennisScene({
           }
 
           const call = getUmpireScoreCall(p1, p2, g1, g2);
+          const isGameOrSetWon = (p1 === 0 && p2 === 0 && (g1 !== s.p1Games || g2 !== s.p2Games || s1 !== s.p1Sets || s2 !== s.p2Sets));
+
+          if (isGameOrSetWon) {
+            showcaseTimerRef.current = 4.8;
+            showcaseTypeRef.current = 'gamewin';
+            celebrationTimerRef.current = 0; // Direkt in die 11.3m Ausleger-Show übergehen!
+          }
 
           return {
             ...s,
@@ -2951,9 +3064,11 @@ function CraneTennisScene({
             server: winner,
             rallyCount: 0,
             isCheering: true,
-            cheerIntensity: 1.5,
+            cheerIntensity: isGameOrSetWon ? 2.0 : 1.5,
             umpireCall: call,
-            lastMessage: `🏆 Punkt für Kran ${winner}! (${shot.endReason})`
+            lastMessage: isGameOrSetWon 
+              ? `🎮 GAME-WECHSEL (${g1}:${g2}) • 11.3m Ausleger-Show & Seitenwechsel!` 
+              : `🏆 Punkt für Kran ${winner}! (${shot.endReason})`
           };
         });
       } else if (shot.isServe && shot.isFault && shot.serveAttempt === 1) {
@@ -3209,6 +3324,7 @@ export default function CraneTennis() {
   const [manualSliceTrigger, setManualSliceTrigger] = useState(0);
   const [manualNetErrorTrigger, setManualNetErrorTrigger] = useState(0);
   const [manualOutErrorTrigger, setManualOutErrorTrigger] = useState(0);
+  const [manualResetTrigger, setManualResetTrigger] = useState(0);
   const [showH2HStats, setShowH2HStats] = useState(false);
   const orbitControlsRef = useRef<any>(null);
 
@@ -3220,7 +3336,7 @@ export default function CraneTennis() {
     p1Sets: 1,
     p2Sets: 0,
     server: 1,
-    lastMessage: 'Match läuft: Grand Slam Finale • Jannik Sinner [1] vs Carlos Alcaraz [2]',
+    lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
     umpireCall: '15 - 30 (4:3)',
     rallyCount: 4,
     isCheering: false,
@@ -3279,6 +3395,7 @@ export default function CraneTennis() {
           manualSliceTrigger={manualSliceTrigger}
           manualNetErrorTrigger={manualNetErrorTrigger}
           manualOutErrorTrigger={manualOutErrorTrigger}
+          manualResetTrigger={manualResetTrigger}
         />
       </Canvas>
 
@@ -4070,6 +4187,7 @@ export default function CraneTennis() {
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
             onClick={() => {
+              setManualResetTrigger(n => n + 1);
               setMatchScore({
                 p1Points: 0,
                 p2Points: 0,
@@ -4078,7 +4196,7 @@ export default function CraneTennis() {
                 p1Sets: 0,
                 p2Sets: 0,
                 server: 1,
-                lastMessage: 'Neues Match gestartet!',
+                lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
                 umpireCall: 'Love-All (0:0)',
                 rallyCount: 0,
                 isCheering: false,
