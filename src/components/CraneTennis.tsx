@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
-import RemoteCameraHead from './RemoteCameraHead';
+import CraneTennisRacketHead from './CraneTennisRacketHead';
 
 export type CourtSurface = 'clay' | 'grass' | 'hardcourt' | 'cyber';
 export type TennisCameraMode = 'broadcast' | 'ball' | 'crane1' | 'crane2' | 'umpire' | 'spectator' | 'coach' | 'smash' | 'free';
@@ -286,127 +286,6 @@ function SupertechnoDollyBase({
   );
 }
 
-// --- 🎾 AUTHENTIC CARBON TENNIS RACKET ---
-function CraneTennisRacket({ 
-  teamColor = '#38bdf8', 
-  stringGlow = '#bae6fd',
-  racketScale = 1.0 
-}: { 
-  teamColor?: string; 
-  stringGlow?: string;
-  racketScale?: number;
-}) {
-  const headRadiusX = 0.22 * racketScale;
-  const headRadiusY = 0.32 * racketScale;
-  const frameThickness = 0.018 * racketScale;
-
-  const matFrame = useMemo(() => new THREE.MeshStandardMaterial({
-    color: teamColor,
-    metalness: 0.85,
-    roughness: 0.25,
-    envMapIntensity: 1.5
-  }), [teamColor]);
-
-  const matCarbonDark = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x111317,
-    roughness: 0.5,
-    metalness: 0.4
-  }), []);
-
-  const matStrings = useMemo(() => new THREE.MeshStandardMaterial({
-    color: stringGlow,
-    emissive: stringGlow,
-    emissiveIntensity: 0.8,
-    metalness: 0.2,
-    roughness: 0.2
-  }), [stringGlow]);
-
-  const matGrip = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x1e293b,
-    roughness: 0.9,
-    metalness: 0.1
-  }), []);
-
-  const stringsGrid = useMemo(() => {
-    const lines: Array<{ p1: [number, number, number]; p2: [number, number, number] }> = [];
-    const countV = 10;
-    const countH = 14;
-
-    for (let i = 1; i < countV; i++) {
-      const u = (i / countV) * 2 - 1;
-      const x = u * (headRadiusX - 0.02);
-      const halfH = headRadiusY * Math.sqrt(Math.max(0, 1 - (x / headRadiusX) ** 2));
-      if (halfH > 0.03) {
-        lines.push({ p1: [x, -halfH, 0], p2: [x, halfH, 0] });
-      }
-    }
-
-    for (let j = 1; j < countH; j++) {
-      const v = (j / countH) * 2 - 1;
-      const y = v * (headRadiusY - 0.02);
-      const halfW = headRadiusX * Math.sqrt(Math.max(0, 1 - (y / headRadiusY) ** 2));
-      if (halfW > 0.03) {
-        lines.push({ p1: [-halfW, y, 0], p2: [halfW, y, 0] });
-      }
-    }
-
-    return lines;
-  }, [headRadiusX, headRadiusY]);
-
-  return (
-    <group position={[0, 0, 0]}>
-      <mesh castShadow receiveShadow material={matFrame} position={[0, headRadiusY + 0.14, 0]}>
-        <torusGeometry args={[headRadiusX, frameThickness, 16, 32]} />
-      </mesh>
-      <mesh castShadow material={matCarbonDark} position={[0, headRadiusY + 0.14, 0]}>
-        <torusGeometry args={[headRadiusX + 0.006, frameThickness * 0.45, 8, 32]} />
-      </mesh>
-
-      <mesh castShadow material={matFrame} position={[-0.05, 0.16, 0]} rotation={[0, 0, -0.28]}>
-        <cylinderGeometry args={[0.016, 0.018, 0.18, 12]} />
-      </mesh>
-      <mesh castShadow material={matFrame} position={[0.05, 0.16, 0]} rotation={[0, 0, 0.28]}>
-        <cylinderGeometry args={[0.016, 0.018, 0.18, 12]} />
-      </mesh>
-      <mesh castShadow material={matCarbonDark} position={[0, 0.22, 0]}>
-        <boxGeometry args={[0.11, 0.022, 0.03]} />
-      </mesh>
-
-      <mesh castShadow material={matFrame} position={[0, 0.04, 0]}>
-        <cylinderGeometry args={[0.018, 0.018, 0.16, 12]} />
-      </mesh>
-      <mesh castShadow material={matGrip} position={[0, -0.07, 0]}>
-        <cylinderGeometry args={[0.022, 0.020, 0.16, 12]} />
-      </mesh>
-      <mesh castShadow material={matFrame} position={[0, -0.16, 0]}>
-        <cylinderGeometry args={[0.028, 0.024, 0.03, 8]} />
-      </mesh>
-
-      <group position={[0, headRadiusY + 0.14, 0]}>
-        {stringsGrid.map((str, idx) => {
-          const midX = (str.p1[0] + str.p2[0]) / 2;
-          const midY = (str.p1[1] + str.p2[1]) / 2;
-          const len = Math.hypot(str.p2[0] - str.p1[0], str.p2[1] - str.p1[1]);
-          const angle = Math.atan2(str.p2[1] - str.p1[1], str.p2[0] - str.p1[0]);
-          return (
-            <mesh
-              key={`str-${idx}`}
-              material={matStrings}
-              position={[midX, midY, 0]}
-              rotation={[0, 0, angle - Math.PI / 2]}
-            >
-              <cylinderGeometry args={[0.002, 0.002, len, 4]} />
-            </mesh>
-          );
-        })}
-        <mesh material={matStrings} position={[0, 0, 0]}>
-          <ringGeometry args={[0.06, 0.075, 20]} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
 // --- 🏗️ MOUNTED CRANE PLAYER (PERFECT HIERARCHICAL THREE.JS INTEGRATION - ZERO GAP GUARANTEED) ---
 function MountedCranePlayer({
   crane,
@@ -493,18 +372,14 @@ function MountedCranePlayer({
         <group ref={columnGroupRef} position={[0, 1.85, 0]}>
           <group ref={boomGroupRef} position={[0, 0, 0]}>
             <group ref={tipGroupRef} position={[-0.01, 0.05, -3.34]}>
-              <RemoteCameraHead
+              <CraneTennisRacketHead
                 kinematicsRef={kinematicsRef}
+                teamColor={teamColor}
+                stringGlow={stringGlow}
                 autoLevel={true}
                 position={[0, 0, 0]}
                 scale={1.0}
-                showCableLead={false}
-                customPayload={
-                  <group position={[0, -0.06, 0.04]}>
-                    <group ref={racketTargetRef} position={[0, 0.42, 0]} />
-                    <CraneTennisRacket teamColor={teamColor} stringGlow={stringGlow} racketScale={1.0} />
-                  </group>
-                }
+                racketTargetRef={racketTargetRef}
               />
             </group>
           </group>

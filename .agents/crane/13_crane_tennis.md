@@ -26,13 +26,18 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - Dynamische Verfolgung des Tennisballs in Echtzeit.
   - Berechnung der optimalen Kombination aus Dolly-Fahrt ($X$), Schwenkwinkel (`basePan`), Auslegerneigung (`boomTilt`), Teleskopauszug (`teleExtension`) und Remote-Head-Rotation (`headPan`, `headTilt`, `headRoll`) für Vorhand, Rückhand, Slice, Topspin, Smash und Aufschlag.
 
-### 2. Carbon-Tennisschläger als Kamera-Payload (`CraneTennisRacket`)
-- **Konstruktion & Head-Integration**:
-  - In diesem Tennis-View ist die Kamera im Remote Head der Tennisschläger selbst (`customPayload` in `RemoteCameraHead`).
-  - Hochmodul-Carbon-Rahmen montiert direkt auf dem Schnellwechsel-Kameraträger des 3-Achs Remote Heads.
-  - Bespannungs-Gitter (Strings) mit kinetischem Treffer-Glow (Teamfarbe).
-  - Ergonomisches Griffband (Grip Tape) und integrierter Saitendämpfer.
-  - Impact-Visualizer: Kinetischer Partikelblitz (`impactBurst`) am exakten Sweet-Spot bei Ballkontakt.
+### 2. Dedizierter 3-Achs Tennis-Racket-Head (`CraneTennisRacketHead.tsx`)
+- **Konstruktion & Kinematik**:
+  - Speziell für das Tennis-Match entwickelter **3-Achsen Hochgeschwindigkeits-Aktuator-Head**, der direkt am Mitchell-Mount-Flansch von Beam 4 montiert ist.
+  - **Pan-Achse (Yaw / Follow-Through Swing)**: Großer Schwenkwinkel für Cross-, Longline- und Slice-Ausschwung.
+  - **Tilt-Achse (Pitch / Schlagwinkel-Neigung)**: Schnelle Steigungswinkel für Überkopf-Smashes, flache Laser-Drives und Lobs.
+  - **Roll- / Wrist-Achse (Handgelenk-Pronation & Spin-Engine)**: Dynamische Handgelenks-Drehung für 3.200 RPM Heavy Topspin (geschlossenes Schlägerblatt), Slice (offenes Schlägerblatt) und 234 km/h Flat-Aufschlag-Pronation.
+- **Integrierter High-Modulus Carbon-Tennisschläger**:
+  - Aerodynamischer Kohlefaser-Rahmen mit Team-Lackierung (Blau für 🇮🇹 Sinner, Gelb für 🇪🇸 Alcaraz).
+  - High-Tension Saitengitter mit beleuchtetem Sweet-Spot-Ring (`stringGlow`).
+  - Integrierter Sweet-Spot Tracker (`racketTargetRef`) für Balltreffpunkterkennung, Impact-Partikelblitz (`impactBurst`) und First-Person Racket Cam POV.
+- **Zero Gap Garantie**:
+  - Direkt in die hierarchische Transformationskette des Krans geschachtelt (`MountedCranePlayer`). Keine Lücken, kein Versatz, 100% stabile Koppelung bei jeder Bewegung.
 
 ### 3. Ball-Physik, Flugkurven-Engine, Lobs, Netz-Volleys & Monster-Smashes (`RallyShot`)
 - **Trajektorie & Flugphysik**:
