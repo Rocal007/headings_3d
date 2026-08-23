@@ -295,7 +295,7 @@ function MountedCranePlayer({
   racketWorldPosRef,
   racketWorldQuatRef,
   baseRotation = 0,
-  dollyTrackZ = -15.2,
+  dollyTrackZ = -16.8,
   dollyGroupRef
 }: {
   crane: Supertechno50FBXModel | null;
@@ -1242,14 +1242,14 @@ function CraneTennisScene({
     headRoll: 0
   });
 
-  const crane1BaseZ = -15.2;
-  const crane2BaseZ = 15.2;
+  const crane1BaseZ = -16.8;
+  const crane2BaseZ = 16.8;
 
   const dolly1GroupRef = useRef<THREE.Group>(null);
   const dolly2GroupRef = useRef<THREE.Group>(null);
 
-  const racket1WorldPos = useRef(new THREE.Vector3(0, 2.2, -9.8));
-  const racket2WorldPos = useRef(new THREE.Vector3(0, 2.2, 9.8));
+  const racket1WorldPos = useRef(new THREE.Vector3(0, 2.5, -11.2));
+  const racket2WorldPos = useRef(new THREE.Vector3(0, 2.5, 11.2));
   const racket1WorldQuat = useRef(new THREE.Quaternion());
   const racket2WorldQuat = useRef(new THREE.Quaternion());
 
@@ -1290,7 +1290,7 @@ function CraneTennisScene({
     const isDeuceCourt = totalPoints % 2 === 0; // Gerade Punktzahl ➜ Einstand/Deuce (Rechts), Ungerade ➜ Vorteil/Ad (Links)
 
     // Position hinter der Grundlinie
-    const serverZ = isSinner ? -13.8 : 13.8;
+    const serverZ = isSinner ? -14.6 : 14.6;
     const serverX = isSinner 
       ? (isDeuceCourt ? -2.2 : 2.2) 
       : (isDeuceCourt ? 2.2 : -2.2);
@@ -2338,8 +2338,8 @@ function CraneTennisScene({
         controls.update();
       }
 
-      if (dolly1GroupRef.current) dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -15.2);
-      if (dolly2GroupRef.current) dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 15.2);
+      if (dolly1GroupRef.current) dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -16.8);
+      if (dolly2GroupRef.current) dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 16.8);
       if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
       if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
 
@@ -2675,7 +2675,7 @@ function CraneTennisScene({
       const arc = 4 * p * (1 - p);
       currentY = THREE.MathUtils.lerp(shot.startPos.y, shot.targetPos.y, p) + arc * Math.max(0.35, shot.netHeight * 0.45);
 
-      // --- KINEMATIK KRAN 1 (Nord Z = -15.2m) ---
+      // --- KINEMATIK KRAN 1 (Nord Z = -16.8m) ---
       if (shot.shooter === 2) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
@@ -2694,7 +2694,7 @@ function CraneTennisScene({
         const deltaY = targetY - kin1.columnElevation;
         const total3DDist = Math.hypot(distH, deltaY);
 
-        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.34, 0.5, 11.2);
+        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.34, 0.5, 11.4);
         kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, targetExt, dt * 10.5);
 
         const targetTiltDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaY, distH));
@@ -2723,7 +2723,7 @@ function CraneTennisScene({
         kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 4.5);
       }
 
-      // --- KINEMATIK KRAN 2 (Süd Z = +15.2m) ---
+      // --- KINEMATIK KRAN 2 (Süd Z = +16.8m) ---
       if (shot.shooter === 1) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
@@ -2833,7 +2833,7 @@ function CraneTennisScene({
         }
       }
 
-      // --- KINEMATIK KRAN 1 (SÜD-GRUNDLINIE Z = -15.2m) ---
+      // --- KINEMATIK KRAN 1 (SÜD-GRUNDLINIE Z = -16.8m) ---
       if (shot.shooter === 2) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
@@ -2880,7 +2880,7 @@ function CraneTennisScene({
         kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 4.5);
       }
 
-      // --- KINEMATIK KRAN 2 (NORD-GRUNDLINIE Z = +15.2m) ---
+      // --- KINEMATIK KRAN 2 (NORD-GRUNDLINIE Z = +16.8m) ---
       if (shot.shooter === 1) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
@@ -3046,10 +3046,10 @@ function CraneTennisScene({
     }
 
     if (dolly1GroupRef.current) {
-      dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -15.2);
+      dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -16.8);
     }
     if (dolly2GroupRef.current) {
-      dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 15.2);
+      dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 16.8);
     }
 
     if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
@@ -3133,8 +3133,8 @@ function CraneTennisScene({
       <TennisCourtArena surface={courtSurface} />
 
       {/* 🛤️ DOLLY SCHIENEN / RAILS UNTER DEN KRÄNEN */}
-      <CraneDollyRailTrack zPos={-15.2} teamColor="#38bdf8" />
-      <CraneDollyRailTrack zPos={15.2} teamColor="#facc15" />
+      <CraneDollyRailTrack zPos={-16.8} teamColor="#38bdf8" />
+      <CraneDollyRailTrack zPos={16.8} teamColor="#facc15" />
 
       {/* 🪑 Official Chair Umpire & Staff (Togglable) */}
       {showCourtsideStaff && (
@@ -3164,7 +3164,7 @@ function CraneTennisScene({
         racketWorldPosRef={racket1WorldPos}
         racketWorldQuatRef={racket1WorldQuat}
         baseRotation={Math.PI}
-        dollyTrackZ={-15.2}
+        dollyTrackZ={-16.8}
         dollyGroupRef={dolly1GroupRef}
       />
 
@@ -3177,7 +3177,7 @@ function CraneTennisScene({
         racketWorldPosRef={racket2WorldPos}
         racketWorldQuatRef={racket2WorldQuat}
         baseRotation={0}
-        dollyTrackZ={15.2}
+        dollyTrackZ={16.8}
         dollyGroupRef={dolly2GroupRef}
       />
 
