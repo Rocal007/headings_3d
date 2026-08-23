@@ -286,7 +286,7 @@ function SupertechnoDollyBase({
   );
 }
 
-// --- 🏗️ MOUNTED CRANE PLAYER (PERFECT HIERARCHICAL THREE.JS INTEGRATION - ZERO GAP GUARANTEED) ---
+// --- 🏗️ MOUNTED CRANE PLAYER (PERFECT FBX BONE SYNCHRONIZATION - ZERO GAP GUARANTEED) ---
 function MountedCranePlayer({
   crane,
   kinematicsRef,
@@ -317,39 +317,35 @@ function MountedCranePlayer({
   dollyTrackZ?: number;
   dollyGroupRef: React.RefObject<THREE.Group | null>;
 }) {
-  const columnGroupRef = useRef<THREE.Group>(null);
-  const boomGroupRef = useRef<THREE.Group>(null);
-  const tipGroupRef = useRef<THREE.Group>(null);
+  const racketHeadGroupRef = useRef<THREE.Group>(null);
   const racketTargetRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
     const kin = kinematicsRef.current;
 
-    // 1. Synchronize Dolly Base on Tracks
+    // 1. Move Dolly Base on Rails
     if (dollyGroupRef.current) {
       dollyGroupRef.current.position.set(kin.dollyTrack, 0, dollyTrackZ);
     }
 
-    // 2. Synchronize Column Lift & Pan Rotation
-    if (columnGroupRef.current) {
-      columnGroupRef.current.position.y = kin.columnElevation;
-      columnGroupRef.current.rotation.y = THREE.MathUtils.degToRad(-kin.basePan || 0);
+    // 2. Synchronize Head directly to FBX jointNeck Bone World Matrix (Zero Gap Guaranteed!)
+    if (crane && crane.isLoaded && crane.nodes.neck && racketHeadGroupRef.current) {
+      if (dollyGroupRef.current) {
+        dollyGroupRef.current.updateMatrixWorld(true);
+      } else {
+        crane.group.updateMatrixWorld(true);
+      }
+
+      const worldPos = new THREE.Vector3();
+      const worldQuat = new THREE.Quaternion();
+      crane.nodes.neck.getWorldPosition(worldPos);
+      crane.nodes.neck.getWorldQuaternion(worldQuat);
+
+      racketHeadGroupRef.current.position.copy(worldPos);
+      racketHeadGroupRef.current.quaternion.copy(worldQuat);
     }
 
-    // 3. Synchronize Boom Tilt
-    if (boomGroupRef.current) {
-      boomGroupRef.current.rotation.x = THREE.MathUtils.degToRad(kin.boomTilt || 0);
-    }
-
-    // 4. Synchronize 4-Stage Telescopic Tip Position (0 to 11.3m extension)
-    if (tipGroupRef.current) {
-      const ext = Math.max(0, Math.min(11.3, kin.teleExtension || 0));
-      const tExt = ext / 11.3;
-      const tipZ = -3.34 - tExt * 11.40;
-      tipGroupRef.current.position.set(-0.01, 0.05, tipZ);
-    }
-
-    // 5. World Position & Quaternion of Racket Sweet Spot for Hit detection & Racket-Cam POV
+    // 3. Track Racket Sweet Spot for Hit detection & Camera POV
     if (racketTargetRef.current) {
       const rPos = new THREE.Vector3();
       const rQuat = new THREE.Quaternion();
@@ -363,29 +359,28 @@ function MountedCranePlayer({
   });
 
   return (
-    <group ref={dollyGroupRef} position={[0, 0, dollyTrackZ]}>
-      <SupertechnoDollyBase teamColor={teamColor} />
-      <group rotation={[0, baseRotation, 0]}>
-        {crane && <primitive object={crane.group} />}
-
-        {/* Directly nested in crane local hierarchy: Absolutely ZERO GAP guaranteed */}
-        <group ref={columnGroupRef} position={[0, 1.85, 0]}>
-          <group ref={boomGroupRef} position={[0, 0, 0]}>
-            <group ref={tipGroupRef} position={[-0.01, 0.05, -3.34]}>
-              <CraneTennisRacketHead
-                kinematicsRef={kinematicsRef}
-                teamColor={teamColor}
-                stringGlow={stringGlow}
-                autoLevel={true}
-                position={[0, 0, 0]}
-                scale={1.0}
-                racketTargetRef={racketTargetRef}
-              />
-            </group>
-          </group>
+    <>
+      {/* 1. CRANE DOLLY BASE & FBX SKELETON */}
+      <group ref={dollyGroupRef} position={[0, 0, dollyTrackZ]}>
+        <SupertechnoDollyBase teamColor={teamColor} />
+        <group rotation={[0, baseRotation, 0]}>
+          {crane && <primitive object={crane.group} />}
         </group>
       </group>
-    </group>
+
+      {/* 2. DEDICATED TENNIS RACKET GIMBAL HEAD (BOLTED TO jointNeck BONE IN REAL TIME) */}
+      <group ref={racketHeadGroupRef}>
+        <CraneTennisRacketHead
+          kinematicsRef={kinematicsRef}
+          teamColor={teamColor}
+          stringGlow={stringGlow}
+          autoLevel={true}
+          position={[0, 0, 0]}
+          scale={1.0}
+          racketTargetRef={racketTargetRef}
+        />
+      </group>
+    </>
   );
 }
 
