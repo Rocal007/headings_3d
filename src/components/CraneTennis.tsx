@@ -3193,7 +3193,7 @@ export default function CraneTennis() {
   const [courtSurface, setCourtSurface] = useState<CourtSurface>('clay');
   const [cameraMode, setCameraMode] = useState<TennisCameraMode>('broadcast');
   const [isAIvsAI, setIsAIvsAI] = useState(true);
-  const [gameSpeed, setGameSpeed] = useState(1.5);
+  const [gameSpeed, setGameSpeed] = useState(1.2);
   const [showSpectators, setShowSpectators] = useState(false);
   const [showCourtsideStaff, setShowCourtsideStaff] = useState(false);
   const [showGrandstands, setShowGrandstands] = useState(false);
@@ -4025,8 +4025,8 @@ export default function CraneTennis() {
             <span>Match-Geschwindigkeit:</span>
             <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#facc15' }}>{gameSpeed.toFixed(1)}x</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginBottom: '8px' }}>
-            {[0.5, 1.0, 1.5, 2.0].map(spd => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', marginBottom: '8px' }}>
+            {[0.5, 1.0, 1.2, 1.5, 2.0].map(spd => (
               <button
                 key={`spd-${spd}`}
                 onClick={() => setGameSpeed(spd)}
@@ -4035,7 +4035,7 @@ export default function CraneTennis() {
                   fontSize: '10px',
                   fontWeight: 700,
                   borderRadius: '4px',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: `1px solid ${gameSpeed === spd ? '#facc15' : 'rgba(255,255,255,0.1)'}`,
                   background: gameSpeed === spd ? 'rgba(250,204,21,0.3)' : 'rgba(255,255,255,0.05)',
                   color: gameSpeed === spd ? '#fde047' : '#94a3b8',
                   cursor: 'pointer'
