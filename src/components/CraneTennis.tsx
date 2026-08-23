@@ -1295,6 +1295,10 @@ function CraneTennisScene({
       ? (isDeuceCourt ? -2.2 : 2.2) 
       : (isDeuceCourt ? 2.2 : -2.2);
 
+    prevBallPosRef.current.set(serverX, 3.2, serverZ);
+    ballPhysPosRef.current.set(serverX, 3.2, serverZ);
+    ballVelocityRef.current.set(0, 0, 0);
+
     // Diagonales Zielfeld (Aufschlagfeld des Gegners bei Z = ±6.2m)
     const targetServiceZ = isSinner ? 6.2 : -6.2;
     const servePlacement = Math.random();
@@ -1580,14 +1584,17 @@ function CraneTennisScene({
         }
       }
 
-      const bouncePos = new THREE.Vector3(targetX, 0.16, targetZ * 0.96);
+      const bouncePos = new THREE.Vector3(targetX, 0.16, targetZ);
+      const postBounceTargetZ = isDeepOut ? (nextHitter === 1 ? -18.5 : 18.5) : (targetZ + (nextHitter === 1 ? -3.5 : 3.5));
+      const postBounceTargetX = isDeepOut ? targetX * 1.35 : targetX * 1.5;
+      const postBounceTargetY = 1.45;
 
       return {
         shooter: fromHitter,
         startPos: startPosition.clone(),
-        targetPos: new THREE.Vector3(targetX, targetY, targetZ),
+        targetPos: new THREE.Vector3(postBounceTargetX, postBounceTargetY, postBounceTargetZ),
         bouncePos,
-        duration: 1.15,
+        duration: 1.38,
         progress: 0.0,
         netHeight: 1.55,
         shotType: chosenType,
@@ -2095,6 +2102,9 @@ function CraneTennisScene({
   const lastOutErrorTrigger = useRef(manualOutErrorTrigger || 0);
   const celebrationTimerRef = useRef(0);
   const celebrationWinnerRef = useRef<1 | 2 | null>(null);
+  const ballVelocityRef = useRef(new THREE.Vector3(0, 0, 0));
+  const ballPhysPosRef = useRef(new THREE.Vector3(0, 1.8, 0));
+  const prevBallPosRef = useRef(new THREE.Vector3(0, 1.8, 0));
 
   useEffect(() => {
     if (manualVolleyTrigger && manualVolleyTrigger !== lastVolleyTrigger.current) {
@@ -2343,11 +2353,52 @@ function CraneTennisScene({
       if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
       if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
 
+      // 🎾 Ballistische Flug- & Auslaufphase des Balls bei Game-/Satzgewinn
+      stepBallPhysicsContinuation(dt);
+
       if (showcaseTimerRef.current <= 0) {
         const nextServer = celebrationWinnerRef.current || 1;
         triggerGrandSlamServe(nextServer);
       }
       return;
+    }
+
+    // 🎾 REALISTISCHE PHYSIK-AUSLAUFPHASE DES BALLS (FLIEGT, PRALLT AB & ROLLT WEITER NACH OUT / PUNKT)
+    function stepBallPhysicsContinuation(dtSec: number) {
+      const bPos = ballPhysPosRef.current;
+      const bVel = ballVelocityRef.current;
+
+      // Schwerkraft & aerodynamischer Widerstand
+      bVel.y -= 9.81 * dtSec;
+      bVel.x *= 0.994;
+      bVel.z *= 0.994;
+
+      bPos.addScaledVector(bVel, dtSec);
+
+      // Bodenabprall & Ausrollen auf dem Belag
+      const floorY = 0.13;
+      if (bPos.y <= floorY) {
+        bPos.y = floorY;
+        if (Math.abs(bVel.y) > 0.45) {
+          bVel.y = -bVel.y * 0.58; // Elastischer Rebound
+        } else {
+          bVel.y = 0; // Rollphase
+          bVel.x *= 0.92; // Bodenreibung beim Rollen
+          bVel.z *= 0.92;
+        }
+      }
+
+      // Stadionbanden-Reflexion (Z = +-32m, X = +-20m)
+      if (Math.abs(bPos.z) > 32.0) {
+        bPos.z = Math.sign(bPos.z) * 32.0;
+        bVel.z = -bVel.z * 0.40;
+      }
+      if (Math.abs(bPos.x) > 20.0) {
+        bPos.x = Math.sign(bPos.x) * 20.0;
+        bVel.x = -bVel.x * 0.40;
+      }
+
+      setBallVisualPos(bPos.clone());
     }
 
     // --- 🏆 EMOTIONAL GESTURES & CELEBRATION BETWEEN POINTS ---
@@ -2391,6 +2442,9 @@ function CraneTennisScene({
         kin1.headTilt = 28 + Math.sin(tElapsed * 3.0) * 10.0;
         kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 5.0);
       }
+
+      // 🎾 Ballistische Auslauf-Physik während der Jubel- & Frust-Phase (Ball fliegt & dotzt weiter!)
+      stepBallPhysicsContinuation(dt);
 
       if (celebrationTimerRef.current <= 0) {
         const nextServer = celebrationWinnerRef.current || 1;
@@ -2928,6 +2982,11 @@ function CraneTennisScene({
     }
 
     const currentBallPos = new THREE.Vector3(currentX, currentY, currentZ);
+    if (dt > 0.0001) {
+      ballVelocityRef.current.copy(currentBallPos).sub(prevBallPosRef.current).divideScalar(dt);
+    }
+    prevBallPosRef.current.copy(currentBallPos);
+    ballPhysPosRef.current.copy(currentBallPos);
     setBallVisualPos(currentBallPos);
 
     if (p >= 1.0) {

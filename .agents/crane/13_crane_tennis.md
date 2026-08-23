@@ -46,16 +46,19 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **🛡️ 11.2m Hohe defensive Sky-Notkerze (`isLob = true, lobKind = 'sky_moonball'`)**: Ball steigt in 11.2 m Höhe bis in die Flutlichtmasten ($t = 1.95\,\text{s}$), ermöglicht Zeitgewinn zur Spielfeld-Erholung und bereitet dem Angreifer den perfekten Schmetterball-Abschlag vor.
   - **🔥 248 km/h Monster-Smashes (`isSmash = true`)**: Steiler, pfeilschneller Abwärtseinschlag in den gegnerischen Vordercourt ($p < 0.48, Y \to 0.16\,\text{m}$), Auslösung einer expandierenden Doppelring-Plasma-Schockwelle (`smashBurst`) und explosiver Rebound-Kick steil nach oben über die Tribünenwand ($Y \to 5.2\,\text{m}, Z \to \pm 17.8\,\text{m}$).
   - **Netz-Volleys (`isVolley = true`)**: Direkte Flugbahn in der Luft ohne Bodenaufprall. Der Ball fliegt knapp über die Netzkante direkt zum Schläger des am Netz stehenden Krans ($Z \approx \pm 1.8\,\text{m} \dots \pm 3.8\,\text{m}$).
+  - **🎾 Nahtlose Ballistische Flug- & Auslauf-Physik (`stepBallPhysicsContinuation`)**:
+    - Wenn ein Ball im **Aus (OUT)** landet oder ein **Punkt (Winner, Ace, Smash)** erzielt wird, friert der Tennisball niemals abrupt ein:
+    - Der Ball dotzt mit physikalischem Bodenrebound auf dem Platzbelag auf, behält seinen vollen Geschwindigkeitsvektor ($V_x, V_y, V_z$), segelt in realer Ballistik an den Kränen vorbei tief in den Auslaufbereich / an die Stadionbanden ($Z \to \pm 18\,\text{m} \dots \pm 28\,\text{m}$) und rollt mit realistischer Reibung aus, während die Spieler jubeln oder den Kopf schütteln.
   - **⚠️ Authentische Out-Fehler (`isOutError = true`, 58% aller Fehler)**:
     - Entsprechend der realen ATP-Tour-Statistik von Sinner & Alcaraz landen **58% aller Unforced & Forced Errors im Aus** (überzogene Grundlinienbälle oder verzogene Cross-/Inside-Out-Winkel):
-      - **Deep Out (60%)**: Ball segelt 2 bis 12 cm hinter die Grundlinie ($|Z| > 11.885\,\text{m}$).
+      - **Deep Out (60%)**: Ball segelt 2 bis 12 cm hinter die Grundlinie ($|Z| > 11.885\,\text{m}$), prallt dort auf und fliegt weiter in den Hintergrund.
       - **Wide Out (40%)**: Ball verzieht 2 bis 9 cm in den Korridor / ins Seitenaus ($|X| > 4.115\,\text{m}$).
     - Linienrichter signalisiert "OUT!", Schiedsrichter bestätigt den Ausruf und das Scoreboard zeigt ein leuchtendes **`⚠️ OUT (BALL IM AUS)`**-Badge samt Zentimeter-Genauigkeit.
   - **🕸️ Authentische Netzfehler (`isNetError = true`, 37% aller Fehler)**:
-    - Der Ball fliegt bis zur Netzmitte ($Z = 0, p = 0.50$), prallt an der Netzkante ($Y \approx 0.65 - 0.88\,\text{m}$) mit Impact-Blitz ab und fällt senkrecht zu Boden an der Netzbasis ($Y \to 0.16\,\text{m}$).
+    - Der Ball fliegt bis zur Netzmitte ($Z = 0, p = 0.50$), prallt an der Netzkante ($Y \approx 0.65 - 0.88\,\text{m}$) mit Impact-Blitz ab, fällt senkrecht zu Boden und rollt an der Netzbasis aus.
     - Punktgewinn für den Gegner (`pointWinner = nextHitter`), Frustrationsgeste beim Schützen und rotes **`🕸️ NETZFEHLER`**-Badge.
   - **💫 Netzroller-Drama (`isNetCord = true`, 5% aller Ballwechsel)**: Ball streift das weiße Netzkabel bei $Z=0, Y=1.05\,\text{m}$, verliert an Tempo und tropft trudelnd kurz hinter das Netz ins Feld für einen dramatischen Winner.
-  - **Ausleger-Netzvorschub (bis 11.2m Hubweg)**: Teleskopausleger fährt weit nach vorne zum Netz ($Z=0$), während der Remote Head knackige Volley-Punch- und Block-Bewegungen ausführt.
+  - **Ausleger-Netzvorschub (bis 11.4m Hubweg)**: Teleskopausleger fährt weit nach vorne zum Netz ($Z=0$), während der Remote Head knackige Volley-Punch- und Block-Bewegungen ausführt.
   - **Geschwindigkeiten**: Von 110 km/h (Defensiv-Lob) und 130 km/h (Stoppball) bis zu **248–254 km/h (Monster-Schmetterball)**.
 - **234 km/h Power-Aufschlag, Deuce/Ad-Positionierung & Biomechanik**:
   - **📐 Offizielle Deuce- & Ad-Court-Positionierung**:
