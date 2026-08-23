@@ -965,8 +965,8 @@ function TennisStadiumSpectators({
   ballPos, 
   isCheering,
   cheerIntensity,
-  showSpectators = true,
-  showGrandstands = true
+  showSpectators = false,
+  showGrandstands = false
 }: { 
   ballPos: THREE.Vector3; 
   isCheering: boolean;
@@ -3178,9 +3178,10 @@ export default function CraneTennis() {
   const [cameraMode, setCameraMode] = useState<TennisCameraMode>('broadcast');
   const [isAIvsAI, setIsAIvsAI] = useState(true);
   const [gameSpeed, setGameSpeed] = useState(1.0);
-  const [showSpectators, setShowSpectators] = useState(true);
-  const [showCourtsideStaff, setShowCourtsideStaff] = useState(true);
-  const [showGrandstands, setShowGrandstands] = useState(true);
+  const [showSpectators, setShowSpectators] = useState(false);
+  const [showCourtsideStaff, setShowCourtsideStaff] = useState(false);
+  const [showGrandstands, setShowGrandstands] = useState(false);
+  const [isControlsOpen, setIsControlsOpen] = useState(false);
   const [manualVolleyTrigger, setManualVolleyTrigger] = useState(0);
   const [manualSmashTrigger, setManualSmashTrigger] = useState(0);
   const [manualTopspinLobTrigger, setManualTopspinLobTrigger] = useState(0);
@@ -3511,31 +3512,84 @@ export default function CraneTennis() {
         </button>
       </div>
 
-      {/* --- CONTROL DRAWER (LEFT SIDE) --- */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        background: 'rgba(11, 16, 24, 0.94)',
-        color: '#fff',
-        padding: '16px',
-        borderRadius: '12px',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        width: '320px',
-        maxHeight: 'calc(100vh - 40px)',
-        overflowY: 'auto',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
-        zIndex: 50
-      }}>
-        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: '8px', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🎾</span> <span>Kran-Tennis Arena</span>
-          </h3>
-          <div style={{ fontSize: '10px', color: '#94a3b8' }}>Dolly auf Schienen, Smashes, Lobs & Volleys bis 11.2m</div>
-        </div>
+      {/* --- CONTROL DRAWER (LEFT SIDE) - COLLAPSIBLE --- */}
+      {!isControlsOpen ? (
+        <button
+          onClick={() => setIsControlsOpen(true)}
+          style={{
+            position: 'absolute',
+            top: '70px',
+            left: '20px',
+            background: 'rgba(11, 16, 24, 0.92)',
+            border: '1px solid rgba(250, 204, 21, 0.5)',
+            borderRadius: '10px',
+            padding: '8px 14px',
+            color: '#facc15',
+            fontSize: '12px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
+            zIndex: 50,
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>🎾</span>
+          <span>Steuerung & Schläge</span>
+          <span style={{ fontSize: '10px', opacity: 0.8, color: '#38bdf8' }}>▶</span>
+        </button>
+      ) : (
+        <div style={{
+          position: 'absolute',
+          top: '70px',
+          left: '20px',
+          background: 'rgba(11, 16, 24, 0.94)',
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '12px',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          width: '320px',
+          maxHeight: 'calc(100vh - 90px)',
+          overflowY: 'auto',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
+          zIndex: 50
+        }}>
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🎾</span> <span>Kran-Tennis Arena</span>
+              </h3>
+              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Dolly auf Schienen, Smashes, Lobs & Volleys</div>
+            </div>
+            <button
+              onClick={() => setIsControlsOpen(false)}
+              title="Steuerung einklappen"
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '6px',
+                color: '#cbd5e1',
+                padding: '4px 8px',
+                fontSize: '10px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span>Einklappen</span>
+              <span style={{ fontSize: '9px', color: '#facc15' }}>◀</span>
+            </button>
+          </div>
 
         {/* 1. Court Surface Selector */}
         <div style={{ marginBottom: '14px' }}>
@@ -4048,6 +4102,7 @@ export default function CraneTennis() {
           </button>
         </div>
       </div>
+      )}
 
       {/* --- 📊 ATP HEAD-TO-HEAD & MATCH STATS MODAL --- */}
       {showH2HStats && (

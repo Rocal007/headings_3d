@@ -106,6 +106,8 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   6. `spectator`: Front-Row Zuschauerperspektive von der Tribüne.
   7. `coach`: Trainerkabinen-Blickwinkel.
   8. `free`: Frei rotierbare 360° Orbit-Kamera.
-- **TV Scoreboard UI**:
+- **TV Scoreboard UI & Einklappbare Steuerung**:
   - Grand Slam Broadcast Overlay mit Satz-, Spiel- und Punktestand, Aufschlaganzeige, Ballwechselzähler, Geschwindigkeitsradar und Umpire-Banner.
-  - **Live-Status-Badges**: Flammendes `🔥 248 km/h SMASH` und leuchtendes `⚡ NETZ-VOLLEY` Overlay bei High-Energy Aktionen.
+  - **Live-Status-Badges**: Flammendes `🔥 248 km/h SMASH`, leuchtendes `⚡ NETZ-VOLLEY`, `🕸️ NETZFEHLER` und `⚠️ OUT (BALL IM AUS)`.
+  - **Einklappbare Steuerung (`isControlsOpen`)**: Aufgeräumtes UI mit platzsparendem, einklappbarem Steuerungs-Drawer (`🎾 Steuerung & Schläge ▶` / `◀ Einklappen`), positioniert unterhalb des Back-Buttons.
+  - **Standardmäßig ausgeblendete Stadion-Elemente**: Zuschauer (`showSpectators`), Schiedsrichter & Ballkinder (`showCourtsideStaff`) sowie Tribünen (`showGrandstands`) sind initial auf `false` geschaltet für einen sauberen, performanten und unverstellten Blick auf die Kran-Kinematik, und können bei Bedarf jederzeit im Menü aktiviert werden.
