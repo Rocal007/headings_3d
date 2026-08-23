@@ -3177,7 +3177,7 @@ export default function CraneTennis() {
   const [courtSurface, setCourtSurface] = useState<CourtSurface>('clay');
   const [cameraMode, setCameraMode] = useState<TennisCameraMode>('broadcast');
   const [isAIvsAI, setIsAIvsAI] = useState(true);
-  const [gameSpeed, setGameSpeed] = useState(1.0);
+  const [gameSpeed, setGameSpeed] = useState(1.5);
   const [showSpectators, setShowSpectators] = useState(false);
   const [showCourtsideStaff, setShowCourtsideStaff] = useState(false);
   const [showGrandstands, setShowGrandstands] = useState(false);
