@@ -117,9 +117,12 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   6. `spectator`: Front-Row Zuschauerperspektive von der Tribüne.
   7. `coach`: Trainerkabinen-Blickwinkel.
   8. `free`: Frei rotierbare 360° Orbit-Kamera.
-- **TV Scoreboard UI & Einklappbare Steuerung**:
-  - Grand Slam Broadcast Overlay mit Satz-, Spiel- und Punktestand, Aufschlaganzeige, Ballwechselzähler, Geschwindigkeitsradar und Umpire-Banner.
-  - **Live-Status-Badges**: Flammendes `🔥 248 km/h SMASH`, leuchtendes `⚡ NETZ-VOLLEY`, `🕸️ NETZFEHLER` und `⚠️ OUT (BALL IM AUS)`.
+- **Offizielles TV Broadcast Scoreboard Overlay**:
+  - **Authentisches 2-Zeilen-Format (ATP Tour & Grand Slam Standard)**:
+    - **Header**: `🏆 ATP FINALS • CHAMPIONSHIP MATCH | SET X • FINAL`
+    - **Spielerzeilen**: Flaggen-Badge (`🇮🇹` / `🇪🇸`), Setzliste `[1]` / `[2]`, Name in Großbuchstaben (`J. SINNER` / `C. ALCARAZ`), **leuchtender Aufschlag-Ball `🟡`** beim aktiven Server.
+    - **Spalten-Struktur**: `SETS` (Gewonnene Sätze), `GAMES` (Aktueller Spielstand) und **hervorgehobene `POINTS`-Boxen** (`0`, `15`, `30`, `40`, `AD`) mit dynamischer Führungsausleuchtung in Team-Gold/Cyan.
+    - **Match-Ticker**: Live-Umpire-Durchsagen (`🪑 UMPIRE: Deuce / Advantage / Game Sinner`) und Live-Schlaganalyse mit Event-Badges (`🔥 248 km/h SMASH`, `⚡ DIREKTES ASS`, `🎯 SERVICE WINNER`, `🕸️ NETZFEHLER`, `⚠️ OUT`, `💫 NETZROLLER`, `⏸️ EINGEFROREN`).
   - **Einklappbare Steuerung (`isControlsOpen`)**: Aufgeräumtes UI mit platzsparendem, einklappbarem Steuerungs-Drawer (`🎾 Steuerung & Schläge ▶` / `◀ Einklappen`), positioniert unterhalb des Back-Buttons.
   - **Standardmäßig ausgeblendete Stadion-Elemente**: Zuschauer (`showSpectators`), Schiedsrichter & Ballkinder (`showCourtsideStaff`) sowie Tribünen (`showGrandstands`) sind initial auf `false` geschaltet für einen sauberen, performanten und unverstellten Blick auf die Kran-Kinematik, und können bei Bedarf jederzeit im Menü aktiviert werden.
 - **Voll-Ausfahr-Showcase & Einführender Perspektivenwechsel (`showcaseTimerRef`)**:

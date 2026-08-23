@@ -3353,315 +3353,484 @@ export default function CraneTennis() {
         />
       </Canvas>
 
-      {/* --- BROADCAST SCOREBOARD HUD (TOP RIGHT) --- */}
+      {/* --- 📺 OFFICIAL ATP GRAND SLAM TV BROADCAST SCOREBOARD HUD --- */}
       <div style={{
         position: 'absolute',
         top: '20px',
         right: '20px',
-        background: 'rgba(15, 23, 42, 0.90)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        borderRadius: '12px',
-        padding: '10px 16px',
-        color: '#fff',
         display: 'flex',
-        alignItems: 'center',
-        gap: '14px',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-        zIndex: 40
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '8px',
+        zIndex: 40,
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Player 1 Sinner */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '13px' }}>🇮🇹</span>
-            <span style={{ color: '#bae6fd', fontWeight: 900, fontSize: '12px' }}>[1] J. SINNER</span>
-            <span style={{ background: '#0284c7', color: '#fff', padding: '2px 7px', borderRadius: '4px', fontWeight: 900, fontSize: '13px', fontFamily: 'monospace' }}>
+        {/* TOP ROW: QUICK ACTIONS (FREEZE, RESTART, STATS) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* ⏸️ FREEZE / STOP BUTTON */}
+          <button
+            onClick={() => setIsAIvsAI(!isAIvsAI)}
+            title={isAIvsAI ? "Match anhalten / einfrieren (Pause)" : "Match fortsetzen (Play)"}
+            style={{
+              background: isAIvsAI 
+                ? 'linear-gradient(135deg, rgba(234,179,8,0.35), rgba(202,138,4,0.25))' 
+                : 'linear-gradient(135deg, rgba(34,197,94,0.45), rgba(22,163,74,0.35))',
+              border: `1px solid ${isAIvsAI ? 'rgba(234,179,8,0.7)' : '#4ade80'}`,
+              color: isAIvsAI ? '#fef08a' : '#bbf7d0',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              boxShadow: isAIvsAI ? '0 2px 10px rgba(234, 179, 8, 0.3)' : '0 0 16px rgba(74, 222, 128, 0.6)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>{isAIvsAI ? '⏸️' : '▶️'}</span>
+            <span>{isAIvsAI ? 'Stop / Freeze' : 'Fortsetzen'}</span>
+          </button>
+
+          {/* 🔄 RESTART MATCH BUTTON */}
+          <button
+            onClick={handleRestartMatch}
+            title="Match komplett neu starten (11.3m Ausleger-Show)"
+            style={{
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(249,115,22,0.25))',
+              border: '1px solid rgba(239,68,68,0.6)',
+              color: '#fee2e2',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              boxShadow: '0 2px 10px rgba(239, 68, 68, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>🔄</span>
+            <span>Restart Match</span>
+          </button>
+
+          {/* 📊 H2H STATS BUTTON */}
+          <button
+            onClick={() => setShowH2HStats(true)}
+            style={{
+              background: 'linear-gradient(135deg, rgba(56,189,248,0.3), rgba(2,132,199,0.2))',
+              border: '1px solid rgba(56,189,248,0.6)',
+              color: '#e0f2fe',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              boxShadow: '0 2px 10px rgba(56, 189, 248, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>📊</span>
+            <span>ATP H2H</span>
+          </button>
+        </div>
+
+        {/* 📺 AUTHENTIC TV BROADCAST SCOREBOARD CARD */}
+        <div style={{
+          background: 'linear-gradient(180deg, rgba(11, 18, 33, 0.96) 0%, rgba(6, 10, 20, 0.98) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(250, 204, 21, 0.2)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          minWidth: '380px'
+        }}>
+          {/* TOURNAMENT & ROUND TITLE BAR */}
+          <div style={{
+            background: 'linear-gradient(90deg, #0f2b48 0%, #1e1b4b 50%, #311042 100%)',
+            padding: '5px 12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+            fontSize: '10px',
+            fontWeight: 900,
+            letterSpacing: '0.8px',
+            color: '#facc15',
+            textTransform: 'uppercase'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🏆</span>
+              <span>ATP FINALS • CHAMPIONSHIP MATCH</span>
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 700, letterSpacing: '0.4px' }}>
+              SET {matchScore.p1Sets + matchScore.p2Sets + 1} • FINAL
+            </div>
+          </div>
+
+          {/* PLAYER TABLE HEADER */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 40px 40px 54px',
+            background: 'rgba(0, 0, 0, 0.4)',
+            padding: '3px 12px',
+            fontSize: '9px',
+            fontWeight: 800,
+            color: '#64748b',
+            letterSpacing: '0.6px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+          }}>
+            <div>PLAYER</div>
+            <div style={{ textAlign: 'center' }}>SETS</div>
+            <div style={{ textAlign: 'center' }}>GAMES</div>
+            <div style={{ textAlign: 'center', color: '#facc15' }}>POINTS</div>
+          </div>
+
+          {/* PLAYER ROW 1: JANNIK SINNER */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 40px 40px 54px',
+            alignItems: 'center',
+            padding: '7px 12px',
+            background: matchScore.server === 1 ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '15px' }}>🇮🇹</span>
+              <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 800 }}>[1]</span>
+              <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 900, letterSpacing: '0.3px' }}>
+                J. SINNER
+              </span>
+              {matchScore.server === 1 && (
+                <span 
+                  title="Aufschläger (Service)"
+                  style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#facc15',
+                    boxShadow: '0 0 10px #facc15, 0 0 4px #fff'
+                  }} 
+                />
+              )}
+            </div>
+
+            {/* Sets */}
+            <div style={{ textAlign: 'center', color: '#e2e8f0', fontSize: '13px', fontWeight: 900, fontFamily: 'monospace' }}>
+              {matchScore.p1Sets}
+            </div>
+
+            {/* Games */}
+            <div style={{ textAlign: 'center', color: '#38bdf8', fontSize: '14px', fontWeight: 900, fontFamily: 'monospace' }}>
+              {matchScore.p1Games}
+            </div>
+
+            {/* Points Box */}
+            <div style={{
+              textAlign: 'center',
+              background: matchScore.p1Points > matchScore.p2Points 
+                ? 'linear-gradient(135deg, #0284c7, #0369a1)' 
+                : 'rgba(255, 255, 255, 0.08)',
+              color: matchScore.p1Points > matchScore.p2Points ? '#fff' : '#f8fafc',
+              padding: '3px 0',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontWeight: 900,
+              fontFamily: 'monospace',
+              border: matchScore.p1Points > matchScore.p2Points ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+              boxShadow: matchScore.p1Points > matchScore.p2Points ? '0 0 10px rgba(56, 189, 248, 0.5)' : 'none'
+            }}>
               {getPointsLabel(matchScore.p1Points)}
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 700 }}>
-              [{matchScore.p1Games}G • {matchScore.p1Sets}S]
-            </span>
+            </div>
           </div>
 
-          <span style={{ color: '#facc15', fontWeight: 900, fontSize: '12px' }}>VS</span>
+          {/* PLAYER ROW 2: CARLOS ALCARAZ */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 40px 40px 54px',
+            alignItems: 'center',
+            padding: '7px 12px',
+            background: matchScore.server === 2 ? 'rgba(250, 204, 21, 0.08)' : 'transparent',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '15px' }}>🇪🇸</span>
+              <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 800 }}>[2]</span>
+              <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 900, letterSpacing: '0.3px' }}>
+                C. ALCARAZ
+              </span>
+              {matchScore.server === 2 && (
+                <span 
+                  title="Aufschläger (Service)"
+                  style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#facc15',
+                    boxShadow: '0 0 10px #facc15, 0 0 4px #fff'
+                  }} 
+                />
+              )}
+            </div>
 
-          {/* Player 2 Alcaraz */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '13px' }}>🇪🇸</span>
-            <span style={{ color: '#fde68a', fontWeight: 900, fontSize: '12px' }}>[2] C. ALCARAZ</span>
-            <span style={{ background: '#ca8a04', color: '#fff', padding: '2px 7px', borderRadius: '4px', fontWeight: 900, fontSize: '13px', fontFamily: 'monospace' }}>
+            {/* Sets */}
+            <div style={{ textAlign: 'center', color: '#e2e8f0', fontSize: '13px', fontWeight: 900, fontFamily: 'monospace' }}>
+              {matchScore.p2Sets}
+            </div>
+
+            {/* Games */}
+            <div style={{ textAlign: 'center', color: '#facc15', fontSize: '14px', fontWeight: 900, fontFamily: 'monospace' }}>
+              {matchScore.p2Games}
+            </div>
+
+            {/* Points Box */}
+            <div style={{
+              textAlign: 'center',
+              background: matchScore.p2Points > matchScore.p1Points 
+                ? 'linear-gradient(135deg, #d97706, #b45309)' 
+                : 'rgba(255, 255, 255, 0.08)',
+              color: matchScore.p2Points > matchScore.p1Points ? '#fff' : '#f8fafc',
+              padding: '3px 0',
+              borderRadius: '4px',
+              fontSize: '14px',
+              fontWeight: 900,
+              fontFamily: 'monospace',
+              border: matchScore.p2Points > matchScore.p1Points ? '1px solid #facc15' : '1px solid rgba(255,255,255,0.1)',
+              boxShadow: matchScore.p2Points > matchScore.p1Points ? '0 0 10px rgba(250, 204, 21, 0.5)' : 'none'
+            }}>
               {getPointsLabel(matchScore.p2Points)}
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 700 }}>
-              [{matchScore.p2Games}G • {matchScore.p2Sets}S]
-            </span>
+            </div>
+          </div>
+
+          {/* BOTTOM BROADCAST TICKER & EVENT BADGES */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.65)',
+            padding: '6px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: '#38bdf8', fontSize: '9px', fontWeight: 900 }}>🪑 UMPIRE:</span>
+                <span style={{ color: '#f8fafc', fontSize: '11px', fontWeight: 900, fontFamily: 'monospace' }}>
+                  {matchScore.umpireCall}
+                </span>
+              </div>
+
+              {/* DYNAMIC TV BADGES */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {isNetErrorActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(220, 38, 38, 0.9)'
+                  }}>
+                    🕸️ NETZFEHLER
+                  </span>
+                )}
+                {isOutActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ea580c, #c2410c)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(234, 88, 12, 0.9)'
+                  }}>
+                    ⚠️ OUT (BALL IM AUS)
+                  </span>
+                )}
+                {isNetCordActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(139, 92, 246, 0.9)'
+                  }}>
+                    💫 NETZROLLER
+                  </span>
+                )}
+                {isSmashActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ef4444, #f97316)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(239, 68, 68, 0.8)'
+                  }}>
+                    🔥 248 km/h SMASH
+                  </span>
+                )}
+                {isLobActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #0284c7, #8b5cf6)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(56, 189, 248, 0.8)'
+                  }}>
+                    🌈 10.5m LOB
+                  </span>
+                )}
+                {isDropActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #ec4899, #f43f5e)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(236, 72, 153, 0.8)'
+                  }}>
+                    💫 STOPPBALL
+                  </span>
+                )}
+                {isSliceActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(16, 185, 129, 0.8)'
+                  }}>
+                    🌀 SLICE
+                  </span>
+                )}
+                {isTopspinActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(245, 158, 11, 0.8)'
+                  }}>
+                    🌪️ TOPSPIN
+                  </span>
+                )}
+                {isLaserActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #06b6d4, #0284c7)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(6, 182, 212, 0.8)'
+                  }}>
+                    ⚡ 132 km/h LASER
+                  </span>
+                )}
+                {isServiceWinnerActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #eab308, #ca8a04)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(234, 179, 8, 0.8)'
+                  }}>
+                    🎯 SERVICE WINNER
+                  </span>
+                )}
+                {isAceActive && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(99, 102, 241, 0.8)'
+                  }}>
+                    ⚡ DIREKTES ASS
+                  </span>
+                )}
+                {isVolleyActive && (
+                  <span style={{
+                    background: '#f43f5e',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 10px rgba(244, 63, 94, 0.6)'
+                  }}>
+                    ⚡ NETZ-VOLLEY
+                  </span>
+                )}
+                {!isAIvsAI && (
+                  <span style={{
+                    background: 'linear-gradient(135deg, #eab308, #ca8a04)',
+                    color: '#000',
+                    fontSize: '9px',
+                    fontWeight: 900,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 0 12px rgba(234, 179, 8, 0.9)'
+                  }}>
+                    ⏸️ EINGEFROREN
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* LIVE ACTION STATUS TICKER */}
+            <div style={{
+              fontSize: '10px',
+              color: matchScore.isCheering ? '#f43f5e' : isNetErrorActive ? '#ef4444' : isOutActive ? '#fb923c' : isNetCordActive ? '#c084fc' : isSmashActive ? '#facc15' : isLobActive ? '#38bdf8' : isDropActive ? '#f472b6' : isSliceActive ? '#34d399' : isServiceWinnerActive ? '#fde047' : '#4ade80',
+              fontWeight: 700,
+              letterSpacing: '0.2px'
+            }}>
+              {matchScore.isCheering ? `👏 JUBEL! ${matchScore.lastMessage}` : matchScore.lastMessage}
+            </div>
           </div>
         </div>
-
-        <div style={{ width: '1px', height: '32px', background: 'rgba(255,255,255,0.15)' }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#38bdf8', fontSize: '10px', fontWeight: 900 }}>🪑 UMPIRE:</span>
-            <span style={{ color: '#fff', fontSize: '11px', fontWeight: 900, fontFamily: 'monospace' }}>
-              {matchScore.umpireCall}
-            </span>
-            {isNetErrorActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(220, 38, 38, 0.9)'
-              }}>
-                🕸️ NETZFEHLER
-              </span>
-            )}
-            {isOutActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #ea580c, #c2410c)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(234, 88, 12, 0.9)'
-              }}>
-                ⚠️ OUT (BALL IM AUS)
-              </span>
-            )}
-            {isNetCordActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(139, 92, 246, 0.9)'
-              }}>
-                💫 NETZROLLER
-              </span>
-            )}
-            {isSmashActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #ef4444, #f97316)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(239, 68, 68, 0.8)'
-              }}>
-                🔥 248 km/h SMASH
-              </span>
-            )}
-            {isLobActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #0284c7, #8b5cf6)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(56, 189, 248, 0.8)'
-              }}>
-                🌈 10.5m LOB
-              </span>
-            )}
-            {isDropActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #ec4899, #f43f5e)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(236, 72, 153, 0.8)'
-              }}>
-                💫 STOPPBALL
-              </span>
-            )}
-            {isSliceActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(16, 185, 129, 0.8)'
-              }}>
-                🌀 SLICE
-              </span>
-            )}
-            {isTopspinActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(245, 158, 11, 0.8)'
-              }}>
-                🌪️ 3.200 RPM TOPSPIN
-              </span>
-            )}
-            {isLaserActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #06b6d4, #0284c7)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(6, 182, 212, 0.8)'
-              }}>
-                ⚡ 132 km/h LASER
-              </span>
-            )}
-            {isServiceWinnerActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #eab308, #ca8a04)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(234, 179, 8, 0.8)'
-              }}>
-                🎯 SERVICE WINNER
-              </span>
-            )}
-            {isAceActive && (
-              <span style={{
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(99, 102, 241, 0.8)'
-              }}>
-                ⚡ DIREKTES ASS
-              </span>
-            )}
-            {isVolleyActive && (
-              <span style={{
-                background: '#f43f5e',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 5px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 10px rgba(244, 63, 94, 0.6)'
-              }}>
-                ⚡ NETZ-VOLLEY
-              </span>
-            )}
-            {!isAIvsAI && (
-              <span style={{
-                background: 'linear-gradient(135deg, #eab308, #ca8a04)',
-                color: '#000',
-                fontSize: '9px',
-                fontWeight: 900,
-                padding: '2px 6px',
-                borderRadius: '4px',
-                letterSpacing: '0.5px',
-                boxShadow: '0 0 12px rgba(234, 179, 8, 0.9)'
-              }}>
-                ⏸️ EINGEFROREN
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: '10px', color: matchScore.isCheering ? '#f43f5e' : isNetErrorActive ? '#ef4444' : isOutActive ? '#fb923c' : isNetCordActive ? '#c084fc' : isSmashActive ? '#facc15' : isLobActive ? '#38bdf8' : isDropActive ? '#f472b6' : isSliceActive ? '#34d399' : isServiceWinnerActive ? '#fde047' : '#4ade80', fontWeight: 700 }}>
-            {matchScore.isCheering ? `👏 JUBEL! ${matchScore.lastMessage}` : matchScore.lastMessage}
-          </div>
-        </div>
-
-        {/* ⏸️ FREEZE / STOP BUTTON */}
-        <button
-          onClick={() => setIsAIvsAI(!isAIvsAI)}
-          title={isAIvsAI ? "Match anhalten / einfrieren (Pause)" : "Match fortsetzen (Play)"}
-          style={{
-            background: isAIvsAI 
-              ? 'linear-gradient(135deg, rgba(234,179,8,0.3), rgba(202,138,4,0.2))' 
-              : 'linear-gradient(135deg, rgba(34,197,94,0.4), rgba(22,163,74,0.3))',
-            border: `1px solid ${isAIvsAI ? 'rgba(234,179,8,0.6)' : '#4ade80'}`,
-            color: isAIvsAI ? '#fef08a' : '#bbf7d0',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            fontSize: '10px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            whiteSpace: 'nowrap',
-            boxShadow: isAIvsAI ? '0 2px 8px rgba(234, 179, 8, 0.25)' : '0 0 14px rgba(74, 222, 128, 0.6)'
-          }}
-        >
-          <span>{isAIvsAI ? '⏸️' : '▶️'}</span>
-          <span>{isAIvsAI ? 'Stop / Freeze' : 'Fortsetzen'}</span>
-        </button>
-
-        {/* 🔄 RESTART MATCH BUTTON */}
-        <button
-          onClick={handleRestartMatch}
-          title="Match komplett neu starten (11.3m Ausleger-Show)"
-          style={{
-            background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(249,115,22,0.25))',
-            border: '1px solid rgba(239,68,68,0.6)',
-            color: '#fee2e2',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            fontSize: '10px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 2px 8px rgba(239, 68, 68, 0.25)'
-          }}
-        >
-          <span>🔄</span>
-          <span>Restart Match</span>
-        </button>
-
-        {/* 📊 H2H STATS BUTTON */}
-        <button
-          onClick={() => setShowH2HStats(true)}
-          style={{
-            background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(250,204,21,0.2))',
-            border: '1px solid rgba(56,189,248,0.5)',
-            color: '#e0f2fe',
-            padding: '5px 9px',
-            borderRadius: '6px',
-            fontSize: '10px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          📊 H2H Stats
-        </button>
       </div>
 
       {/* --- CONTROL DRAWER (LEFT SIDE) - COLLAPSIBLE --- */}
