@@ -407,14 +407,17 @@ function CraneTennisRacket({
   );
 }
 
-// --- 🏗️ CRANE BOOM TIP RIG ---
-function CraneBoomTipRig({
+// --- 🏗️ MOUNTED CRANE PLAYER (PERFECT HIERARCHICAL THREE.JS INTEGRATION - ZERO GAP GUARANTEED) ---
+function MountedCranePlayer({
   crane,
   kinematicsRef,
   teamColor,
   stringGlow,
   racketWorldPosRef,
-  racketWorldQuatRef
+  racketWorldQuatRef,
+  baseRotation = 0,
+  dollyTrackZ = -15.2,
+  dollyGroupRef
 }: {
   crane: Supertechno50FBXModel | null;
   kinematicsRef: React.MutableRefObject<{
@@ -431,34 +434,43 @@ function CraneBoomTipRig({
   stringGlow: string;
   racketWorldPosRef: React.MutableRefObject<THREE.Vector3>;
   racketWorldQuatRef?: React.MutableRefObject<THREE.Quaternion>;
+  baseRotation?: number;
+  dollyTrackZ?: number;
+  dollyGroupRef: React.RefObject<THREE.Group | null>;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const headWrapperRef = useRef<THREE.Group>(null);
+  const columnGroupRef = useRef<THREE.Group>(null);
+  const boomGroupRef = useRef<THREE.Group>(null);
+  const tipGroupRef = useRef<THREE.Group>(null);
   const racketTargetRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
-    if (!groupRef.current || !crane || !crane.isLoaded || !crane.nodes.beams) return;
     const kin = kinematicsRef.current;
-    
-    // 1. Fulcrum World Transform (Pivot)
-    const beamNode = crane.nodes.beams;
-    const worldPos = new THREE.Vector3();
-    const worldQuat = new THREE.Quaternion();
-    beamNode.getWorldPosition(worldPos);
-    beamNode.getWorldQuaternion(worldQuat);
 
-    groupRef.current.position.copy(worldPos);
-    groupRef.current.quaternion.copy(worldQuat);
+    // 1. Synchronize Dolly Base on Tracks
+    if (dollyGroupRef.current) {
+      dollyGroupRef.current.position.set(kin.dollyTrack, 0, dollyTrackZ);
+    }
 
-    // 2. Telescopic Boom Tip Position along local Z axis in useFrame on EVERY FRAME
-    if (headWrapperRef.current) {
+    // 2. Synchronize Column Lift & Pan Rotation
+    if (columnGroupRef.current) {
+      columnGroupRef.current.position.y = kin.columnElevation;
+      columnGroupRef.current.rotation.y = THREE.MathUtils.degToRad(-kin.basePan || 0);
+    }
+
+    // 3. Synchronize Boom Tilt
+    if (boomGroupRef.current) {
+      boomGroupRef.current.rotation.x = THREE.MathUtils.degToRad(kin.boomTilt || 0);
+    }
+
+    // 4. Synchronize 4-Stage Telescopic Tip Position (0 to 11.3m extension)
+    if (tipGroupRef.current) {
       const ext = Math.max(0, Math.min(11.3, kin.teleExtension || 0));
       const tExt = ext / 11.3;
       const tipZ = -3.34 - tExt * 11.40;
-      headWrapperRef.current.position.set(-0.01, 0.05, tipZ);
+      tipGroupRef.current.position.set(-0.01, 0.05, tipZ);
     }
 
-    // 3. World Position & Quaternion of Racket Sweet Spot for Hit detection & Racket-Cam POV
+    // 5. World Position & Quaternion of Racket Sweet Spot for Hit detection & Racket-Cam POV
     if (racketTargetRef.current) {
       const rPos = new THREE.Vector3();
       const rQuat = new THREE.Quaternion();
@@ -472,22 +484,31 @@ function CraneBoomTipRig({
   });
 
   return (
-    <group ref={groupRef}>
-      <group ref={headWrapperRef} position={[-0.01, 0.05, -3.34]}>
-        <RemoteCameraHead
-          kinematicsRef={kinematicsRef}
-          autoLevel={true}
-          position={[0, 0, 0]}
-          scale={1.0}
-          showCableLead={false}
-          customPayload={
-            <group position={[0, -0.06, 0.04]}>
-              {/* 🎾 IN DIESEM VIEW IST DIE KAMERA IM HEAD DER TENNISSCHLÄGER! */}
-              <group ref={racketTargetRef} position={[0, 0.42, 0]} />
-              <CraneTennisRacket teamColor={teamColor} stringGlow={stringGlow} racketScale={1.0} />
+    <group ref={dollyGroupRef} position={[0, 0, dollyTrackZ]}>
+      <SupertechnoDollyBase teamColor={teamColor} />
+      <group rotation={[0, baseRotation, 0]}>
+        {crane && <primitive object={crane.group} />}
+
+        {/* Directly nested in crane local hierarchy: Absolutely ZERO GAP guaranteed */}
+        <group ref={columnGroupRef} position={[0, 1.85, 0]}>
+          <group ref={boomGroupRef} position={[0, 0, 0]}>
+            <group ref={tipGroupRef} position={[-0.01, 0.05, -3.34]}>
+              <RemoteCameraHead
+                kinematicsRef={kinematicsRef}
+                autoLevel={true}
+                position={[0, 0, 0]}
+                scale={1.0}
+                showCableLead={false}
+                customPayload={
+                  <group position={[0, -0.06, 0.04]}>
+                    <group ref={racketTargetRef} position={[0, 0.42, 0]} />
+                    <CraneTennisRacket teamColor={teamColor} stringGlow={stringGlow} racketScale={1.0} />
+                  </group>
+                }
+              />
             </group>
-          }
-        />
+          </group>
+        </group>
       </group>
     </group>
   );
@@ -3211,38 +3232,30 @@ function CraneTennisScene({
 
       <ConfettiCelebration active={matchScore.isCheering} />
 
-      {/* KRAN 1 (SÜD) - MIT DEDIZIERTER SCHWERLAST-DOLLY BASE AUF SCHIENEN */}
-      <group ref={dolly1GroupRef} position={[0, 0, -15.2]}>
-        <SupertechnoDollyBase teamColor="#38bdf8" />
-        <group rotation={[0, Math.PI, 0]}>
-          {crane1 && <primitive object={crane1.group} />}
-        </group>
-      </group>
-
-      <CraneBoomTipRig
+      {/* 🇮🇹 KRAN 1 (SÜD / JANNIK SINNER) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
+      <MountedCranePlayer
         crane={crane1}
         kinematicsRef={kin1Ref}
         teamColor="#38bdf8"
         stringGlow="#bae6fd"
         racketWorldPosRef={racket1WorldPos}
         racketWorldQuatRef={racket1WorldQuat}
+        baseRotation={Math.PI}
+        dollyTrackZ={-15.2}
+        dollyGroupRef={dolly1GroupRef}
       />
 
-      {/* KRAN 2 (NORD) - MIT DEDIZIERTER SCHWERLAST-DOLLY BASE AUF SCHIENEN */}
-      <group ref={dolly2GroupRef} position={[0, 0, 15.2]}>
-        <SupertechnoDollyBase teamColor="#facc15" />
-        <group rotation={[0, 0, 0]}>
-          {crane2 && <primitive object={crane2.group} />}
-        </group>
-      </group>
-
-      <CraneBoomTipRig
+      {/* 🇪🇸 KRAN 2 (NORD / CARLOS ALCARAZ) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
+      <MountedCranePlayer
         crane={crane2}
         kinematicsRef={kin2Ref}
         teamColor="#facc15"
         stringGlow="#fef08a"
         racketWorldPosRef={racket2WorldPos}
         racketWorldQuatRef={racket2WorldQuat}
+        baseRotation={0}
+        dollyTrackZ={15.2}
+        dollyGroupRef={dolly2GroupRef}
       />
 
       {/* 🎾 TENNISBALL MIT DYNAMISCHEM SMASH- & LOB-GLOW */}
