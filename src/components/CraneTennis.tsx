@@ -3353,19 +3353,19 @@ export default function CraneTennis() {
         />
       </Canvas>
 
-      {/* --- 📺 OFFICIAL ATP GRAND SLAM TV BROADCAST SCOREBOARD HUD --- */}
+      {/* --- 📺 OFFICIAL ATP GRAND SLAM TV BROADCAST SCOREBOARD HUD (BOTTOM LEFT) --- */}
       <div style={{
         position: 'absolute',
-        top: '20px',
-        right: '20px',
+        bottom: '20px',
+        left: '20px',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-end',
+        alignItems: 'flex-start',
         gap: '8px',
         zIndex: 40,
         fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
       }}>
-        {/* TOP ROW: QUICK ACTIONS (FREEZE, RESTART, STATS) */}
+        {/* QUICK ACTIONS ROW: FREEZE, RESTART, STATS */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* ⏸️ FREEZE / STOP BUTTON */}
           <button
@@ -3833,14 +3833,14 @@ export default function CraneTennis() {
         </div>
       </div>
 
-      {/* --- CONTROL DRAWER (LEFT SIDE) - COLLAPSIBLE --- */}
+      {/* --- CONTROL DRAWER (RIGHT SIDE) - COLLAPSIBLE --- */}
       {!isControlsOpen ? (
         <button
           onClick={() => setIsControlsOpen(true)}
           style={{
             position: 'absolute',
-            top: '70px',
-            left: '20px',
+            top: '20px',
+            right: '20px',
             background: 'rgba(11, 16, 24, 0.92)',
             border: '1px solid rgba(250, 204, 21, 0.5)',
             borderRadius: '10px',
@@ -3859,15 +3859,15 @@ export default function CraneTennis() {
             transition: 'all 0.2s ease'
           }}
         >
+          <span style={{ fontSize: '10px', opacity: 0.8, color: '#38bdf8' }}>◀</span>
           <span>🎾</span>
           <span>Steuerung & Schläge</span>
-          <span style={{ fontSize: '10px', opacity: 0.8, color: '#38bdf8' }}>▶</span>
         </button>
       ) : (
         <div style={{
           position: 'absolute',
-          top: '70px',
-          left: '20px',
+          top: '20px',
+          right: '20px',
           background: 'rgba(11, 16, 24, 0.94)',
           color: '#fff',
           padding: '16px',
@@ -3877,7 +3877,7 @@ export default function CraneTennis() {
           WebkitBackdropFilter: 'blur(16px)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
           width: '320px',
-          maxHeight: 'calc(100vh - 90px)',
+          maxHeight: 'calc(100vh - 40px)',
           overflowY: 'auto',
           boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
           zIndex: 50

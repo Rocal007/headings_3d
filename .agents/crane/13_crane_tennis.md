@@ -117,13 +117,15 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   6. `spectator`: Front-Row Zuschauerperspektive von der Tribüne.
   7. `coach`: Trainerkabinen-Blickwinkel.
   8. `free`: Frei rotierbare 360° Orbit-Kamera.
-- **Offizielles TV Broadcast Scoreboard Overlay**:
+- **Offizielles TV Broadcast Scoreboard Overlay (Links unten)**:
   - **Authentisches 2-Zeilen-Format (ATP Tour & Grand Slam Standard)**:
+    - **Positionierung**: Unten links (`bottom: 20px, left: 20px`), wie bei echten TV-Übertragungen (BBC Wimbledon, ESPN, Eurosport).
     - **Header**: `🏆 ATP FINALS • CHAMPIONSHIP MATCH | SET X • FINAL`
     - **Spielerzeilen**: Flaggen-Badge (`🇮🇹` / `🇪🇸`), Setzliste `[1]` / `[2]`, Name in Großbuchstaben (`J. SINNER` / `C. ALCARAZ`), **leuchtender Aufschlag-Ball `🟡`** beim aktiven Server.
     - **Spalten-Struktur**: `SETS` (Gewonnene Sätze), `GAMES` (Aktueller Spielstand) und **hervorgehobene `POINTS`-Boxen** (`0`, `15`, `30`, `40`, `AD`) mit dynamischer Führungsausleuchtung in Team-Gold/Cyan.
-    - **Match-Ticker**: Live-Umpire-Durchsagen (`🪑 UMPIRE: Deuce / Advantage / Game Sinner`) und Live-Schlaganalyse mit Event-Badges (`🔥 248 km/h SMASH`, `⚡ DIREKTES ASS`, `🎯 SERVICE WINNER`, `🕸️ NETZFEHLER`, `⚠️ OUT`, `💫 NETZROLLER`, `⏸️ EINGEFROREN`).
-  - **Einklappbare Steuerung (`isControlsOpen`)**: Aufgeräumtes UI mit platzsparendem, einklappbarem Steuerungs-Drawer (`🎾 Steuerung & Schläge ▶` / `◀ Einklappen`), positioniert unterhalb des Back-Buttons.
+    - **Match-Ticker & Schnellaktionen**: `⏸️ Stop / Freeze`, `🔄 Restart Match`, `📊 ATP H2H`, Live-Umpire-Durchsagen (`🪑 UMPIRE: Deuce / Advantage / Game Sinner`) und Live-Schlaganalyse mit Event-Badges (`🔥 248 km/h SMASH`, `⚡ DIREKTES ASS`, `🎯 SERVICE WINNER`, `🕸️ NETZFEHLER`, `⚠️ OUT`, `💫 NETZROLLER`, `⏸️ EINGEFROREN`).
+  - **Einklappbare Steuerung Rechts Oben (`isControlsOpen`)**:
+    - Aufgeräumtes UI mit platzsparendem, einklappbarem Steuerungs-Drawer oben rechts (`top: 20px, right: 20px`, `◀ 🎾 Steuerung & Schläge` / `Einklappen ▶`).
   - **Standardmäßig ausgeblendete Stadion-Elemente**: Zuschauer (`showSpectators`), Schiedsrichter & Ballkinder (`showCourtsideStaff`) sowie Tribünen (`showGrandstands`) sind initial auf `false` geschaltet für einen sauberen, performanten und unverstellten Blick auf die Kran-Kinematik, und können bei Bedarf jederzeit im Menü aktiviert werden.
 - **Voll-Ausfahr-Showcase & Einführender Perspektivenwechsel (`showcaseTimerRef`)**:
   - **Auslöser**: Bei jedem Matchstart (Initialisierung / Match-Reset) und unmittelbar nach jedem gewonnenen Spiel (Game-Wechsel).
