@@ -2102,6 +2102,8 @@ function CraneTennisScene({
   const lastOutErrorTrigger = useRef(manualOutErrorTrigger || 0);
   const celebrationTimerRef = useRef(0);
   const celebrationWinnerRef = useRef<1 | 2 | null>(null);
+  const celebrationWinnerStyleRef = useRef<'vamos_explosive' | 'steely_nod' | 'crowd_roar' | 'calm_relief'>('vamos_explosive');
+  const celebrationLoserStyleRef = useRef<'dejected_heavy' | 'raging_fury' | 'disbelief_sky' | 'racket_inspect'>('dejected_heavy');
   const ballVelocityRef = useRef(new THREE.Vector3(0, 0, 0));
   const ballPhysPosRef = useRef(new THREE.Vector3(0, 1.8, 0));
   const prevBallPosRef = useRef(new THREE.Vector3(0, 1.8, 0));
@@ -2406,43 +2408,97 @@ function CraneTennisScene({
       celebrationTimerRef.current -= dt;
       const tElapsed = 2.8 - celebrationTimerRef.current;
       const winner = celebrationWinnerRef.current;
+      const winStyle = celebrationWinnerStyleRef.current;
+      const loseStyle = celebrationLoserStyleRef.current;
+
+      const applyWinnerKinematics = (kin: typeof kin1, isSinner: boolean) => {
+        kin.dollyTrack = THREE.MathUtils.lerp(kin.dollyTrack, 0, dt * 4.5);
+        if (winStyle === 'vamos_explosive') {
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 3.10, dt * 7.0);
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, 36, dt * 7.0);
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 2.2, dt * 5.0);
+          kin.headTilt = -18 + Math.sin(tElapsed * 15.0) * 26.0; // Intensives Faust-Pumpen!
+          kin.headRoll = Math.sin(tElapsed * 9.5) * 60.0; // 360° Racket Twirl
+          kin.headPan = THREE.MathUtils.lerp(kin.headPan, 0, dt * 5.0);
+        } else if (winStyle === 'crowd_roar') {
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 2.85, dt * 6.0);
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, 28, dt * 6.0);
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 3.2, dt * 5.0);
+          kin.headPan = THREE.MathUtils.lerp(kin.headPan, isSinner ? 24 : -24, dt * 4.0); // Blickt zur Tribüne
+          kin.headTilt = 14 + Math.sin(tElapsed * 8.0) * 16.0; // Winkt / stachelt Publikum an
+          kin.headRoll = 35;
+        } else if (winStyle === 'calm_relief') {
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 2.05, dt * 5.0);
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, 12, dt * 5.0);
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 0.6, dt * 4.0);
+          kin.headTilt = Math.sin(tElapsed * 4.0) * 12.0; // Ruhiges Durchatmen & leichtes Nicken
+          kin.headRoll = THREE.MathUtils.lerp(kin.headRoll, 0, dt * 5.0);
+          kin.headPan = THREE.MathUtils.lerp(kin.headPan, 0, dt * 5.0);
+        } else {
+          // 'steely_nod'
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 2.65, dt * 6.0);
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, 22, dt * 6.0);
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 1.2, dt * 5.0);
+          kin.headTilt = Math.sin(tElapsed * 7.0) * 18.0; // Entschlossenes Sieger-Nicken
+          kin.headRoll = Math.sin(tElapsed * 4.5) * 12.0;
+          kin.headPan = THREE.MathUtils.lerp(kin.headPan, 0, dt * 5.0);
+        }
+      };
+
+      const applyLoserKinematics = (kin: typeof kin1, isSinner: boolean) => {
+        kin.dollyTrack = THREE.MathUtils.lerp(kin.dollyTrack, 0, dt * (loseStyle === 'raging_fury' ? 6.0 : 1.8));
+
+        if (loseStyle === 'raging_fury') {
+          // 😡 WUT-ANFALL: Schnelles peitschendes Einfahren & Zorn-Slam auf den Boden!
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 0.0, dt * 8.5); // Fährt rasend schnell ein
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 1.68, dt * 7.0);
+
+          if (tElapsed < 1.1) {
+            // Aggressiver Schläger-Slam / Rucken aus Frust
+            kin.boomTilt = -12 + Math.sin(tElapsed * 16.0) * 8.0;
+            kin.headTilt = -68.0 + Math.abs(Math.sin(tElapsed * 14.0)) * 24.0; // Peitscht aggressiv zum Boden!
+            kin.headPan = Math.sin(tElapsed * 9.0) * 32.0; // Zorniges, schnelles Kopfschütteln
+            kin.headRoll = Math.sin(tElapsed * 14.0) * 45.0;
+          } else {
+            // Beruhigt sich schnaubend mit gesenktem Kopf
+            kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, -8.0, dt * 4.0);
+            kin.headTilt = THREE.MathUtils.lerp(kin.headTilt, -48.0, dt * 4.0);
+            kin.headPan = Math.sin(tElapsed * 3.0) * 12.0;
+            kin.headRoll = THREE.MathUtils.lerp(kin.headRoll, 0, dt * 4.0);
+          }
+        } else if (loseStyle === 'disbelief_sky') {
+          // ⛅ UNGLAUBE & BLICK ZUM HIMMEL: Ausleger leicht oben, starrt fassungslos in die Wolken/Flutlichter
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 0.0, dt * 3.5);
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 2.10, dt * 4.0);
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, 14.0, dt * 4.0);
+          kin.headTilt = THREE.MathUtils.lerp(kin.headTilt, 54.0, dt * 4.5); // "Warum ich?!" - Blick in den Himmel
+          kin.headPan = Math.sin(tElapsed * 3.2) * 26.0; // Fassungsloses Kopfschütteln
+          kin.headRoll = Math.sin(tElapsed * 5.0) * 28.0; // Fragendes Schlägerzucken
+        } else if (loseStyle === 'racket_inspect') {
+          // 🔍 SCHLÄGER-CHECK & SAITENZUPFEN: Untersucht die Bespannung
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 0.0, dt * 4.0);
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 1.82, dt * 4.5);
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, 4.0, dt * 4.0);
+          kin.headPan = THREE.MathUtils.lerp(kin.headPan, isSinner ? 32 : -32, dt * 5.0); // Dreht Schläger vor die Augen
+          kin.headTilt = THREE.MathUtils.lerp(kin.headTilt, -18.0, dt * 5.0);
+          kin.headRoll = (isSinner ? 48 : -48) + Math.sin(tElapsed * 8.0) * 14.0; // Zupft an den Saiten
+        } else {
+          // 😔 'dejected_heavy': Langsam, schwerfällig, sinkt in sich zusammen & starrt tief zu Boden
+          kin.teleExtension = THREE.MathUtils.lerp(kin.teleExtension, 0.0, dt * 2.0); // LANGSAM VOLL EINGEFAHREN
+          kin.columnElevation = THREE.MathUtils.lerp(kin.columnElevation, 1.56, dt * 1.6); // Langsam zusammengesunken
+          kin.boomTilt = THREE.MathUtils.lerp(kin.boomTilt, -10.0, dt * 1.8); // Ausleger neigt sich schwerfällig
+          kin.headTilt = THREE.MathUtils.lerp(kin.headTilt, -56.0, dt * 2.2); // Senkt den Kopf langsam tief zu Boden
+          kin.headPan = Math.sin(tElapsed * 2.2) * 22.0; // Sehr langsames, ungläubiges Kopfschütteln
+          kin.headRoll = THREE.MathUtils.lerp(kin.headRoll, isSinner ? -18.0 : 18.0, dt * 1.6);
+        }
+      };
 
       if (winner === 1) {
-        // 🇮🇹 JANNIK SINNER WINNER: "Ice-Cold Focused Nod & Steely Fist"
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 4.0);
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.65, dt * 6.0); // Majestätisch aufgerichtet
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 22, dt * 6.0);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 1.2, dt * 5.0);
-        kin1.headTilt = Math.sin(tElapsed * 7.0) * 18.0; // Entschlossenes Sieger-Nicken
-        kin1.headRoll = Math.sin(tElapsed * 4.5) * 12.0;
-        kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 5.0);
-
-        // 🇪🇸 CARLOS ALCARAZ ENTTÄUSCHUNG: Fährt LANGSAM ein, sinkt kraftlos ab & schaut tief zu Boden!
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 1.8);
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 0.0, dt * 2.0); // LANGSAM VOLL EINGEFAHREN
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.56, dt * 1.6); // Langsam in sich zusammengesunken
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, -10.0, dt * 1.8); // Ausleger neigt sich schwerfällig nach unten
-        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -56.0, dt * 2.2); // Senkt den Kopf langsam tief zu Boden!
-        kin2.headPan = Math.sin(tElapsed * 2.2) * 22.0; // Sehr langsames, ungläubiges Kopfschütteln
-        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 18.0, dt * 1.6);
+        applyWinnerKinematics(kin1, true);
+        applyLoserKinematics(kin2, false);
       } else if (winner === 2) {
-        // 🇪🇸 CARLOS ALCARAZ WINNER: "Explosives Vamos-Faustballen & 360° Racket Twirl"
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 5.0);
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 3.05, dt * 7.0); // Explosiv emporgeschnellt
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 36, dt * 7.0); // Ausleger reckt sich triumphierend in die Luft!
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 2.2, dt * 5.0);
-        kin2.headTilt = -20 + Math.sin(tElapsed * 15.0) * 26.0; // Kraftvolles Faust-Pumpen!
-        kin2.headRoll = Math.sin(tElapsed * 9.5) * 60.0; // Dynamischer 360° Schläger-Twirl
-        kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 5.0);
-
-        // 🇮🇹 JANNIK SINNER ENTTÄUSCHUNG: Fährt LANGSAM ein, sinkt kraftlos ab & schaut tief zu Boden!
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 1.8);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 0.0, dt * 2.0); // LANGSAM VOLL EINGEFAHREN
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.56, dt * 1.6); // Langsam in sich zusammengesunken
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, -10.0, dt * 1.8); // Ausleger neigt sich schwerfällig nach unten
-        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -56.0, dt * 2.2); // Senkt den Kopf langsam tief zu Boden!
-        kin1.headPan = Math.sin(tElapsed * 2.2) * 22.0; // Sehr langsames, konzentriertes Frust-Kopfschütteln
-        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, -18.0, dt * 1.6);
+        applyWinnerKinematics(kin2, false);
+        applyLoserKinematics(kin1, true);
       }
 
       // 🎾 Ballistische Auslauf-Physik während der Jubel- & Frust-Phase (Ball fliegt & dotzt weiter!)
@@ -3001,6 +3057,22 @@ function CraneTennisScene({
         const winner = shot.pointWinner;
         celebrationWinnerRef.current = winner;
         celebrationTimerRef.current = 2.8; // 🏆 Starte 2.8s emotionale Jubel- & Frust-Phase!
+
+        // Dynamische Variation der Emotionen (Mal schnell, mal langsam, mal mit Wut, mal ungläubig!)
+        const winStyles: ('vamos_explosive' | 'steely_nod' | 'crowd_roar' | 'calm_relief')[] = 
+          winner === 2 
+            ? ['vamos_explosive', 'vamos_explosive', 'crowd_roar', 'calm_relief']
+            : ['steely_nod', 'steely_nod', 'calm_relief', 'crowd_roar'];
+
+        const loseStyles: ('dejected_heavy' | 'raging_fury' | 'disbelief_sky' | 'racket_inspect')[] = [
+          'dejected_heavy', // 35% Langsames, schweres Zusammensinken & Blick zu Boden
+          'raging_fury',    // 25% Wutanfall & aggressives Schläger-Peitschen
+          'disbelief_sky',  // 20% Ungläubiger Blick zum Himmel & Flutlicht
+          'racket_inspect'  // 20% Schläger-Check & Saitenzupfen
+        ];
+
+        celebrationWinnerStyleRef.current = winStyles[Math.floor(Math.random() * winStyles.length)];
+        celebrationLoserStyleRef.current = loseStyles[Math.floor(Math.random() * loseStyles.length)];
         
         setMatchScore(s => {
           let p1 = s.p1Points;

@@ -75,15 +75,26 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **⚡ Asse vs. 🎯 Service Winner**: Differenzierung zwischen direkt unberührten Assen (~7%) und schnittigen Service Winnern (~15%), bei denen der Receiver den Ball durch extreme Geschwindigkeit/Spin nur noch unkontrolliert ins Netz oder Aus ablenken kann. Über 80% der Aufschläge münden in spektakuläre Rallies.
 
 ### 4. Emotionen & Gestik zwischen den Ballwechseln (`celebrationTimerRef`)
-- **2.8 Sekunden Jubel- & Frust-Phase nach jedem Punktgewinn**:
-  - **Gewinner des Punktes**:
-    - **🇮🇹 Jannik Sinner (#1) Winner**: *"Ice-Cold Focus Nod & Steely Fist"* – Majestätisches Aufrichten der Hubsäule auf $2.65\,\text{m}$, Ausleger auf $+22^\circ$, entschlossenes, rhythmisches Nicken des Schlägerkopfs (`headTilt \leftrightarrow \pm 18^\circ`), Fäuste und Schläger energisch angezogen.
-    - **🇪🇸 Carlos Alcaraz (#2) Winner**: *"Explosive Vamos-Faustballung & 360° Racket Twirl"* – Ausleger schnellt triumphierend auf $3.05\,\text{m}$ Hubhöhe und $+36^\circ$ Steigung in den Himmel, Schläger pumpt wie eine geballte Faust bei 15 Hz auf und ab (`headTilt \to -20^\circ \pm 26^\circ`) und vollführt eine dynamische $360^\circ$-Spirale (`headRoll \to \pm 60^\circ`).
-  - **Verlierer des Punktes (Träge & schwere Enttäuschungs-Kinematik)**:
-    - **Langsames, schwerfälliges Einfahren**: Der Kranarm zieht sich mit gedämpfter Geschwindigkeit (`dt * 2.0`) langsam und kraftlos auf **`teleExtension = 0.0m`** an die Grundlinie zurück.
-    - **Geducktes Absinken**: Hubsäule sinkt langsam auf $1.56\,\text{m}$ in sich zusammen (`dt * 1.6`), Ausleger neigt sich schwer nach unten (`boomTilt \to -10^\circ`).
-    - **Schweres Absenken des Blicks zu Boden**: Der Schlägerkopf neigt sich langsam und tief nach unten (`headTilt \to -56^\circ`, `dt * 2.2`) und starrt auf den Platzbelag / die Schienen.
-    - **Langsames, melancholisches Kopfschütteln**: Der Kopf wendet sich mit sehr ruhiger Frequenz von links nach rechts (`headPan = \sin(t \cdot 2.2) \cdot 22^\circ`), während der Schläger kraftlos herabhängt (`headRoll \to \pm 18^\circ`).
+- **2.8 Sekunden dynamisch variierende Jubel- & Frust-Engine nach jedem Punkt**:
+  - **🏆 Die 4 Sieger-Varianten (`winStyles`)**:
+    - **`vamos_explosive` (Explosives Vamos & Schläger-Twirl)**: Ausleger schnellt auf $3.10\,\text{m}$ Hubhöhe und $+36^\circ$ Steigung empor, intensives Faust-Pumpen bei 15 Hz (`headTilt \to -18^\circ \pm 26^\circ`) und $360^\circ$ Schläger-Twirl (`headRoll \to \pm 60^\circ`).
+    - **`steely_nod` (Ice-Cold Focus Nod & Steely Fist)**: Majestätisches Aufrichten der Hubsäule auf $2.65\,\text{m}$, Ausleger auf $+22^\circ$, entschlossenes rhythmisches Nicken (`headTilt \leftrightarrow \pm 18^\circ`), Fäuste und Schläger energisch angezogen.
+    - **`crowd_roar` (Tribünen-Anstacheln / Gladiator)**: Schwenkt zur Haupttribüne (`headPan \to \pm 24^\circ`), winkt und heizt das Publikum an (`headTilt \to 14^\circ \pm 16^\circ`), Ausleger fährt weit aus ($3.2\,\text{m}$).
+    - **`calm_relief` (Erleichtertes Durchatmen)**: Kompakte Haltung ($0.6\,\text{m}$), ruhiges Atmen und leichtes Kopfnicken, fokussiert sich direkt auf den nächsten Ballwechsel.
+  - **🎭 Die 4 Verlierer-Varianten (`loseStyles` - Mal schnell, mal langsam, mal mit Wut, mal ungläubig!)**:
+    - **1. `raging_fury` (😡 Wutanfall & Schläger-Slam - Schnell & Aggressiv!)**:
+      - Ausleger ruckt wütend auf und ab, zieht sich in rasendem Tempo (`dt * 8.5`) auf `0.0m` zurück.
+      - Schläger peitscht im ersten Drittel mit Zorn Richtung Boden (`headTilt \to -68^\circ \pm 24^\circ`), begleitet von heftigem, schnellem Frust-Kopfschütteln (`headPan = \sin(t \cdot 9) \cdot 32^\circ`) und Schlägerwackeln.
+      - Geht danach in ein grimmiges Schnauben mit gesenktem Kopf über.
+    - **2. `dejected_heavy` (😔 Schwere Melancholie / Müdes Einfahren - Langsam & Kraftlos)**:
+      - Zieht sich mit sehr gedämpfter Geschwindigkeit (`dt * 2.0`) langsam und kraftlos auf `teleExtension = 0.0m` zurück.
+      - Hubsäule sinkt langsam auf $1.56\,\text{m}$ in sich zusammen (`dt * 1.6`), Ausleger neigt sich schwer nach unten (`boomTilt \to -10^\circ`).
+      - Schlägerkopf senkt sich tief zu Boden (`headTilt \to -56^\circ`, `dt * 2.2`) und starrt auf den Platzbelag, untermalt von einem sehr langsamen, traurigen Kopfschütteln (`headPan = \sin(t \cdot 2.2) \cdot 22^\circ`).
+    - **3. `disbelief_sky` (⛅ Unglaube & Blick zum Himmel / Flutlicht)**:
+      - Ausleger bleibt oben ($+14^\circ$), Schlägerkopf schießt fassungslos in den Himmel / die Flutlichter (`headTilt \to +54^\circ` "Warum ich?!").
+      - Ratloses Kopfschütteln zur Seite (`headPan = \sin(t \cdot 3.2) \cdot 26^\circ`) und fragendes Schlägerzucken.
+    - **4. `racket_inspect` (🔍 Frustriertes Saitenzupfen & Schläger-Check)**:
+      - Schläger wird quer vor das Gesicht gedreht (`headPan \to \pm 32^\circ, headTilt \to -18^\circ`), die Gelenke zupfen rhythmisch an den Saiten herum (`headRoll \to \pm 48^\circ + \sin(t \cdot 8) \cdot 14^\circ`), als ob die Bespannung schuld war.
 - **Aufschlag-Vorbereitung & Saiten-Zupfen**:
   - **Server**: 3x rhythmisches Dribbeln auf dem Boden, gefolgt von einem kurzen Kontrollblick und Saiten-Zurechtzupfen unmittelbar vor dem Ballaufwurf.
   - **Receiver**: Nervöser "Ready-Step" auf den Zehenspitzen / Schienen ($\pm 0.22\,\text{m}$ Bouncing), gebeugter Schwerpunkt ($Y=1.82\,\text{m}$) und aufmerksames Schlägerwippen in Erwartung des Aufschlags.
