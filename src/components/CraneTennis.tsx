@@ -2404,7 +2404,7 @@ function CraneTennisScene({
     // --- 🏆 EMOTIONAL GESTURES & CELEBRATION BETWEEN POINTS ---
     if (celebrationTimerRef.current > 0) {
       celebrationTimerRef.current -= dt;
-      const tElapsed = 2.4 - celebrationTimerRef.current;
+      const tElapsed = 2.8 - celebrationTimerRef.current;
       const winner = celebrationWinnerRef.current;
 
       if (winner === 1) {
@@ -2417,14 +2417,14 @@ function CraneTennisScene({
         kin1.headRoll = Math.sin(tElapsed * 4.5) * 12.0;
         kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 5.0);
 
-        // 🇪🇸 CARLOS ALCARAZ ENTTÄUSCHUNG: Fährt voll ein, senkt sich ab & schaut zu Boden!
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 5.0);
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 0.0, dt * 7.0); // VOLL EINGEFAHREN
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.60, dt * 6.0); // Geduckte Frust-Haltung
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, -8.0, dt * 6.0); // Ausleger neigt sich nach unten
-        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -52.0, dt * 8.0); // Blickt tief auf den Boden / Court!
-        kin2.headPan = Math.sin(tElapsed * 5.0) * 20.0; // Ungläubiges links-rechts Kopfschütteln
-        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 14.0, dt * 5.0);
+        // 🇪🇸 CARLOS ALCARAZ ENTTÄUSCHUNG: Fährt LANGSAM ein, sinkt kraftlos ab & schaut tief zu Boden!
+        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 1.8);
+        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 0.0, dt * 2.0); // LANGSAM VOLL EINGEFAHREN
+        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.56, dt * 1.6); // Langsam in sich zusammengesunken
+        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, -10.0, dt * 1.8); // Ausleger neigt sich schwerfällig nach unten
+        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -56.0, dt * 2.2); // Senkt den Kopf langsam tief zu Boden!
+        kin2.headPan = Math.sin(tElapsed * 2.2) * 22.0; // Sehr langsames, ungläubiges Kopfschütteln
+        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 18.0, dt * 1.6);
       } else if (winner === 2) {
         // 🇪🇸 CARLOS ALCARAZ WINNER: "Explosives Vamos-Faustballen & 360° Racket Twirl"
         kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 5.0);
@@ -2435,14 +2435,14 @@ function CraneTennisScene({
         kin2.headRoll = Math.sin(tElapsed * 9.5) * 60.0; // Dynamischer 360° Schläger-Twirl
         kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 5.0);
 
-        // 🇮🇹 JANNIK SINNER ENTTÄUSCHUNG: Fährt voll ein, senkt sich ab & schaut zu Boden!
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 5.0);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 0.0, dt * 7.0); // VOLL EINGEFAHREN
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.60, dt * 6.0); // Geduckte Frust-Haltung
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, -8.0, dt * 6.0); // Ausleger neigt sich nach unten
-        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -52.0, dt * 8.0); // Blickt tief auf den Boden / Court!
-        kin1.headPan = Math.sin(tElapsed * 5.0) * 20.0; // Konzentriertes Frust-Kopfschütteln
-        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, -14.0, dt * 5.0);
+        // 🇮🇹 JANNIK SINNER ENTTÄUSCHUNG: Fährt LANGSAM ein, sinkt kraftlos ab & schaut tief zu Boden!
+        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 1.8);
+        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 0.0, dt * 2.0); // LANGSAM VOLL EINGEFAHREN
+        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.56, dt * 1.6); // Langsam in sich zusammengesunken
+        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, -10.0, dt * 1.8); // Ausleger neigt sich schwerfällig nach unten
+        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -56.0, dt * 2.2); // Senkt den Kopf langsam tief zu Boden!
+        kin1.headPan = Math.sin(tElapsed * 2.2) * 22.0; // Sehr langsames, konzentriertes Frust-Kopfschütteln
+        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, -18.0, dt * 1.6);
       }
 
       // 🎾 Ballistische Auslauf-Physik während der Jubel- & Frust-Phase (Ball fliegt & dotzt weiter!)
@@ -3000,7 +3000,7 @@ function CraneTennisScene({
       if (shot.isDecisive && shot.pointWinner) {
         const winner = shot.pointWinner;
         celebrationWinnerRef.current = winner;
-        celebrationTimerRef.current = 2.4; // 🏆 Starte 2.4s emotionale Jubel- & Frust-Phase!
+        celebrationTimerRef.current = 2.8; // 🏆 Starte 2.8s emotionale Jubel- & Frust-Phase!
         
         setMatchScore(s => {
           let p1 = s.p1Points;

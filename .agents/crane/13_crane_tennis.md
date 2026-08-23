@@ -75,15 +75,15 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **⚡ Asse vs. 🎯 Service Winner**: Differenzierung zwischen direkt unberührten Assen (~7%) und schnittigen Service Winnern (~15%), bei denen der Receiver den Ball durch extreme Geschwindigkeit/Spin nur noch unkontrolliert ins Netz oder Aus ablenken kann. Über 80% der Aufschläge münden in spektakuläre Rallies.
 
 ### 4. Emotionen & Gestik zwischen den Ballwechseln (`celebrationTimerRef`)
-- **2.4 Sekunden Jubel- & Frust-Phase nach jedem Punktgewinn**:
+- **2.8 Sekunden Jubel- & Frust-Phase nach jedem Punktgewinn**:
   - **Gewinner des Punktes**:
     - **🇮🇹 Jannik Sinner (#1) Winner**: *"Ice-Cold Focus Nod & Steely Fist"* – Majestätisches Aufrichten der Hubsäule auf $2.65\,\text{m}$, Ausleger auf $+22^\circ$, entschlossenes, rhythmisches Nicken des Schlägerkopfs (`headTilt \leftrightarrow \pm 18^\circ`), Fäuste und Schläger energisch angezogen.
     - **🇪🇸 Carlos Alcaraz (#2) Winner**: *"Explosive Vamos-Faustballung & 360° Racket Twirl"* – Ausleger schnellt triumphierend auf $3.05\,\text{m}$ Hubhöhe und $+36^\circ$ Steigung in den Himmel, Schläger pumpt wie eine geballte Faust bei 15 Hz auf und ab (`headTilt \to -20^\circ \pm 26^\circ`) und vollführt eine dynamische $360^\circ$-Spirale (`headRoll \to \pm 60^\circ`).
-  - **Verlierer des Punktes (Enttäuschung & Frustration)**:
-    - **Vollständiges Einfahren**: Der Kranarm zieht sich komplett auf **`teleExtension = 0.0m`** an die Grundlinie zurück.
-    - **Geduckte Frust-Haltung**: Hubsäule senkt sich auf $1.60\,\text{m}$ ab, Ausleger neigt sich nach unten (`boomTilt \to -8^\circ`).
-    - **Blick starr zu Boden**: Der Schlägerkopf neigt sich tief nach unten (`headTilt \to -52^\circ`) und blickt direkt auf den Court-Boden / die eigenen Schienen.
-    - **Langsames, ungläubiges Kopfschütteln**: Der Kopf wendet sich langsam von links nach rechts (`headPan = \sin(t \cdot 5) \cdot 20^\circ`), während der Schläger kraftlos herabhängt (`headRoll \to \pm 14^\circ`).
+  - **Verlierer des Punktes (Träge & schwere Enttäuschungs-Kinematik)**:
+    - **Langsames, schwerfälliges Einfahren**: Der Kranarm zieht sich mit gedämpfter Geschwindigkeit (`dt * 2.0`) langsam und kraftlos auf **`teleExtension = 0.0m`** an die Grundlinie zurück.
+    - **Geducktes Absinken**: Hubsäule sinkt langsam auf $1.56\,\text{m}$ in sich zusammen (`dt * 1.6`), Ausleger neigt sich schwer nach unten (`boomTilt \to -10^\circ`).
+    - **Schweres Absenken des Blicks zu Boden**: Der Schlägerkopf neigt sich langsam und tief nach unten (`headTilt \to -56^\circ`, `dt * 2.2`) und starrt auf den Platzbelag / die Schienen.
+    - **Langsames, melancholisches Kopfschütteln**: Der Kopf wendet sich mit sehr ruhiger Frequenz von links nach rechts (`headPan = \sin(t \cdot 2.2) \cdot 22^\circ`), während der Schläger kraftlos herabhängt (`headRoll \to \pm 18^\circ`).
 - **Aufschlag-Vorbereitung & Saiten-Zupfen**:
   - **Server**: 3x rhythmisches Dribbeln auf dem Boden, gefolgt von einem kurzen Kontrollblick und Saiten-Zurechtzupfen unmittelbar vor dem Ballaufwurf.
   - **Receiver**: Nervöser "Ready-Step" auf den Zehenspitzen / Schienen ($\pm 0.22\,\text{m}$ Bouncing), gebeugter Schwerpunkt ($Y=1.82\,\text{m}$) und aufmerksames Schlägerwippen in Erwartung des Aufschlags.
