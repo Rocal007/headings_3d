@@ -115,3 +115,8 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **Auslöser**: Bei jedem Matchstart (Initialisierung / Match-Reset) und unmittelbar nach jedem gewonnenen Spiel (Game-Wechsel).
   - **4.8s Kinematik-Ablauf**: Beide Supertechno 50 Kräne heben ihre Hubsäulen auf 3.25m an, neigen die Ausleger auf 30° und **fahren synchron bis zum mechanischen Endanschlag von 11.3m voll aus**, vollführen eine Schläger-Glow-Kalibrierung und fahren anschließend sanft zurück auf die 5.5m Service-Grundlinie.
   - **Cinematische Kamera-Tour**: Dynamischer 3-Phasen Kameraflug (Tiefe Weitwinkel-Aufnahme von Südwest -> Kurvenflug über das Netz -> sanfte Landung in TV-Broadcast-Perspektive).
+- **Match-Freeze / Stop-Modus & Match-Restart**:
+  - **`⏸️ Stop / Freeze`**: Sofortiges Einfrieren aller Ballflugkurven, Dolly-Fahrten und Ausleger-Bewegungen bei laufendem Match, um beliebige Spielsituationen und Kran-Posen mit der freien 360° Orbit-Kamera im Detail zu inspizieren.
+  - **`🔄 Restart Match`**: Setzt das gesamte Match auf 0:0 zurück und startet unmittelbar die 11.3m Voll-Ausfahr-Zeremonie.
+- **Hierarchische Szenegraph-Koppelung (`MountedCranePlayer`)**:
+  - Vollständige und dauerhafte Vermeidung von Lücken (Zero Gap) durch direkte Schachtelung des Remote Heads in die lokale Three.js-Transformationskette des Krans.

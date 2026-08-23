@@ -3652,12 +3652,53 @@ export default function CraneTennis() {
                 ⚡ NETZ-VOLLEY
               </span>
             )}
+            {!isAIvsAI && (
+              <span style={{
+                background: 'linear-gradient(135deg, #eab308, #ca8a04)',
+                color: '#000',
+                fontSize: '9px',
+                fontWeight: 900,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                letterSpacing: '0.5px',
+                boxShadow: '0 0 12px rgba(234, 179, 8, 0.9)'
+              }}>
+                ⏸️ EINGEFROREN
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '10px', color: matchScore.isCheering ? '#f43f5e' : isNetErrorActive ? '#ef4444' : isOutActive ? '#fb923c' : isNetCordActive ? '#c084fc' : isSmashActive ? '#facc15' : isLobActive ? '#38bdf8' : isDropActive ? '#f472b6' : isSliceActive ? '#34d399' : isServiceWinnerActive ? '#fde047' : '#4ade80', fontWeight: 700 }}>
             {matchScore.isCheering ? `👏 JUBEL! ${matchScore.lastMessage}` : matchScore.lastMessage}
           </div>
         </div>
 
+        {/* ⏸️ FREEZE / STOP BUTTON */}
+        <button
+          onClick={() => setIsAIvsAI(!isAIvsAI)}
+          title={isAIvsAI ? "Match anhalten / einfrieren (Pause)" : "Match fortsetzen (Play)"}
+          style={{
+            background: isAIvsAI 
+              ? 'linear-gradient(135deg, rgba(234,179,8,0.3), rgba(202,138,4,0.2))' 
+              : 'linear-gradient(135deg, rgba(34,197,94,0.4), rgba(22,163,74,0.3))',
+            border: `1px solid ${isAIvsAI ? 'rgba(234,179,8,0.6)' : '#4ade80'}`,
+            color: isAIvsAI ? '#fef08a' : '#bbf7d0',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+            boxShadow: isAIvsAI ? '0 2px 8px rgba(234, 179, 8, 0.25)' : '0 0 14px rgba(74, 222, 128, 0.6)'
+          }}
+        >
+          <span>{isAIvsAI ? '⏸️' : '▶️'}</span>
+          <span>{isAIvsAI ? 'Stop / Freeze' : 'Fortsetzen'}</span>
+        </button>
+
+        {/* 🔄 RESTART MATCH BUTTON */}
         <button
           onClick={handleRestartMatch}
           title="Match komplett neu starten (11.3m Ausleger-Show)"
@@ -3681,6 +3722,7 @@ export default function CraneTennis() {
           <span>Restart Match</span>
         </button>
 
+        {/* 📊 H2H STATS BUTTON */}
         <button
           onClick={() => setShowH2HStats(true)}
           style={{
@@ -4238,32 +4280,56 @@ export default function CraneTennis() {
         </div>
 
         {/* 7. Match Actions */}
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            onClick={handleRestartMatch}
-            style={{
-              flex: 1,
-              padding: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              borderRadius: '6px',
-              border: '1px solid rgba(239,68,68,0.5)',
-              background: 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(220,38,38,0.15))',
-              color: '#fca5a5',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <span>🔄</span> <span>Restart Match</span>
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              onClick={() => setIsAIvsAI(!isAIvsAI)}
+              style={{
+                flex: 1,
+                padding: '8px',
+                fontSize: '11px',
+                fontWeight: 800,
+                borderRadius: '6px',
+                border: `1px solid ${isAIvsAI ? 'rgba(234,179,8,0.6)' : 'rgba(74,222,128,0.6)'}`,
+                background: isAIvsAI ? 'linear-gradient(135deg, rgba(234,179,8,0.25), rgba(202,138,4,0.15))' : 'linear-gradient(135deg, rgba(74,222,128,0.25), rgba(34,197,94,0.15))',
+                color: isAIvsAI ? '#fef08a' : '#86efac',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>{isAIvsAI ? '⏸️' : '▶️'}</span>
+              <span>{isAIvsAI ? 'Stop (Einfrieren)' : 'Play (Fortsetzen)'}</span>
+            </button>
+
+            <button
+              onClick={handleRestartMatch}
+              style={{
+                flex: 1,
+                padding: '8px',
+                fontSize: '11px',
+                fontWeight: 800,
+                borderRadius: '6px',
+                border: '1px solid rgba(239,68,68,0.5)',
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(220,38,38,0.15))',
+                color: '#fca5a5',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>🔄</span> <span>Restart Match</span>
+            </button>
+          </div>
 
           <button
             onClick={() => setShowH2HStats(true)}
             style={{
-              flex: 1,
+              width: '100%',
               padding: '8px',
               fontSize: '11px',
               fontWeight: 800,
@@ -4271,10 +4337,14 @@ export default function CraneTennis() {
               border: '1px solid rgba(56,189,248,0.5)',
               background: 'linear-gradient(135deg, rgba(2,132,199,0.3), rgba(250,204,21,0.2))',
               color: '#fde047',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
             }}
           >
-            📊 ATP #1 vs #2 H2H
+            <span>📊</span> <span>ATP #1 vs #2 H2H & Match-Statistiken</span>
           </button>
         </div>
       </div>
