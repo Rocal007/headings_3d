@@ -156,19 +156,19 @@ export function CraneTennisRacketHead({
   return (
     <group position={position} scale={[scale, scale, scale]}>
       {/* ================================================================== */}
-      {/* 1. MITCHELL MOUNT FLANGE & GYRO LEVELING BASE                     */}
+      {/* 1. MITCHELL MOUNT FLANGE (TOP-MOUNTED OVERSLUNG BASE)             */}
       {/* ================================================================== */}
       <group position={[0, 0.02, 0]}>
-        {/* Mitchell Mount Base Flansch */}
+        {/* Mitchell Mount Base Flansch auf der Oberseite des Auslegerkopfs */}
         <mesh castShadow receiveShadow material={matDarkTitanium}>
-          <cylinderGeometry args={[0.095, 0.105, 0.040, 32]} />
+          <cylinderGeometry args={[0.105, 0.095, 0.040, 32]} />
         </mesh>
-        <mesh castShadow material={matBlackAnodized} position={[0, -0.025, 0]}>
+        <mesh castShadow material={matBlackAnodized} position={[0, 0.025, 0]}>
           <cylinderGeometry args={[0.082, 0.082, 0.016, 32]} />
         </mesh>
 
         {/* 3-Flügel Schlossmutter (Mitchell Castle Tie-Down Ring) */}
-        <group position={[0, 0.032, 0]}>
+        <group position={[0, -0.022, 0]}>
           <mesh castShadow material={matChromeSteel}>
             <cylinderGeometry args={[0.022, 0.022, 0.028, 16]} />
           </mesh>
@@ -187,9 +187,9 @@ export function CraneTennisRacketHead({
       </group>
 
       {/* ================================================================== */}
-      {/* 2. AUTO-HORIZON PITCH LEVELING STAGE                              */}
+      {/* 2. AUTO-HORIZON PITCH LEVELING STAGE (NACH OBEN GERICHTET)         */}
       {/* ================================================================== */}
-      <group ref={levelPitchRef} position={[0, -0.08, 0]}>
+      <group ref={levelPitchRef} position={[0, 0.06, 0]}>
         {/* Obere Schwenkgabel (Upper Pan Mount Bridge) */}
         <mesh castShadow receiveShadow material={matDarkTitanium} position={[0, 0.01, 0]}>
           <boxGeometry args={[0.22, 0.038, 0.14]} />
@@ -198,7 +198,7 @@ export function CraneTennisRacketHead({
         {/* ================================================================ */}
         {/* 3. PAN-ACHSE (YAW-DREHUNG / AUSSCHWUNG-MOTOR)                     */}
         {/* ================================================================ */}
-        <group ref={panRef} position={[0, -0.07, 0]}>
+        <group ref={panRef} position={[0, 0.05, 0]}>
           {/* Pan-Servo-Motorzylinder mit Kühllamellen */}
           <mesh castShadow receiveShadow material={matBlackAnodized} position={[0, 0.04, 0]}>
             <cylinderGeometry args={[0.065, 0.065, 0.070, 32]} />
@@ -207,97 +207,97 @@ export function CraneTennisRacketHead({
             <ringGeometry args={[0.066, 0.072, 32]} />
           </mesh>
 
-          {/* Doppelarmige Kohlefaser-Gabel (Dual Carbon Yoke Arms) */}
-          <group position={[0, -0.04, 0]}>
+          {/* Doppelarmige Kohlefaser-Gabel (Stehend nach oben gerichtet) */}
+          <group position={[0, 0.06, 0]}>
             {/* Linker Gabelholm */}
-            <mesh castShadow receiveShadow material={matDarkTitanium} position={[-0.14, -0.08, 0]}>
+            <mesh castShadow receiveShadow material={matDarkTitanium} position={[-0.14, 0.08, 0]}>
               <boxGeometry args={[0.036, 0.22, 0.060]} />
             </mesh>
-            <mesh castShadow material={matTeamCarbon} position={[-0.158, -0.08, 0]}>
+            <mesh castShadow material={matTeamCarbon} position={[-0.158, 0.08, 0]}>
               <boxGeometry args={[0.004, 0.18, 0.044]} />
             </mesh>
 
             {/* Rechter Gabelholm */}
-            <mesh castShadow receiveShadow material={matDarkTitanium} position={[0.14, -0.08, 0]}>
+            <mesh castShadow receiveShadow material={matDarkTitanium} position={[0.14, 0.08, 0]}>
               <boxGeometry args={[0.036, 0.22, 0.060]} />
             </mesh>
-            <mesh castShadow material={matTeamCarbon} position={[0.158, -0.08, 0]}>
+            <mesh castShadow material={matTeamCarbon} position={[0.158, 0.08, 0]}>
               <boxGeometry args={[0.004, 0.18, 0.044]} />
             </mesh>
 
-            {/* Tilt-Lageraugen (Links & Rechts) */}
-            <mesh castShadow material={matChromeSteel} position={[-0.14, -0.16, 0]} rotation={[0, 0, Math.PI / 2]}>
+            {/* Tilt-Lageraugen (Links & Rechts oben) */}
+            <mesh castShadow material={matChromeSteel} position={[-0.14, 0.16, 0]} rotation={[0, 0, Math.PI / 2]}>
               <cylinderGeometry args={[0.028, 0.028, 0.042, 24]} />
             </mesh>
-            <mesh castShadow material={matChromeSteel} position={[0.14, -0.16, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <mesh castShadow material={matChromeSteel} position={[0.14, 0.16, 0]} rotation={[0, 0, Math.PI / 2]}>
               <cylinderGeometry args={[0.028, 0.028, 0.042, 24]} />
             </mesh>
 
             {/* ============================================================== */}
             {/* 4. TILT-ACHSE (PITCH / SCHLAGWINKEL-MOTOR)                     */}
             {/* ============================================================== */}
-            <group ref={tiltRef} position={[0, -0.16, 0]}>
+            <group ref={tiltRef} position={[0, 0.16, 0]}>
               {/* Tilt-Zentraltraverse */}
               <mesh castShadow receiveShadow material={matBlackAnodized} position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
                 <cylinderGeometry args={[0.042, 0.042, 0.24, 32]} />
               </mesh>
 
-              {/* Handgelenks-Rotationsmodul (Wrist Roll Actuator Pod) */}
-              <mesh castShadow receiveShadow material={matDarkTitanium} position={[0, -0.04, 0]}>
-                <cylinderGeometry args={[0.052, 0.048, 0.085, 32]} />
+              {/* Handgelenks-Rotationsmodul (Wrist Roll Actuator Pod nach oben) */}
+              <mesh castShadow receiveShadow material={matDarkTitanium} position={[0, 0.06, 0]}>
+                <cylinderGeometry args={[0.048, 0.052, 0.085, 32]} />
               </mesh>
-              <mesh castShadow material={matTeamCarbon} position={[0, -0.04, 0]}>
+              <mesh castShadow material={matTeamCarbon} position={[0, 0.06, 0]}>
                 <torusGeometry args={[0.053, 0.005, 12, 32]} />
               </mesh>
 
               {/* ============================================================ */}
               {/* 5. ROLL / WRIST-ACHSE (HANDGELENK-PRONATION & SPIN)         */}
               {/* ============================================================ */}
-              <group ref={rollWristRef} position={[0, -0.08, 0]}>
+              <group ref={rollWristRef} position={[0, 0.08, 0]}>
                 {/* Racket-Schaft-Spannfutter (Titan-Kupplung) */}
-                <mesh castShadow receiveShadow material={matChromeSteel} position={[0, -0.02, 0]}>
-                  <cylinderGeometry args={[0.024, 0.028, 0.045, 24]} />
+                <mesh castShadow receiveShadow material={matChromeSteel} position={[0, 0.025, 0]}>
+                  <cylinderGeometry args={[0.028, 0.024, 0.045, 24]} />
                 </mesh>
-                <mesh castShadow material={matDarkTitanium} position={[0, -0.045, 0]}>
-                  <cylinderGeometry args={[0.030, 0.024, 0.025, 24]} />
+                <mesh castShadow material={matDarkTitanium} position={[0, 0.05, 0]}>
+                  <cylinderGeometry args={[0.024, 0.030, 0.025, 24]} />
                 </mesh>
 
                 {/* ========================================================== */}
-                {/* 6. HIGH-MODULUS CARBON-GRAPHITE TENNISSCHLÄGER (SKALIERT)  */}
+                {/* 6. HIGH-MODULUS CARBON TENNISSCHLÄGER (STEHEND NACH OBEN) */}
                 {/* ========================================================== */}
-                <group position={[0, -0.06, 0.04]} scale={[racketScale, racketScale, racketScale]}>
+                <group position={[0, 0.08, 0.04]} scale={[racketScale, racketScale, racketScale]}>
                   {/* Schläger-Griffbasis & Griffband (Grip Tape) */}
-                  <mesh castShadow material={matTeamCarbon} position={[0, -0.16, 0]}>
-                    <cylinderGeometry args={[0.028, 0.024, 0.03, 8]} />
+                  <mesh castShadow material={matTeamCarbon} position={[0, 0.02, 0]}>
+                    <cylinderGeometry args={[0.024, 0.028, 0.03, 8]} />
                   </mesh>
-                  <mesh castShadow material={matGripTape} position={[0, -0.07, 0]}>
-                    <cylinderGeometry args={[0.022, 0.020, 0.16, 12]} />
+                  <mesh castShadow material={matGripTape} position={[0, 0.11, 0]}>
+                    <cylinderGeometry args={[0.020, 0.022, 0.16, 12]} />
                   </mesh>
-                  <mesh castShadow material={matTeamCarbon} position={[0, 0.04, 0]}>
+                  <mesh castShadow material={matTeamCarbon} position={[0, 0.22, 0]}>
                     <cylinderGeometry args={[0.018, 0.018, 0.16, 12]} />
                   </mesh>
 
                   {/* Schläger-Herz (Racket Throat V-Struts) */}
-                  <mesh castShadow material={matTeamCarbon} position={[-0.05, 0.16, 0]} rotation={[0, 0, -0.28]}>
+                  <mesh castShadow material={matTeamCarbon} position={[-0.05, 0.34, 0]} rotation={[0, 0, -0.28]}>
                     <cylinderGeometry args={[0.016, 0.018, 0.18, 12]} />
                   </mesh>
-                  <mesh castShadow material={matTeamCarbon} position={[0.05, 0.16, 0]} rotation={[0, 0, 0.28]}>
+                  <mesh castShadow material={matTeamCarbon} position={[0.05, 0.34, 0]} rotation={[0, 0, 0.28]}>
                     <cylinderGeometry args={[0.016, 0.018, 0.18, 12]} />
                   </mesh>
-                  <mesh castShadow material={matGraphiteDark} position={[0, 0.22, 0]}>
+                  <mesh castShadow material={matGraphiteDark} position={[0, 0.40, 0]}>
                     <boxGeometry args={[0.11, 0.022, 0.03]} />
                   </mesh>
 
                   {/* Schlägerkopf-Hauptrahmen (Carbon Rim) */}
-                  <mesh castShadow receiveShadow material={matTeamCarbon} position={[0, baseHeadRadiusY + 0.14, 0]}>
+                  <mesh castShadow receiveShadow material={matTeamCarbon} position={[0, baseHeadRadiusY + 0.32, 0]}>
                     <torusGeometry args={[baseHeadRadiusX, baseFrameThickness, 16, 32]} />
                   </mesh>
-                  <mesh castShadow material={matGraphiteDark} position={[0, baseHeadRadiusY + 0.14, 0]}>
+                  <mesh castShadow material={matGraphiteDark} position={[0, baseHeadRadiusY + 0.32, 0]}>
                     <torusGeometry args={[baseHeadRadiusX + 0.006, baseFrameThickness * 0.45, 8, 32]} />
                   </mesh>
 
                   {/* SWEET SPOT & RACKET-CAM TARGET (TREFFPUNKT & FIRST-PERSON-POV) */}
-                  <group ref={racketTargetRef} position={[0, baseHeadRadiusY + 0.14, 0]}>
+                  <group ref={racketTargetRef} position={[0, baseHeadRadiusY + 0.32, 0]}>
                     {/* Saitengitter (High-Tension String Bed) */}
                     {stringsGrid.map((str, idx) => {
                       const midX = (str.p1[0] + str.p2[0]) / 2;

@@ -27,8 +27,9 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - Berechnung der optimalen Kombination aus Dolly-Fahrt ($X$), Schwenkwinkel (`basePan`), Auslegerneigung (`boomTilt`), Teleskopauszug (`teleExtension`) und Remote-Head-Rotation (`headPan`, `headTilt`, `headRoll`) für Vorhand, Rückhand, Slice, Topspin, Smash und Aufschlag.
 
 ### 2. Dedizierter 3-Achs Tennis-Racket-Head (`CraneTennisRacketHead.tsx`)
-- **Konstruktion & Kinematik**:
-  - Speziell für das Tennis-Match entwickelter **3-Achsen Hochgeschwindigkeits-Aktuator-Head**, der direkt am Mitchell-Mount-Flansch von Beam 4 montiert ist.
+- **Konstruktion & Kinematik (Top-Mounted / Overslung Architecture)**:
+  - **Stehend nach oben montiert (Overslung Mount)**: Der Mitchell-Mount-Flansch sitzt auf der Oberseite des Auslegerkopfs (Beam 4). Die gesamte Gabelstruktur, der Tilt-Yoke und der Schläger erstrecken sich nach oben in den freien Luftraum ($+Y$).
+  - **Vollständige Kollisionsfreiheit & Bewegungsspielraum**: Durch die stehende Überkopf-Montage ist der Schläger niemals dem eigenen Ausleger im Weg und hat maximale Bodenfreiheit bei tiefen Slice- und Vorhandbällen sowie uneingeschränkte Reichweite bei Überkopf-Smashes und Aufschlägen.
   - **Pan-Achse (Yaw / Follow-Through Swing)**: Großer Schwenkwinkel für Cross-, Longline- und Slice-Ausschwung.
   - **Tilt-Achse (Pitch / Schlagwinkel-Neigung)**: Schnelle Steigungswinkel für Überkopf-Smashes, flache Laser-Drives und Lobs.
   - **Roll- / Wrist-Achse (Handgelenk-Pronation & Spin-Engine)**: Dynamische Handgelenks-Drehung für 3.200 RPM Heavy Topspin (geschlossenes Schlägerblatt), Slice (offenes Schlägerblatt) und 234 km/h Flat-Aufschlag-Pronation.
@@ -37,7 +38,7 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - High-Tension Saitengitter mit beleuchtetem Sweet-Spot-Ring (`stringGlow`).
   - Integrierter Sweet-Spot Tracker (`racketTargetRef`) für Balltreffpunkterkennung, Impact-Partikelblitz (`impactBurst`) und First-Person Racket Cam POV.
 - **Zero Gap Garantie**:
-  - Direkt in die hierarchische Transformationskette des Krans geschachtelt (`MountedCranePlayer`). Keine Lücken, kein Versatz, 100% stabile Koppelung bei jeder Bewegung.
+  - Direkt auf den `jointNeck`-Bone des FBX-Skeletts synchronisiert (`MountedCranePlayer`). Keine Lücken, kein Versatz, 100% stabile Koppelung bei jeder Auslenkung.
 
 ### 3. Ball-Physik, Flugkurven-Engine, Lobs, Netz-Volleys & Monster-Smashes (`RallyShot`)
 - **Trajektorie & Flugphysik**:
