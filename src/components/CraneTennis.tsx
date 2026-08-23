@@ -1284,36 +1284,74 @@ function CraneTennisScene({
   };
 
   const triggerGrandSlamServe = (server: 1 | 2, forceWinner?: boolean, serveAttempt: 1 | 2 = 1) => {
-    const receiver = server === 1 ? 2 : 1;
-    const targetZ = receiver === 1 ? -9.8 : 9.8;
-    const targetX = (Math.random() - 0.5) * 5.2;
-    const serverX = server === 1 ? -2.2 : 2.2;
-    const serverZ = server === 1 ? -13.5 : 13.5;
+    const isSinner = server === 1;
+    const receiver = isSinner ? 2 : 1;
+    const totalPoints = (matchScore.p1Points || 0) + (matchScore.p2Points || 0);
+    const isDeuceCourt = totalPoints % 2 === 0; // Gerade Punktzahl ➜ Einstand/Deuce (Rechts), Ungerade ➜ Vorteil/Ad (Links)
+
+    // Position hinter der Grundlinie
+    const serverZ = isSinner ? -13.8 : 13.8;
+    const serverX = isSinner 
+      ? (isDeuceCourt ? -2.2 : 2.2) 
+      : (isDeuceCourt ? 2.2 : -2.2);
+
+    // Diagonales Zielfeld (Aufschlagfeld des Gegners bei Z = ±6.2m)
+    const targetServiceZ = isSinner ? 6.2 : -6.2;
+    const servePlacement = Math.random();
+    let targetX = 0;
+    let targetDescription = '';
+
+    if (isSinner) {
+      if (isDeuceCourt) {
+        // Von Süd-Rechts (-2.2) diagonal in Nord-Rechts (+0.35 bis +3.65)
+        if (servePlacement < 0.45) { targetX = 0.40; targetDescription = 'T-LINIE (FLAT)'; }
+        else if (servePlacement < 0.75) { targetX = 3.60; targetDescription = 'WEIT NACH AUSSEN (SLICE)'; }
+        else { targetX = 1.90; targetDescription = 'KÖRPER-AUFSCHLAG (BODY)'; }
+      } else {
+        // Von Süd-Links (+2.2) diagonal in Nord-Links (-0.35 bis -3.65)
+        if (servePlacement < 0.45) { targetX = -0.40; targetDescription = 'T-LINIE (FLAT)'; }
+        else if (servePlacement < 0.75) { targetX = -3.60; targetDescription = 'WEIT NACH AUSSEN (KICK)'; }
+        else { targetX = -1.90; targetDescription = 'KÖRPER-AUFSCHLAG (BODY)'; }
+      }
+    } else {
+      if (isDeuceCourt) {
+        // Von Nord-Rechts (+2.2) diagonal in Süd-Rechts (-0.35 bis -3.65)
+        if (servePlacement < 0.45) { targetX = -0.40; targetDescription = 'T-LINIE (FLAT)'; }
+        else if (servePlacement < 0.75) { targetX = -3.60; targetDescription = 'WEIT NACH AUSSEN (HEAVY SLICE)'; }
+        else { targetX = -1.90; targetDescription = 'KÖRPER-AUFSCHLAG (BODY)'; }
+      } else {
+        // Von Nord-Links (-2.2) diagonal in Süd-Links (+0.35 bis +3.65)
+        if (servePlacement < 0.45) { targetX = 0.40; targetDescription = 'T-LINIE (FLAT)'; }
+        else if (servePlacement < 0.75) { targetX = 3.60; targetDescription = 'WEIT NACH AUSSEN (HEAVY KICK)'; }
+        else { targetX = 1.90; targetDescription = 'KÖRPER-AUFSCHLAG (BODY)'; }
+      }
+    }
+
+    const receiverTargetZ = isSinner ? 11.2 : -11.2;
 
     if (serveAttempt === 1) {
       // --- 1. AUFSCHLAG (FIRST SERVICE) ---
       const faultRoll = Math.random();
-      const isFault = !forceWinner && faultRoll < 0.28; // 28% Chance auf 1. Aufschlag-Fehler (Netz oder Aus)
-      const isSinner = server === 1;
+      const isFault = !forceWinner && faultRoll < 0.28; // 28% Fehlerquote beim 1. Aufschlag
+      const speed = isSinner ? Math.round(228 + Math.random() * 12) : Math.round(220 + Math.random() * 14);
 
       if (isFault) {
         const isNetFault = Math.random() < 0.55;
         const faultBounceZ = isNetFault ? (receiver === 1 ? -0.5 : 0.5) : (receiver === 1 ? -7.8 : 7.8);
-        const faultSpeed = isSinner ? Math.round(224 + Math.random() * 14) : Math.round(218 + Math.random() * 12);
         
         shotRef.current = {
           shooter: server,
           startPos: new THREE.Vector3(serverX, 3.2, serverZ),
           targetPos: new THREE.Vector3(targetX, isNetFault ? 0.85 : 0.2, faultBounceZ),
-          bouncePos: new THREE.Vector3(targetX * 0.6, 0.16, faultBounceZ),
-          duration: 2.35,
+          bouncePos: new THREE.Vector3(targetX * 0.8, 0.16, faultBounceZ),
+          duration: 2.85,
           progress: 0.0,
           netHeight: isNetFault ? 0.92 : 1.5,
-          shotType: isNetFault ? `⚠️ ${faultSpeed} km/h 1. AUFSCHLAG (INS NETZ - FAULT)` : `⚠️ ${faultSpeed} km/h 1. AUFSCHLAG (KNAPP IM AUS - FAULT)`,
+          shotType: isNetFault ? `⚠️ ${speed} km/h 1. AUFSCHLAG (INS NETZ - FAULT)` : `⚠️ ${speed} km/h 1. AUFSCHLAG (KNAPP IM AUS - FAULT)`,
           strokeSide: 'serve',
           spinType: isSinner ? 'flat' : 'kick',
           rpm: isSinner ? 2150 : 3100,
-          speedKmh: faultSpeed,
+          speedKmh: speed,
           hasBounced: false,
           isDecisive: false,
           isServe: true,
@@ -1328,31 +1366,29 @@ function CraneTennisScene({
 
       // Gültiger 1. Aufschlag
       const serveRoll = Math.random();
-      const isAce = !forceWinner && serveRoll < 0.06;
-      const isServiceWinner = forceWinner || (!isAce && serveRoll < 0.20);
+      const isAce = !forceWinner && serveRoll < 0.07;
+      const isServiceWinner = forceWinner || (!isAce && serveRoll < 0.22);
       const isDecisive = isAce || isServiceWinner;
-      const speed = isSinner ? Math.round(226 + Math.random() * 12) : Math.round(218 + Math.random() * 12);
-      const bounceZ = receiver === 1 ? -6.2 : 6.2;
 
-      let shotType = isSinner ? `🎾 ${speed} km/h SINNER 1. AUFSCHLAG (FLAT BOMB)` : `🎾 ${speed} km/h ALCARAZ 1. AUFSCHLAG (HEAVY KICK)`;
+      let shotType = isSinner ? `🎾 ${speed} km/h SINNER 1. AUFSCHLAG • ${targetDescription}` : `🎾 ${speed} km/h ALCARAZ 1. AUFSCHLAG • ${targetDescription}`;
       let endReason = '';
 
       if (isAce) {
-        shotType = isSinner ? `🚀 ${speed} km/h SINNER FLAT-BOMB (DIREKTES ASS)` : `⚡ ${speed} km/h ALCARAZ SLICE-AUFSCHLAG (DIREKTES ASS)`;
+        shotType = isSinner ? `🚀 ${speed} km/h SINNER FLAT-BOMB (DIREKTES ASS)` : `⚡ ${speed} km/h ALCARAZ SLICE (DIREKTES ASS)`;
         endReason = `ASS (${speed} km/h)`;
       } else if (isServiceWinner) {
-        shotType = isSinner ? `🎯 ${speed} km/h SINNER T-LINIEN-AUFSCHLAG (SERVICE WINNER)` : `🎯 ${speed} km/h ALCARAZ KICK-AUFSCHLAG (SERVICE WINNER)`;
+        shotType = isSinner ? `🎯 ${speed} km/h SINNER SERVICE WINNER (${targetDescription})` : `🎯 ${speed} km/h ALCARAZ SERVICE WINNER (${targetDescription})`;
         endReason = `SERVICE WINNER (${speed} km/h)`;
       }
 
       shotRef.current = {
         shooter: server,
         startPos: new THREE.Vector3(serverX, 3.2, serverZ),
-        targetPos: new THREE.Vector3(targetX, 2.2, targetZ),
-        bouncePos: new THREE.Vector3(targetX * 0.75, 0.16, bounceZ),
-        duration: 2.25,
+        targetPos: new THREE.Vector3(targetX, 1.8, receiverTargetZ),
+        bouncePos: new THREE.Vector3(targetX, 0.16, targetServiceZ),
+        duration: 2.75,
         progress: 0.0,
-        netHeight: 1.6,
+        netHeight: 1.45,
         shotType,
         strokeSide: 'serve',
         spinType: isSinner ? 'flat' : 'kick',
@@ -1369,10 +1405,8 @@ function CraneTennisScene({
       };
     } else {
       // --- 2. AUFSCHLAG (SECOND SERVICE) ---
-      const isSinner = server === 1;
       const isDoubleFault = !forceWinner && Math.random() < 0.05;
-      const speed = isSinner ? Math.round(184 + Math.random() * 12) : Math.round(176 + Math.random() * 14);
-      const bounceZ = receiver === 1 ? -5.8 : 5.8;
+      const speed = isSinner ? Math.round(186 + Math.random() * 12) : Math.round(178 + Math.random() * 14);
 
       if (isDoubleFault) {
         const doubleFaultZ = receiver === 1 ? -0.2 : 0.2;
@@ -1380,8 +1414,8 @@ function CraneTennisScene({
           shooter: server,
           startPos: new THREE.Vector3(serverX, 3.2, serverZ),
           targetPos: new THREE.Vector3(targetX, 0.75, doubleFaultZ),
-          bouncePos: new THREE.Vector3(targetX * 0.6, 0.16, doubleFaultZ),
-          duration: 2.25,
+          bouncePos: new THREE.Vector3(targetX * 0.8, 0.16, doubleFaultZ),
+          duration: 2.85,
           progress: 0.0,
           netHeight: 0.88,
           shotType: `❌ 2. AUFSCHLAG DOPPELFEHLER (Punkt für ${receiver === 1 ? 'Sinner' : 'Alcaraz'})`,
@@ -1402,11 +1436,11 @@ function CraneTennisScene({
         shotRef.current = {
           shooter: server,
           startPos: new THREE.Vector3(serverX, 3.2, serverZ),
-          targetPos: new THREE.Vector3(targetX, 2.2, targetZ),
-          bouncePos: new THREE.Vector3(targetX * 0.75, 0.16, bounceZ),
-          duration: 2.25,
+          targetPos: new THREE.Vector3(targetX, 2.1, receiverTargetZ),
+          bouncePos: new THREE.Vector3(targetX, 0.16, targetServiceZ),
+          duration: 2.75,
           progress: 0.0,
-          netHeight: 1.75,
+          netHeight: 1.65,
           shotType: isSinner ? `🎾 ${speed} km/h SINNER 2. AUFSCHLAG (TOPSPIN DRIVE)` : `🎾 ${speed} km/h ALCARAZ 2. AUFSCHLAG (3.400 RPM HEAVY KICK)`,
           strokeSide: 'serve',
           spinType: 'kick',
@@ -2378,98 +2412,94 @@ function CraneTennisScene({
 
     if (shot.isServe) {
       const server = shot.shooter;
-      const dribbleEndTime = 0.32;
+      const dribbleEndTime = 0.28;
       const tossEndTime = 0.50;
 
       if (p < dribbleEndTime) {
-        // 🏀 Vorbereitungsphase: Kran steht an der Grundlinie und dribbelt den Ball 3x rhythmisch auf dem Boden auf
+        // 🏀 Phase 1: Dribbel-Vorbereitungsphase an der Grundlinie (3 rhythmische Bounces mit abklingender Höhe)
         const dribbleT = p / dribbleEndTime;
         const numBounces = 3;
         const cycle = (dribbleT * numBounces) % 1.0;
-        const bounceHeight = Math.abs(Math.sin(cycle * Math.PI)) * 0.72;
+        const bounceHeight = Math.abs(Math.sin(cycle * Math.PI)) * (0.65 - dribbleT * 0.18);
         currentX = shot.startPos.x;
-        currentZ = shot.startPos.z;
+        currentZ = shot.startPos.z + (server === 1 ? 0.45 : -0.45);
         currentY = 0.16 + bounceHeight;
 
         if (server === 1) {
-          // Server Sinner: Dribbeln + Saiten-Zupfen
-          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, -2.2, dt * 6.0);
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.85 + Math.sin(cycle * Math.PI) * 0.06, dt * 8.0);
+          // Server Sinner (South)
+          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, shot.startPos.x, dt * 7.0);
+          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.85 + Math.sin(cycle * Math.PI) * 0.05, dt * 8.0);
           kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 12, dt * 6.0);
           kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 4.8, dt * 6.0);
-          if (dribbleT > 0.68) {
-            // Saiten-Kontrollblick kurz vor dem Hochwerfen
-            kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 24, dt * 10.0);
-            kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 32, dt * 10.0);
-            kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 5, dt * 10.0);
-          } else {
-            kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -28 + Math.abs(Math.sin(cycle * Math.PI)) * 18, dt * 14.0);
-            kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 10, dt * 6.0);
-            kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 6.0);
-          }
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 6.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -26 + Math.abs(Math.sin(cycle * Math.PI)) * 16, dt * 14.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 8, dt * 6.0);
 
-          // Receiver Alcaraz: Bouncing Ready Stance
-          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, Math.sin(time * 12.0) * 0.22, dt * 8.0);
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.82, dt * 6.0);
+          // Receiver Alcaraz (North): Split-Step Bouncing & Tension
+          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, shot.targetPos.x * 0.75 + Math.sin(time * 14.0) * 0.18, dt * 8.0);
+          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.82 + Math.abs(Math.sin(time * 10.0)) * 0.04, dt * 6.0);
           kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 8, dt * 6.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.0, dt * 6.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -8, dt * 6.0);
-          kin2.headRoll = Math.sin(time * 16.0) * 16.0;
+          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.2, dt * 6.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -10, dt * 6.0);
+          kin2.headRoll = Math.sin(time * 16.0) * 12.0;
         } else {
-          // Server Alcaraz: Dribbeln + Saiten-Zupfen
-          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 2.2, dt * 6.0);
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.85 + Math.sin(cycle * Math.PI) * 0.06, dt * 8.0);
+          // Server Alcaraz (North)
+          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, shot.startPos.x, dt * 7.0);
+          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.85 + Math.sin(cycle * Math.PI) * 0.05, dt * 8.0);
           kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 12, dt * 6.0);
           kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.8, dt * 6.0);
-          if (dribbleT > 0.68) {
-            kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, -24, dt * 10.0);
-            kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -32, dt * 10.0);
-            kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 5, dt * 10.0);
-          } else {
-            kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -28 + Math.abs(Math.sin(cycle * Math.PI)) * 18, dt * 14.0);
-            kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -10, dt * 6.0);
-            kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 6.0);
-          }
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 6.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -26 + Math.abs(Math.sin(cycle * Math.PI)) * 16, dt * 14.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -8, dt * 6.0);
 
-          // Receiver Sinner: Bouncing Ready Stance
-          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, Math.sin(time * 12.0) * 0.22, dt * 8.0);
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.82, dt * 6.0);
+          // Receiver Sinner (South): Split-Step Bouncing & Tension
+          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, shot.targetPos.x * 0.75 + Math.sin(time * 14.0) * 0.18, dt * 8.0);
+          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.82 + Math.abs(Math.sin(time * 10.0)) * 0.04, dt * 6.0);
           kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 8, dt * 6.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.0, dt * 6.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -8, dt * 6.0);
-          kin1.headRoll = Math.sin(time * 16.0) * 16.0;
+          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.2, dt * 6.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -10, dt * 6.0);
+          kin1.headRoll = Math.sin(time * 16.0) * 12.0;
         }
       } else if (p < tossEndTime) {
-        // 🚀 Ballaufwurf in die Luft bis auf 5.6m Höhe
+        // 🚀 Phase 2: Parabolischer Ballaufwurf (Toss) bis auf 6.0m Höhe & Trophy Pose (Loading Phase)
         const tossT = (p - dribbleEndTime) / (tossEndTime - dribbleEndTime);
-        const tossHeight = Math.sin(tossT * Math.PI) * 3.8;
+        const tossHeight = Math.sin(tossT * Math.PI) * 4.2;
+        // Ball driftet um 0.60m nach vorne ins Feld (optimale Treffpunkt-Koordinate)
+        const forwardDrift = (server === 1 ? 0.60 : -0.60) * Math.sin(tossT * (Math.PI / 2));
         currentX = shot.startPos.x;
-        currentZ = shot.startPos.z;
+        currentZ = shot.startPos.z + forwardDrift;
         currentY = 1.8 + tossHeight;
 
         if (server === 1) {
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 3.2, dt * 10.0);
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 34, dt * 10.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 8.8, dt * 10.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 25, dt * 10.0);
+          // Sinner Trophy Pose & Racket Drop
+          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.75, dt * 9.0);
+          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 32, dt * 9.0);
+          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 7.8, dt * 9.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 38, dt * 10.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 42, dt * 10.0);
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, -12, dt * 8.0);
         } else {
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 3.2, dt * 10.0);
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 34, dt * 10.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 8.8, dt * 10.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 25, dt * 10.0);
+          // Alcaraz Trophy Pose & Racket Drop
+          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 2.75, dt * 9.0);
+          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 32, dt * 9.0);
+          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 7.8, dt * 9.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 38, dt * 10.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -42, dt * 10.0);
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 12, dt * 8.0);
         }
       } else {
-        // ⚡ Schlag & Flugkurve über das Netz ins gegnerische Feld
+        // ⚡ Phase 3: Explosiver Ballschlag & Flugkurve über das Netz ins gegnerische Feld
         const flightT = (p - tossEndTime) / (1.0 - tossEndTime);
         currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x, flightT);
         currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.targetPos.z, flightT);
 
-        const serveBounceProg = shot.isFault ? 0.85 : 0.65;
-        if (flightT < serveBounceProg) {
-          const t = flightT / serveBounceProg;
-          currentY = THREE.MathUtils.lerp(5.6, shot.bouncePos.y, t * t);
+        const serveBounceT = shot.isFault ? 0.85 : 0.65;
+        if (flightT < serveBounceT) {
+          const t = flightT / serveBounceT;
+          const apexY = 6.0;
+          currentY = THREE.MathUtils.lerp(apexY, shot.bouncePos.y, t * t);
         } else {
-          const t = (flightT - serveBounceProg) / (1.0 - serveBounceProg);
+          const t = (flightT - serveBounceT) / (1.0 - serveBounceT);
           const reboundArc = Math.sin(t * (Math.PI / 2));
           currentY = THREE.MathUtils.lerp(shot.bouncePos.y, shot.targetPos.y, reboundArc);
           if (!shot.hasBounced) {
@@ -2477,27 +2507,50 @@ function CraneTennisScene({
           }
         }
 
+        // Biomechanischer Vorschub im Treffpunkt & Handgelenks-Pronation
         if (server === 1) {
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -35, dt * 16.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 65, dt * 16.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.5, dt * 4.0);
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 10, dt * 4.0);
+          if (flightT < 0.20) {
+            // Explosive Pronation im Treffpunkt
+            kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 3.25, dt * 24.0);
+            kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 36, dt * 24.0);
+            kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 9.4, dt * 24.0);
+            kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -32, dt * 26.0);
+            kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 72, dt * 26.0);
+          } else {
+            // Ausschwung & Recovery
+            kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -42, dt * 8.0);
+            kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 30, dt * 6.0);
+            kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.2, dt * 4.0);
+            kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 10, dt * 4.0);
+            kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.85, dt * 4.0);
+          }
         } else {
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -35, dt * 16.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -65, dt * 16.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.5, dt * 4.0);
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 10, dt * 4.0);
+          if (flightT < 0.20) {
+            kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 3.25, dt * 24.0);
+            kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 36, dt * 24.0);
+            kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 9.4, dt * 24.0);
+            kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -32, dt * 26.0);
+            kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -72, dt * 26.0);
+          } else {
+            kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -42, dt * 8.0);
+            kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -30, dt * 6.0);
+            kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.2, dt * 4.0);
+            kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 10, dt * 4.0);
+            kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.85, dt * 4.0);
+          }
         }
 
         const receiver = server === 1 ? 2 : 1;
         if (receiver === 1) {
-          const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.65, -7.5, 7.5);
-          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 7.5);
+          const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.85, -7.5, 7.5);
+          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 8.5);
           kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.8, dt * 7.0);
+          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 12, dt * 7.0);
         } else {
-          const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.65, -7.5, 7.5);
-          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 7.5);
+          const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.85, -7.5, 7.5);
+          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 8.5);
           kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.8, dt * 7.0);
+          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 12, dt * 7.0);
         }
       }
     } else if (shot.isLob) {

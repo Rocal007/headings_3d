@@ -56,10 +56,16 @@ Verantwortlich für die Dual-Kran-Kinematik, das Carbon-Tennisschläger-Rig, die
   - **💫 Netzroller-Drama (`isNetCord = true`, 5% aller Ballwechsel)**: Ball streift das weiße Netzkabel bei $Z=0, Y=1.05\,\text{m}$, verliert an Tempo und tropft trudelnd kurz hinter das Netz ins Feld für einen dramatischen Winner.
   - **Ausleger-Netzvorschub (bis 11.2m Hubweg)**: Teleskopausleger fährt weit nach vorne zum Netz ($Z=0$), während der Remote Head knackige Volley-Punch- und Block-Bewegungen ausführt.
   - **Geschwindigkeiten**: Von 110 km/h (Defensiv-Lob) und 130 km/h (Stoppball) bis zu **248–254 km/h (Monster-Schmetterball)**.
-- **228 km/h Power-Aufschlag, 1. & 2. Service-Dynamik & Service Winners**:
-  - **🏀 Realistische Dribbel-Vorbereitungsphase**: Vor dem Aufwurf steht der Kran an der Grundlinie und dribbelt den Tennisball 3x rhythmisch auf den Boden auf ($Y \approx 0.16 \dots 0.72\,\text{m}$), bevor er den Ball in 5.6m Höhe wirft.
+- **234 km/h Power-Aufschlag, Deuce/Ad-Positionierung & Biomechanik**:
+  - **📐 Offizielle Deuce- & Ad-Court-Positionierung**:
+    - Bei geradem Punktestand (0:0, 15:15, 30:30, 40:40) serviert der Server von der **rechten Seite (Deuce Court, $X = \pm 2.2\,\text{m}$)** diagonal in das gegnerische Aufschlagfeld.
+    - Bei ungeradem Punktestand (15:0, 0:15, 30:15, 40:30, Advantage) serviert er von der **linken Seite (Ad Court, $X = \mp 2.2\,\text{m}$)**.
+    - Präzise Aufschlag-Varianten: *Down the T* (T-Linie, $X = \pm 0.40\,\text{m}$), *Wide Slice/Kick* (Weit nach außen, $X = \pm 3.60\,\text{m}$) und *Body* (Körper-Aufschlag, $X = \pm 1.90\,\text{m}$).
+  - **🏀 Realistische Dribbel-Vorbereitungsphase (`p < 0.28`)**: Vor dem Aufwurf steht der Kran hinter der Grundlinie und dribbelt den Tennisball 3x rhythmisch auf den Boden auf ($Y \approx 0.16 \dots 0.65\,\text{m}$) mit dynamischer Schlägertipp-Kinematik.
+  - **🚀 Parabolischer Ballaufwurf & Trophy Pose (`0.28 \le p < 0.50`)**: Ball steigt in 6.0 Meter Höhe auf und driftet um 0.60m nach vorne ins Feld, während der Kran in die Trophy Pose geht (Hubsäule hebt auf 2.75m, Ausleger neigt sich auf $+32^\circ$, Schlägerkopf fällt in die Lade-Position hinter den Kopf).
+  - **⚡ Explosiver Treffpunkt & Handgelenks-Pronation (`p = 0.50 \dots 0.56`)**: Im Scheitelpunkt (6.0m Höhe) schnellt der Ausleger mit bis zu 9.4m Vorschub vor, Hubsäule federt auf 3.25m und der Gimbal vollzieht eine blitzartige Handgelenks-Pronation von $+38^\circ$ auf $-32^\circ$ mit $+72^\circ$ Roll.
   - **⏱️ Natürliche Pause zwischen 1. und 2. Service**: Bei einem Fehler beim 1. Aufschlag (Netz oder Aus, ~28%) ruft der Schiedsrichter *"FAULT! Zweiter Aufschlag..."*, und der Kran nimmt sich ca. 2.3 Sekunden Zeit, um sich neu zu positionieren und den 2. Aufschlag mit Kick/Topspin (180–195 km/h) sicher ins Feld zu servieren.
-  - **⚡ Asse vs. 🎯 Service Winner**: Differenzierung zwischen direkt unberührten Assen (~6%) und schnittigen Service Winnern (~14%), bei denen der Receiver den Ball durch extreme Geschwindigkeit/Spin nur noch unkontrolliert ins Netz oder Aus ablenken kann. Über 80% der Aufschläge münden in spektakuläre Rallies.
+  - **⚡ Asse vs. 🎯 Service Winner**: Differenzierung zwischen direkt unberührten Assen (~7%) und schnittigen Service Winnern (~15%), bei denen der Receiver den Ball durch extreme Geschwindigkeit/Spin nur noch unkontrolliert ins Netz oder Aus ablenken kann. Über 80% der Aufschläge münden in spektakuläre Rallies.
 
 ### 4. Emotionen & Gestik zwischen den Ballwechseln (`celebrationTimerRef`)
 - **2.4 Sekunden Jubel- & Frust-Phase nach jedem Punktgewinn**:
