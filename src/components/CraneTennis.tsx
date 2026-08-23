@@ -3029,11 +3029,11 @@ function CraneTennisScene({
         const forwardDir = new THREE.Vector3(0, 0, activeHitter === 1 ? 1 : -1).applyQuaternion(rQuat).normalize();
         const upDir = new THREE.Vector3(0, 1, 0).applyQuaternion(rQuat).normalize();
 
-        // Kamera sitzt 32cm hinter dem Schlägerherzen (Racket Throat) und 6cm darüber
+        // Kamera sitzt 55cm hinter dem Sweet Spot und 10cm darüber
         // Man blickt direkt durch die gespannten Carbon-Saiten (Sweet Spot) nach vorne auf Ball & Gegner!
         const camPos = rPos.clone()
-          .sub(forwardDir.clone().multiplyScalar(0.32))
-          .add(upDir.clone().multiplyScalar(0.06));
+          .sub(forwardDir.clone().multiplyScalar(0.55))
+          .add(upDir.clone().multiplyScalar(0.10));
 
         // Zielpunkt: Blick durch die Saiten nach vorne in Schlagrichtung / auf den Ball
         const aimTarget = camPos.clone().add(forwardDir.clone().multiplyScalar(10.0));

@@ -18,6 +18,7 @@ export interface CraneTennisRacketHeadProps {
   autoLevel?: boolean;
   position?: [number, number, number];
   scale?: number;
+  racketScale?: number;
   racketTargetRef?: React.RefObject<THREE.Group | null>;
 }
 
@@ -36,6 +37,7 @@ export function CraneTennisRacketHead({
   autoLevel = true,
   position = [0, 0, 0],
   scale = 1.0,
+  racketScale = 1.9,
   racketTargetRef
 }: CraneTennisRacketHeadProps) {
   // Gelenk-Refs für frame-genaue 120 FPS Three.js Kinematik
@@ -94,9 +96,9 @@ export function CraneTennisRacketHead({
   }), []);
 
   // --- TENNISSCHLÄGER-SAITENBESPANNUNG (SWEET SPOT GRID) ---
-  const headRadiusX = 0.22;
-  const headRadiusY = 0.32;
-  const frameThickness = 0.018;
+  const baseHeadRadiusX = 0.22;
+  const baseHeadRadiusY = 0.32;
+  const baseFrameThickness = 0.018;
 
   const stringsGrid = useMemo(() => {
     const lines: Array<{ p1: [number, number, number]; p2: [number, number, number] }> = [];
@@ -105,8 +107,8 @@ export function CraneTennisRacketHead({
 
     for (let i = 1; i < countV; i++) {
       const u = (i / countV) * 2 - 1;
-      const x = u * (headRadiusX - 0.02);
-      const halfH = headRadiusY * Math.sqrt(Math.max(0, 1 - (x / headRadiusX) ** 2));
+      const x = u * (baseHeadRadiusX - 0.02);
+      const halfH = baseHeadRadiusY * Math.sqrt(Math.max(0, 1 - (x / baseHeadRadiusX) ** 2));
       if (halfH > 0.03) {
         lines.push({ p1: [x, -halfH, 0], p2: [x, halfH, 0] });
       }
@@ -114,15 +116,15 @@ export function CraneTennisRacketHead({
 
     for (let j = 1; j < countH; j++) {
       const v = (j / countH) * 2 - 1;
-      const y = v * (headRadiusY - 0.02);
-      const halfW = headRadiusX * Math.sqrt(Math.max(0, 1 - (y / headRadiusY) ** 2));
+      const y = v * (baseHeadRadiusY - 0.02);
+      const halfW = baseHeadRadiusX * Math.sqrt(Math.max(0, 1 - (y / baseHeadRadiusY) ** 2));
       if (halfW > 0.03) {
         lines.push({ p1: [-halfW, y, 0], p2: [halfW, y, 0] });
       }
     }
 
     return lines;
-  }, [headRadiusX, headRadiusY]);
+  }, [baseHeadRadiusX, baseHeadRadiusY]);
 
   // --- ECHTZEIT-KINEMATIK-SYNCHRONISATION IN useFrame ---
   useFrame(() => {
@@ -261,9 +263,9 @@ export function CraneTennisRacketHead({
                 </mesh>
 
                 {/* ========================================================== */}
-                {/* 6. HIGH-MODULUS CARBON-GRAPHITE TENNISSCHLÄGER            */}
+                {/* 6. HIGH-MODULUS CARBON-GRAPHITE TENNISSCHLÄGER (SKALIERT)  */}
                 {/* ========================================================== */}
-                <group position={[0, -0.06, 0.04]}>
+                <group position={[0, -0.06, 0.04]} scale={[racketScale, racketScale, racketScale]}>
                   {/* Schläger-Griffbasis & Griffband (Grip Tape) */}
                   <mesh castShadow material={matTeamCarbon} position={[0, -0.16, 0]}>
                     <cylinderGeometry args={[0.028, 0.024, 0.03, 8]} />
@@ -287,15 +289,15 @@ export function CraneTennisRacketHead({
                   </mesh>
 
                   {/* Schlägerkopf-Hauptrahmen (Carbon Rim) */}
-                  <mesh castShadow receiveShadow material={matTeamCarbon} position={[0, headRadiusY + 0.14, 0]}>
-                    <torusGeometry args={[headRadiusX, frameThickness, 16, 32]} />
+                  <mesh castShadow receiveShadow material={matTeamCarbon} position={[0, baseHeadRadiusY + 0.14, 0]}>
+                    <torusGeometry args={[baseHeadRadiusX, baseFrameThickness, 16, 32]} />
                   </mesh>
-                  <mesh castShadow material={matGraphiteDark} position={[0, headRadiusY + 0.14, 0]}>
-                    <torusGeometry args={[headRadiusX + 0.006, frameThickness * 0.45, 8, 32]} />
+                  <mesh castShadow material={matGraphiteDark} position={[0, baseHeadRadiusY + 0.14, 0]}>
+                    <torusGeometry args={[baseHeadRadiusX + 0.006, baseFrameThickness * 0.45, 8, 32]} />
                   </mesh>
 
                   {/* SWEET SPOT & RACKET-CAM TARGET (TREFFPUNKT & FIRST-PERSON-POV) */}
-                  <group ref={racketTargetRef} position={[0, headRadiusY + 0.14, 0]}>
+                  <group ref={racketTargetRef} position={[0, baseHeadRadiusY + 0.14, 0]}>
                     {/* Saitengitter (High-Tension String Bed) */}
                     {stringsGrid.map((str, idx) => {
                       const midX = (str.p1[0] + str.p2[0]) / 2;
@@ -318,7 +320,7 @@ export function CraneTennisRacketHead({
                     <mesh material={matStrings} position={[0, 0, 0]}>
                       <ringGeometry args={[0.06, 0.075, 20]} />
                     </mesh>
-                    <pointLight color={stringGlow} intensity={1.8} distance={1.2} />
+                    <pointLight color={stringGlow} intensity={2.2} distance={1.8} />
                   </group>
                 </group>
               </group>
