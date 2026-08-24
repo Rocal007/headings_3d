@@ -1,12 +1,41 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
-import CraneTennisRacketHead from './CraneTennisRacketHead';
+import TennisScoreboardHUD, { type MatchScore } from './TennisScoreboardHUD';
+import TennisStadiumScoreboard from './TennisStadiumScoreboard';
+import { TennisCourtArena, type CourtSurface } from './tennis/TennisArena';
+import { TennisUmpire, TennisCourtsideStaff, TennisStadiumSpectators } from './tennis/TennisStaffAndCrowd';
+import { MountedCranePlayer } from './tennis/TennisMountedRig';
+import { TennisControlDrawer, type TennisCameraMode } from './tennis/TennisControlDrawer';
+import { TennisUmpireCallWindow } from './tennis/TennisUmpireCallWindow';
+import TennisHawkEyeOverlay, { type HawkEyeData } from './tennis/TennisHawkEyeOverlay';
+import { AtmosphericSkyDome } from './CraneScenery';
+import { useTennisMatchEngine } from '../hooks/useTennisMatchEngine';
+import { 
+  calculateBallBounceReboundVelocity, 
+  SURFACE_FRICTION, 
+  type TennisRK4Sample, 
+  simulateTennisShotTrajectoryRK4,
+  type TennisSpinType
+} from '../utils/tennisKinematics';
+import { 
+  calculateEmotionKinematicOffsets, 
+  selectPostRallyEmotions, 
+  updatePlayerPsychology, 
+  type PlayerEmotionalState, 
+  type PlayerLivePsychology,
+  type PlayerEmotionTiming,
+  EMOTION_METADATA 
+} from '../utils/tennisEmotions';
+import {
+  generatePointDirectorPlan,
+  evaluateDynamicTennisDirectorDecision,
+  type PointDirectorPlan
+} from '../utils/cameraDirector';
 
-export type CourtSurface = 'clay' | 'grass' | 'hardcourt' | 'cyber';
-export type TennisCameraMode = 'broadcast' | 'ball' | 'crane1' | 'crane2' | 'umpire' | 'spectator' | 'coach' | 'smash' | 'free';
+export type { CourtSurface, TennisCameraMode };
 
 interface RallyShot {
   shooter: 1 | 2;
@@ -27,6 +56,11 @@ interface RallyShot {
   serveAttempt?: 1 | 2;
   isFault?: boolean;
   servePhase: number;
+  serveReadyDuration?: number;
+  serveTossDuration?: number;
+  serveBounceCount?: number;
+  serveReadyFraction?: number;
+  serveTossFraction?: number;
   isVolley?: boolean;
   isNetRush?: boolean;
   isSmash?: boolean;
@@ -40,1123 +74,7 @@ interface RallyShot {
   isNetCord?: boolean;
   endReason?: string;
   pointWinner?: 1 | 2;
-}
-
-interface MatchScore {
-  p1Points: number;
-  p2Points: number;
-  p1Games: number;
-  p2Games: number;
-  p1Sets: number;
-  p2Sets: number;
-  server: 1 | 2;
-  lastMessage: string;
-  umpireCall: string;
-  rallyCount: number;
-  isCheering: boolean;
-  cheerIntensity: number;
-}
-
-// --- 🛤️ HEAVY-DUTY DOLLY SCHIENEN / TRACKS (ENTLANG DER GRUNDLINIE) ---
-function CraneDollyRailTrack({
-  zPos,
-  trackLength = 17.0,
-  teamColor = '#38bdf8'
-}: {
-  zPos: number;
-  trackLength?: number;
-  teamColor?: string;
-}) {
-  const matSteelRail = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0xe2e8f0,
-    metalness: 0.95,
-    roughness: 0.18,
-    envMapIntensity: 2.0
-  }), []);
-
-  const matSleeper = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x1e293b,
-    metalness: 0.6,
-    roughness: 0.6
-  }), []);
-
-  const matBuffer = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
-    metalness: 0.7,
-    roughness: 0.3
-  }), []);
-
-  const matWarningGlow = useMemo(() => new THREE.MeshStandardMaterial({
-    color: teamColor,
-    emissive: teamColor,
-    emissiveIntensity: 0.6
-  }), [teamColor]);
-
-  const sleeperCount = Math.floor(trackLength / 0.85);
-  const sleepers = useMemo(() => {
-    const list: number[] = [];
-    const halfLen = trackLength / 2;
-    for (let i = 0; i <= sleeperCount; i++) {
-      list.push(-halfLen + (i / sleeperCount) * trackLength);
-    }
-    return list;
-  }, [trackLength, sleeperCount]);
-
-  const railSpacing = 1.0; // 1000mm standard precision dolly track gauge
-
-  return (
-    <group position={[0, 0, zPos]}>
-      {/* North Steel Tubular Rail */}
-      <mesh castShadow receiveShadow material={matSteelRail} position={[0, 0.08, -railSpacing / 2]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.038, 0.038, trackLength, 24]} />
-      </mesh>
-
-      {/* South Steel Tubular Rail */}
-      <mesh castShadow receiveShadow material={matSteelRail} position={[0, 0.08, railSpacing / 2]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.038, 0.038, trackLength, 24]} />
-      </mesh>
-
-      {/* Center Gear/Cable Guide Channel */}
-      <mesh castShadow receiveShadow material={matSleeper} position={[0, 0.04, 0]}>
-        <boxGeometry args={[trackLength, 0.02, 0.16]} />
-      </mesh>
-
-      {/* Sleepers / Querschwellen along the track */}
-      {sleepers.map((sx, idx) => (
-        <mesh key={`sl-${idx}`} castShadow receiveShadow material={matSleeper} position={[sx, 0.03, 0]}>
-          <boxGeometry args={[0.16, 0.06, 1.45]} />
-        </mesh>
-      ))}
-
-      {/* Left End-Stop Buffer (X = -trackLength/2) */}
-      <group position={[-trackLength / 2 - 0.1, 0, 0]}>
-        <mesh castShadow material={matBuffer} position={[0, 0.20, 0]}>
-          <boxGeometry args={[0.22, 0.40, 1.4]} />
-        </mesh>
-        <mesh castShadow material={matWarningGlow} position={[0.05, 0.20, 0]}>
-          <boxGeometry args={[0.04, 0.36, 1.3]} />
-        </mesh>
-      </group>
-
-      {/* Right End-Stop Buffer (X = trackLength/2) */}
-      <group position={[trackLength / 2 + 0.1, 0, 0]}>
-        <mesh castShadow material={matBuffer} position={[0, 0.20, 0]}>
-          <boxGeometry args={[0.22, 0.40, 1.4]} />
-        </mesh>
-        <mesh castShadow material={matWarningGlow} position={[-0.05, 0.20, 0]}>
-          <boxGeometry args={[0.04, 0.36, 1.3]} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
-// --- 🚜 SUPERTECHNO 50 SCHWERLAST-DOLLY BASE / CHASSIS ---
-function SupertechnoDollyBase({
-  teamColor = '#38bdf8'
-}: {
-  teamColor?: string;
-}) {
-  const matChassisDark = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x181a20,
-    metalness: 0.85,
-    roughness: 0.35
-  }), []);
-
-  const matPlateDeck = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x2d3748,
-    metalness: 0.7,
-    roughness: 0.4
-  }), []);
-
-  const matSteelWheel = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0xcfd8dc,
-    metalness: 0.95,
-    roughness: 0.15,
-    envMapIntensity: 2.0
-  }), []);
-
-  const matTurntableFlange = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x111317,
-    metalness: 0.9,
-    roughness: 0.3
-  }), []);
-
-  const matTeamLED = useMemo(() => new THREE.MeshStandardMaterial({
-    color: teamColor,
-    emissive: teamColor,
-    emissiveIntensity: 0.85,
-    roughness: 0.2
-  }), [teamColor]);
-
-  const railSpacing = 1.0;
-  const wheelPositions = [
-    [-0.65, -railSpacing / 2],
-    [0.65, -railSpacing / 2],
-    [-0.65, railSpacing / 2],
-    [0.65, railSpacing / 2]
-  ];
-
-  return (
-    <group position={[0, 0, 0]}>
-      {/* 1. Main Steel Chassis Platform */}
-      <mesh castShadow receiveShadow material={matChassisDark} position={[0, 0.16, 0]}>
-        <boxGeometry args={[1.75, 0.14, 1.38]} />
-      </mesh>
-
-      {/* 2. Aluminum Chequer / Diamond Plate Deck on Top */}
-      <mesh castShadow receiveShadow material={matPlateDeck} position={[0, 0.235, 0]}>
-        <boxGeometry args={[1.70, 0.015, 1.32]} />
-      </mesh>
-
-      {/* 3. Heavy Turntable Collar / Flange Base under Crane Column */}
-      <mesh castShadow receiveShadow material={matTurntableFlange} position={[0, 0.32, 0]}>
-        <cylinderGeometry args={[0.62, 0.68, 0.16, 32]} />
-      </mesh>
-      <mesh castShadow material={matChassisDark} position={[0, 0.41, 0]}>
-        <cylinderGeometry args={[0.55, 0.58, 0.04, 32]} />
-      </mesh>
-
-      {/* 4. 8x Track Wheel Bogies (4 Bogie Trucks on the 2 Tubular Rails) */}
-      {wheelPositions.map(([wx, wz], idx) => (
-        <group key={`bogie-${idx}`} position={[wx, 0.08, wz]}>
-          {/* Bogie Bracket Housing */}
-          <mesh castShadow material={matChassisDark} position={[0, 0.05, 0]}>
-            <boxGeometry args={[0.32, 0.09, 0.14]} />
-          </mesh>
-          {/* Front Concave Track Wheel */}
-          <mesh castShadow material={matSteelWheel} position={[-0.10, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.075, 0.075, 0.05, 16]} />
-          </mesh>
-          {/* Rear Concave Track Wheel */}
-          <mesh castShadow material={matSteelWheel} position={[0.10, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.075, 0.075, 0.05, 16]} />
-          </mesh>
-          {/* Axle Pins */}
-          <mesh castShadow material={matChassisDark} position={[-0.10, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 0.07, 8]} />
-          </mesh>
-          <mesh castShadow material={matChassisDark} position={[0.10, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 0.07, 8]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* 5. Electric Drive Motor & Center Gear Unit */}
-      <mesh castShadow material={matChassisDark} position={[0, 0.06, 0]}>
-        <boxGeometry args={[0.45, 0.10, 0.35]} />
-      </mesh>
-      <mesh castShadow material={matSteelWheel} position={[0, 0.04, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.045, 0.045, 0.16, 16]} />
-      </mesh>
-
-      {/* 6. Glowing Team LED Status Bars on Chassis Sides */}
-      <mesh material={matTeamLED} position={[0, 0.17, 0.70]}>
-        <boxGeometry args={[1.5, 0.035, 0.02]} />
-      </mesh>
-      <mesh material={matTeamLED} position={[0, 0.17, -0.70]}>
-        <boxGeometry args={[1.5, 0.035, 0.02]} />
-      </mesh>
-
-      {/* 7. Corner Spindle Outrigger Jacks & Steel Handles */}
-      {[
-        [-0.82, -0.62],
-        [0.82, -0.62],
-        [-0.82, 0.62],
-        [0.82, 0.62]
-      ].map(([jx, jz], jIdx) => (
-        <group key={`jack-${jIdx}`} position={[jx, 0.14, jz]}>
-          <mesh castShadow material={matChassisDark} position={[0, 0, 0]}>
-            <cylinderGeometry args={[0.03, 0.03, 0.18, 8]} />
-          </mesh>
-          <mesh castShadow material={matPlateDeck} position={[0, -0.09, 0]}>
-            <cylinderGeometry args={[0.055, 0.055, 0.02, 12]} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Push/Tow Bars at ends */}
-      <mesh castShadow material={matChassisDark} position={[-0.88, 0.20, 0]}>
-        <boxGeometry args={[0.05, 0.06, 0.7]} />
-      </mesh>
-      <mesh castShadow material={matChassisDark} position={[0.88, 0.20, 0]}>
-        <boxGeometry args={[0.05, 0.06, 0.7]} />
-      </mesh>
-    </group>
-  );
-}
-
-// --- 🏗️ MOUNTED CRANE PLAYER (PERFECT FBX BONE SYNCHRONIZATION - ZERO GAP GUARANTEED) ---
-function MountedCranePlayer({
-  crane,
-  kinematicsRef,
-  teamColor,
-  stringGlow,
-  racketWorldPosRef,
-  racketWorldQuatRef,
-  baseRotation = 0,
-  dollyTrackZ = -15.2,
-  dollyGroupRef
-}: {
-  crane: Supertechno50FBXModel | null;
-  kinematicsRef: React.MutableRefObject<{
-    dollyTrack: number;
-    columnElevation: number;
-    basePan: number;
-    boomTilt: number;
-    teleExtension: number;
-    headPan: number;
-    headTilt: number;
-    headRoll: number;
-  }>;
-  teamColor: string;
-  stringGlow: string;
-  racketWorldPosRef: React.MutableRefObject<THREE.Vector3>;
-  racketWorldQuatRef?: React.MutableRefObject<THREE.Quaternion>;
-  baseRotation?: number;
-  dollyTrackZ?: number;
-  dollyGroupRef: React.RefObject<THREE.Group | null>;
-}) {
-  const racketHeadGroupRef = useRef<THREE.Group>(null);
-  const racketTargetRef = useRef<THREE.Group>(null);
-
-  useFrame(() => {
-    const kin = kinematicsRef.current;
-
-    // 1. Move Dolly Base on Rails
-    if (dollyGroupRef.current) {
-      dollyGroupRef.current.position.set(kin.dollyTrack, 0, dollyTrackZ);
-    }
-
-    // 2. Synchronize Head directly to FBX jointNeck Bone World Matrix (Zero Gap Guaranteed!)
-    if (crane && crane.isLoaded && crane.nodes.neck && racketHeadGroupRef.current) {
-      if (dollyGroupRef.current) {
-        dollyGroupRef.current.updateMatrixWorld(true);
-      } else {
-        crane.group.updateMatrixWorld(true);
-      }
-
-      const worldPos = new THREE.Vector3();
-      const worldQuat = new THREE.Quaternion();
-      crane.nodes.neck.getWorldPosition(worldPos);
-      crane.nodes.neck.getWorldQuaternion(worldQuat);
-
-      racketHeadGroupRef.current.position.copy(worldPos);
-      racketHeadGroupRef.current.quaternion.copy(worldQuat);
-    }
-
-    // 3. Track Racket Sweet Spot for Hit detection & Camera POV
-    if (racketTargetRef.current) {
-      const rPos = new THREE.Vector3();
-      const rQuat = new THREE.Quaternion();
-      racketTargetRef.current.getWorldPosition(rPos);
-      racketTargetRef.current.getWorldQuaternion(rQuat);
-      racketWorldPosRef.current.copy(rPos);
-      if (racketWorldQuatRef) {
-        racketWorldQuatRef.current.copy(rQuat);
-      }
-    }
-  });
-
-  return (
-    <>
-      {/* 1. CRANE DOLLY BASE & FBX SKELETON */}
-      <group ref={dollyGroupRef} position={[0, 0, dollyTrackZ]}>
-        <SupertechnoDollyBase teamColor={teamColor} />
-        <group rotation={[0, baseRotation, 0]}>
-          {crane && <primitive object={crane.group} />}
-        </group>
-      </group>
-
-      {/* 2. DEDICATED TENNIS RACKET GIMBAL HEAD (BOLTED TO jointNeck BONE IN REAL TIME) */}
-      <group ref={racketHeadGroupRef}>
-        <CraneTennisRacketHead
-          kinematicsRef={kinematicsRef}
-          teamColor={teamColor}
-          stringGlow={stringGlow}
-          autoLevel={true}
-          position={[0, 0, 0]}
-          scale={1.0}
-          racketTargetRef={racketTargetRef}
-        />
-      </group>
-    </>
-  );
-}
-
-// --- 🪑 3D ANIMATED TENNIS UMPIRE ---
-function TennisUmpire({ ballPos }: { ballPos: THREE.Vector3 }) {
-  const headRef = useRef<THREE.Group>(null);
-
-  useFrame(() => {
-    if (headRef.current) {
-      const angle = THREE.MathUtils.clamp(-ballPos.z * 0.065, -0.9, 0.9);
-      headRef.current.rotation.y = THREE.MathUtils.lerp(headRef.current.rotation.y, angle, 0.12);
-    }
-  });
-
-  const matBlazer = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e3a8a', roughness: 0.6 }), []);
-  const matPants = useMemo(() => new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.7 }), []);
-  const matSkin = useMemo(() => new THREE.MeshStandardMaterial({ color: '#fbcfe8', roughness: 0.5 }), []);
-  const matCap = useMemo(() => new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.4 }), []);
-
-  return (
-    <group position={[7.2, 0, 0]}>
-      <group rotation={[0, -Math.PI / 2, 0]}>
-        {[-0.4, 0.4].map((lx, i) =>
-          [-0.4, 0.4].map((lz, j) => (
-            <mesh key={`leg-${i}-${j}`} castShadow position={[lx, 1.1, lz]}>
-              <cylinderGeometry args={[0.025, 0.035, 2.2, 12]} />
-              <meshStandardMaterial color={0x0f172a} metalness={0.8} roughness={0.3} />
-            </mesh>
-          ))
-        )}
-        <mesh castShadow position={[0, 2.0, 0]}>
-          <boxGeometry args={[0.9, 0.05, 0.9]} />
-          <meshStandardMaterial color={0x1e293b} roughness={0.5} />
-        </mesh>
-        <mesh castShadow position={[0, 2.35, 0.15]}>
-          <boxGeometry args={[0.65, 0.65, 0.1]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.4} />
-        </mesh>
-        <mesh castShadow position={[0, 2.05, -0.1]}>
-          <boxGeometry args={[0.65, 0.06, 0.45]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.4} />
-        </mesh>
-        <mesh castShadow position={[0, 3.05, 0]}>
-          <boxGeometry args={[1.1, 0.04, 1.1]} />
-          <meshStandardMaterial color="#0284c7" roughness={0.3} />
-        </mesh>
-      </group>
-
-      <group position={[0, 2.08, 0]} rotation={[0, -Math.PI / 2, 0]}>
-        <mesh castShadow material={matPants} position={[-0.14, 0.22, -0.22]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.06, 0.055, 0.42, 12]} />
-        </mesh>
-        <mesh castShadow material={matPants} position={[0.14, 0.22, -0.22]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.06, 0.055, 0.42, 12]} />
-        </mesh>
-        <mesh castShadow material={matPants} position={[-0.14, -0.05, -0.42]}>
-          <cylinderGeometry args={[0.05, 0.045, 0.45, 12]} />
-        </mesh>
-        <mesh castShadow material={matPants} position={[0.14, -0.05, -0.42]}>
-          <cylinderGeometry args={[0.05, 0.045, 0.45, 12]} />
-        </mesh>
-
-        <mesh castShadow material={matBlazer} position={[0, 0.52, 0]}>
-          <boxGeometry args={[0.38, 0.48, 0.24]} />
-        </mesh>
-
-        <mesh castShadow material={matBlazer} position={[-0.22, 0.45, -0.15]} rotation={[0.4, 0, 0]}>
-          <cylinderGeometry args={[0.04, 0.035, 0.38, 10]} />
-        </mesh>
-        <mesh castShadow material={matBlazer} position={[0.22, 0.45, -0.15]} rotation={[0.4, 0, 0]}>
-          <cylinderGeometry args={[0.04, 0.035, 0.38, 10]} />
-        </mesh>
-
-        <mesh castShadow position={[0, 0.42, -0.32]} rotation={[-0.6, 0, 0]}>
-          <boxGeometry args={[0.26, 0.18, 0.02]} />
-          <meshStandardMaterial color={0x0284c7} emissive="#0284c7" emissiveIntensity={0.4} />
-        </mesh>
-
-        <group ref={headRef} position={[0, 0.85, 0]}>
-          <mesh castShadow material={matSkin}>
-            <sphereGeometry args={[0.12, 16, 16]} />
-          </mesh>
-          <mesh castShadow material={matCap} position={[0, 0.07, 0]}>
-            <cylinderGeometry args={[0.125, 0.13, 0.08, 16]} />
-          </mesh>
-          <mesh castShadow material={matCap} position={[0, 0.06, -0.10]}>
-            <boxGeometry args={[0.14, 0.02, 0.10]} />
-          </mesh>
-          <mesh castShadow position={[0.13, 0.02, -0.08]}>
-            <cylinderGeometry args={[0.008, 0.008, 0.12, 6]} />
-            <meshStandardMaterial color={0x111111} />
-          </mesh>
-        </group>
-      </group>
-    </group>
-  );
-}
-
-// --- 🚶‍♂️ LINIENRICHTER, BALLKINDER, TRAINER & FOTOGRAFEN ---
-function TennisCourtsideStaff({ ballPos, isCheering }: { ballPos: THREE.Vector3; isCheering: boolean }) {
-  const staffGroupRef = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }) => {
-    if (staffGroupRef.current) {
-      const time = clock.getElapsedTime();
-      const cheerJump = isCheering ? Math.sin(time * 12) * 0.15 : 0;
-      staffGroupRef.current.position.y = cheerJump;
-      if (ballPos) {
-        staffGroupRef.current.children.forEach((child, idx) => {
-          if (idx < 6) {
-            child.rotation.y += Math.sin(time * 2 + idx) * 0.002;
-          }
-        });
-      }
-    }
-  });
-
-  const matNavy = useMemo(() => new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.7 }), []);
-  const matWhite = useMemo(() => new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.6 }), []);
-  const matYellowKit = useMemo(() => new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.5 }), []);
-  const matSkin = useMemo(() => new THREE.MeshStandardMaterial({ color: '#fed7aa', roughness: 0.4 }), []);
-  const matDarkSkin = useMemo(() => new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.4 }), []);
-  const matCoachBlue = useMemo(() => new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.6 }), []);
-  const matCoachGold = useMemo(() => new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.6 }), []);
-
-  const lineJudges = useMemo(() => [
-    { pos: [-6.4, 0, -12.6], rot: 0.2, name: 'Baseline Left Judge South' },
-    { pos: [6.4, 0, -12.6], rot: -0.2, name: 'Baseline Right Judge South' },
-    { pos: [-6.4, 0, 12.6], rot: Math.PI - 0.2, name: 'Baseline Left Judge North' },
-    { pos: [6.4, 0, 12.6], rot: Math.PI + 0.2, name: 'Baseline Right Judge North' },
-    { pos: [-6.8, 0, -6.4], rot: Math.PI / 2, name: 'Service Judge South' },
-    { pos: [-6.8, 0, 6.4], rot: Math.PI / 2, name: 'Service Judge North' },
-  ], []);
-
-  const ballKids = useMemo(() => [
-    { pos: [-6.5, 0, -0.6], rot: Math.PI / 2, isKneeling: true },
-    { pos: [-6.5, 0, 0.6], rot: Math.PI / 2, isKneeling: true },
-    { pos: [5.8, 0, -12.2], rot: -0.3, isKneeling: false },
-    { pos: [-5.8, 0, 12.2], rot: Math.PI + 0.3, isKneeling: false },
-  ], []);
-
-  return (
-    <group ref={staffGroupRef}>
-      {lineJudges.map((lj, idx) => (
-        <group key={`lj-${idx}`} position={lj.pos as [number, number, number]} rotation={[0, lj.rot, 0]}>
-          <mesh castShadow material={matWhite} position={[-0.10, 0.42, 0]}>
-            <cylinderGeometry args={[0.05, 0.05, 0.84, 8]} />
-          </mesh>
-          <mesh castShadow material={matWhite} position={[0.10, 0.42, 0]}>
-            <cylinderGeometry args={[0.05, 0.05, 0.84, 8]} />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[0, 1.15, 0]}>
-            <boxGeometry args={[0.34, 0.65, 0.20]} />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[-0.19, 1.12, 0.05]} rotation={[0.4, 0, 0]}>
-            <cylinderGeometry args={[0.035, 0.03, 0.55, 6]} />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[0.19, 1.12, 0.05]} rotation={[0.4, 0, 0]}>
-            <cylinderGeometry args={[0.035, 0.03, 0.55, 6]} />
-          </mesh>
-          <mesh castShadow material={idx % 2 === 0 ? matSkin : matDarkSkin} position={[0, 1.58, 0]}>
-            <sphereGeometry args={[0.10, 12, 12]} />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[0, 1.66, 0]}>
-            <cylinderGeometry args={[0.11, 0.11, 0.05, 10]} />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[0, 1.65, -0.08]}>
-            <boxGeometry args={[0.12, 0.02, 0.08]} />
-          </mesh>
-        </group>
-      ))}
-
-      {ballKids.map((bk, idx) => (
-        <group key={`bk-${idx}`} position={bk.pos as [number, number, number]} rotation={[0, bk.rot, 0]}>
-          {bk.isKneeling ? (
-            <group position={[0, 0, 0]}>
-              <mesh castShadow material={matNavy} position={[0, 0.25, 0]} rotation={[0.6, 0, 0]}>
-                <cylinderGeometry args={[0.045, 0.04, 0.55, 8]} />
-              </mesh>
-              <mesh castShadow material={matYellowKit} position={[0, 0.65, 0]}>
-                <boxGeometry args={[0.30, 0.45, 0.18]} />
-              </mesh>
-              <mesh castShadow material={matSkin} position={[0, 0.98, 0]}>
-                <sphereGeometry args={[0.09, 12, 12]} />
-              </mesh>
-              <mesh castShadow material={matWhite} position={[0, 1.05, 0]}>
-                <cylinderGeometry args={[0.095, 0.095, 0.04, 8]} />
-              </mesh>
-            </group>
-          ) : (
-            <group position={[0, 0, 0]}>
-              <mesh castShadow material={matNavy} position={[-0.10, 0.35, 0]} rotation={[-0.15, 0, 0]}>
-                <cylinderGeometry args={[0.045, 0.04, 0.70, 8]} />
-              </mesh>
-              <mesh castShadow material={matNavy} position={[0.10, 0.35, 0]} rotation={[-0.15, 0, 0]}>
-                <cylinderGeometry args={[0.045, 0.04, 0.70, 8]} />
-              </mesh>
-              <mesh castShadow material={matYellowKit} position={[0, 0.95, -0.05]} rotation={[0.15, 0, 0]}>
-                <boxGeometry args={[0.30, 0.52, 0.18]} />
-              </mesh>
-              <mesh castShadow material={matSkin} position={[0, 1.32, -0.08]}>
-                <sphereGeometry args={[0.09, 12, 12]} />
-              </mesh>
-              <mesh castShadow material={matWhite} position={[0, 1.39, -0.08]}>
-                <cylinderGeometry args={[0.095, 0.095, 0.04, 8]} />
-              </mesh>
-            </group>
-          )}
-        </group>
-      ))}
-
-      {/* Crane 1 Coach */}
-      <group position={[-7.5, 0, -3.2]} rotation={[0, Math.PI / 2, 0]}>
-        <mesh castShadow position={[0, 0.45, 0]}>
-          <boxGeometry args={[1.4, 0.06, 0.55]} />
-          <meshStandardMaterial color="#1e293b" />
-        </mesh>
-        <mesh castShadow material={matNavy} position={[-0.2, 0.35, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.35, 8]} />
-        </mesh>
-        <mesh castShadow material={matCoachBlue} position={[-0.2, 0.85, 0]}>
-          <boxGeometry args={[0.34, 0.50, 0.22]} />
-        </mesh>
-        <mesh castShadow material={matSkin} position={[-0.2, 1.20, 0]}>
-          <sphereGeometry args={[0.10, 12, 12]} />
-        </mesh>
-        <mesh castShadow position={[-0.2, 0.78, -0.22]} rotation={[-0.4, 0, 0]}>
-          <boxGeometry args={[0.22, 0.15, 0.02]} />
-          <meshStandardMaterial color="#f8fafc" />
-        </mesh>
-      </group>
-
-      {/* Crane 2 Coach */}
-      <group position={[-7.5, 0, 3.2]} rotation={[0, Math.PI / 2, 0]}>
-        <mesh castShadow position={[0, 0.45, 0]}>
-          <boxGeometry args={[1.4, 0.06, 0.55]} />
-          <meshStandardMaterial color="#1e293b" />
-        </mesh>
-        <mesh castShadow material={matNavy} position={[0.2, 0.35, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.35, 8]} />
-        </mesh>
-        <mesh castShadow material={matCoachGold} position={[0.2, 0.85, 0]}>
-          <boxGeometry args={[0.34, 0.50, 0.22]} />
-        </mesh>
-        <mesh castShadow material={matDarkSkin} position={[0.2, 1.20, 0]}>
-          <sphereGeometry args={[0.10, 12, 12]} />
-        </mesh>
-      </group>
-
-      {/* Photographers */}
-      {[
-        { pos: [-7.6, 0, -7.5], rot: 0.6 },
-        { pos: [-7.6, 0, 7.5], rot: Math.PI - 0.6 }
-      ].map((p, idx) => (
-        <group key={`photo-${idx}`} position={p.pos as [number, number, number]} rotation={[0, p.rot, 0]}>
-          <mesh castShadow position={[0, 0.25, 0]}>
-            <cylinderGeometry args={[0.18, 0.18, 0.5, 12]} />
-            <meshStandardMaterial color="#0f172a" />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[0, 0.65, 0]}>
-            <boxGeometry args={[0.32, 0.45, 0.22]} />
-          </mesh>
-          <mesh castShadow material={matSkin} position={[0, 0.98, 0]}>
-            <sphereGeometry args={[0.09, 12, 12]} />
-          </mesh>
-          <mesh castShadow material={matNavy} position={[0, 1.05, 0]}>
-            <cylinderGeometry args={[0.095, 0.095, 0.04, 8]} />
-          </mesh>
-          <mesh castShadow position={[0, 0.88, -0.25]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.04, 0.06, 0.35, 12]} />
-            <meshStandardMaterial color="#ffffff" metalness={0.8} roughness={0.2} />
-          </mesh>
-          <mesh castShadow position={[0, 0.88, -0.08]}>
-            <boxGeometry args={[0.12, 0.09, 0.08]} />
-            <meshStandardMaterial color="#111111" />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// --- 🎉 3D CONFETTI CELEBRATION ---
-function ConfettiCelebration({ active }: { active: boolean }) {
-  const count = 180;
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  
-  const particles = useMemo(() => {
-    const list: Array<{
-      pos: THREE.Vector3;
-      vel: THREE.Vector3;
-      rot: THREE.Euler;
-      rotVel: THREE.Vector3;
-      color: THREE.Color;
-    }> = [];
-    const colors = ['#f43f5e', '#38bdf8', '#facc15', '#4ade80', '#c084fc', '#fb923c'];
-    for (let i = 0; i < count; i++) {
-      list.push({
-        pos: new THREE.Vector3((Math.random() - 0.5) * 20, 6 + Math.random() * 8, (Math.random() - 0.5) * 30),
-        vel: new THREE.Vector3((Math.random() - 0.5) * 2.0, -1.2 - Math.random() * 2.5, (Math.random() - 0.5) * 2.0),
-        rot: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, 0),
-        rotVel: new THREE.Vector3(Math.random() * 6, Math.random() * 6, Math.random() * 6),
-        color: new THREE.Color(colors[i % colors.length])
-      });
-    }
-    return list;
-  }, []);
-
-  useFrame((_, delta) => {
-    if (!meshRef.current || !active) return;
-    const dummy = new THREE.Object3D();
-
-    particles.forEach((p, idx) => {
-      p.pos.x += p.vel.x * delta;
-      p.pos.y += p.vel.y * delta;
-      p.pos.z += p.vel.z * delta;
-      p.rot.x += p.rotVel.x * delta;
-      p.rot.y += p.rotVel.y * delta;
-
-      if (p.pos.y < 0.1) {
-        p.pos.y = 8 + Math.random() * 4;
-      }
-
-      dummy.position.copy(p.pos);
-      dummy.rotation.copy(p.rot);
-      dummy.scale.set(1.0, 1.0, 1.0);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(idx, dummy.matrix);
-      meshRef.current!.setColorAt(idx, p.color);
-    });
-
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  });
-
-  if (!active) return null;
-
-  return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <planeGeometry args={[0.18, 0.08]} />
-      <meshBasicMaterial side={THREE.DoubleSide} />
-    </instancedMesh>
-  );
-}
-
-// --- 🪑 SEATED SPECTATOR INDIVIDUAL COMPONENT ---
-function SeatedSpectator({
-  x,
-  y,
-  z,
-  facing,
-  shirtColor,
-  chairColor,
-  ballPos,
-  isCheering,
-  cheerIntensity,
-  idx,
-  hasFlag
-}: {
-  x: number;
-  y: number;
-  z: number;
-  facing: 'east' | 'west';
-  shirtColor: string;
-  chairColor: string;
-  ballPos: THREE.Vector3;
-  isCheering: boolean;
-  cheerIntensity: number;
-  idx: number;
-  hasFlag: boolean;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const headRef = useRef<THREE.Group>(null);
-  const armLeftRef = useRef<THREE.Mesh>(null);
-  const armRightRef = useRef<THREE.Mesh>(null);
-
-  const rotY = facing === 'west' ? Math.PI / 2 : -Math.PI / 2;
-
-  useFrame(({ clock }) => {
-    const time = clock.getElapsedTime();
-    if (groupRef.current) {
-      const wavePhase = time * 6.5 - (z + 20) * 0.2 - y * 0.5;
-      const waveJump = isCheering ? Math.max(0, Math.sin(wavePhase)) * (0.65 + cheerIntensity * 0.2) : 0;
-      groupRef.current.position.y = y + waveJump;
-
-      if (headRef.current) {
-        const lookAngle = THREE.MathUtils.clamp((facing === 'west' ? ballPos.z : -ballPos.z) * 0.045, -0.6, 0.6);
-        headRef.current.rotation.y = lookAngle;
-      }
-
-      if (armLeftRef.current && armRightRef.current) {
-        if (isCheering) {
-          const armWave = Math.sin(time * 12 + idx) * 0.4;
-          armLeftRef.current.rotation.x = -1.6 + armWave;
-          armRightRef.current.rotation.x = -1.6 - armWave;
-        } else {
-          armLeftRef.current.rotation.x = 0.4;
-          armRightRef.current.rotation.x = 0.4;
-        }
-      }
-    }
-  });
-
-  return (
-    <group ref={groupRef} position={[x, y, z]} rotation={[0, rotY, 0]}>
-      {/* 1. 3D Stadium Bucket Chair */}
-      <mesh castShadow position={[0, 0.18, 0.05]}>
-        <boxGeometry args={[0.44, 0.06, 0.40]} />
-        <meshStandardMaterial color={chairColor} roughness={0.4} />
-      </mesh>
-      <mesh castShadow position={[0, 0.44, -0.15]} rotation={[-0.15, 0, 0]}>
-        <boxGeometry args={[0.44, 0.46, 0.06]} />
-        <meshStandardMaterial color={chairColor} roughness={0.4} />
-      </mesh>
-      <mesh castShadow position={[0, -0.10, 0]}>
-        <cylinderGeometry args={[0.02, 0.02, 0.35, 8]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.3} />
-      </mesh>
-
-      {/* 2. Seated Human Figure */}
-      <mesh castShadow position={[0, 0.26, 0.10]}>
-        <boxGeometry args={[0.34, 0.10, 0.32]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.7} />
-      </mesh>
-      <mesh castShadow position={[-0.10, 0.02, 0.26]}>
-        <cylinderGeometry args={[0.045, 0.04, 0.40, 8]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.7} />
-      </mesh>
-      <mesh castShadow position={[0.10, 0.02, 0.26]}>
-        <cylinderGeometry args={[0.045, 0.04, 0.40, 8]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.7} />
-      </mesh>
-      <mesh castShadow position={[0, 0.58, 0]}>
-        <boxGeometry args={[0.36, 0.52, 0.22]} />
-        <meshStandardMaterial color={shirtColor} roughness={0.6} />
-      </mesh>
-      <group ref={headRef} position={[0, 0.96, 0]}>
-        <mesh castShadow>
-          <sphereGeometry args={[0.12, 12, 12]} />
-          <meshStandardMaterial color="#fed7aa" roughness={0.4} />
-        </mesh>
-        <mesh castShadow position={[0, 0.08, 0]}>
-          <cylinderGeometry args={[0.13, 0.13, 0.05, 10]} />
-          <meshStandardMaterial color={shirtColor} />
-        </mesh>
-        <mesh castShadow position={[0, 0.07, 0.08]}>
-          <boxGeometry args={[0.13, 0.02, 0.08]} />
-          <meshStandardMaterial color={shirtColor} />
-        </mesh>
-      </group>
-      <mesh ref={armLeftRef} castShadow position={[-0.22, 0.72, 0.04]} rotation={[0.4, 0, 0.2]}>
-        <cylinderGeometry args={[0.035, 0.03, 0.40, 6]} />
-        <meshStandardMaterial color={shirtColor} />
-      </mesh>
-      <mesh ref={armRightRef} castShadow position={[0.22, 0.72, 0.04]} rotation={[0.4, 0, -0.2]}>
-        <cylinderGeometry args={[0.035, 0.03, 0.40, 6]} />
-        <meshStandardMaterial color={shirtColor} />
-      </mesh>
-
-      {/* Team Flag */}
-      {hasFlag && (
-        <group position={[0.25, 0.85, 0.2]}>
-          <mesh position={[0, 0.35, 0]}>
-            <cylinderGeometry args={[0.015, 0.015, 0.8, 6]} />
-            <meshStandardMaterial color="#ffffff" />
-          </mesh>
-          <mesh position={[0.22, 0.60, 0]}>
-            <planeGeometry args={[0.40, 0.26]} />
-            <meshBasicMaterial color={facing === 'west' ? '#38bdf8' : '#facc15'} side={THREE.DoubleSide} />
-          </mesh>
-        </group>
-      )}
-    </group>
-  );
-}
-
-// --- 👥 JUBELNDES PUBLIKUM IN DEN TRIBÜNEN ---
-function TennisStadiumSpectators({ 
-  ballPos, 
-  isCheering,
-  cheerIntensity,
-  showSpectators = false,
-  showGrandstands = false
-}: { 
-  ballPos: THREE.Vector3; 
-  isCheering: boolean;
-  cheerIntensity: number;
-  showSpectators?: boolean;
-  showGrandstands?: boolean;
-}) {
-  const { westSpectators, eastSpectators } = useMemo(() => {
-    const wList: Array<{ x: number; y: number; z: number; color: string; hasFlag: boolean }> = [];
-    const eList: Array<{ x: number; y: number; z: number; color: string; hasFlag: boolean }> = [];
-
-    const shirtColors = [
-      '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
-      '#ec4899', '#f8fafc', '#1e293b', '#0284c7', '#84cc16'
-    ];
-
-    const rows = 5;
-    const cols = 15;
-
-    for (let r = 0; r < rows; r++) {
-      const standY = r * 0.85 + 0.42;
-      for (let c = 0; c < cols; c++) {
-        const z = -18 + c * 2.6;
-        const color = shirtColors[(r * cols + c) % shirtColors.length];
-        const hasFlag = (r * cols + c) % 5 === 0;
-
-        // West Tribüne (X = -12.5m bis -19.5m)
-        wList.push({
-          x: -12.8 - r * 1.6,
-          y: standY,
-          z,
-          color,
-          hasFlag
-        });
-
-        // East Tribüne (X = +12.5m bis +19.5m)
-        eList.push({
-          x: 12.8 + r * 1.6,
-          y: standY,
-          z,
-          color,
-          hasFlag
-        });
-      }
-    }
-
-    return { westSpectators: wList, eastSpectators: eList };
-  }, []);
-
-  const matStandConcrete = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x1e293b,
-    roughness: 0.8,
-    metalness: 0.2
-  }), []);
-
-  const matLedBanner = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x0284c7,
-    emissive: '#0369a1',
-    emissiveIntensity: 0.6,
-    roughness: 0.2
-  }), []);
-
-  return (
-    <group>
-      {/* 1. Concrete Grandstand Structures */}
-      {showGrandstands && (
-        <>
-          <group position={[-17.5, 0, 0]}>
-            {[0, 1, 2, 3, 4, 5].map(r => (
-              <mesh key={`west-tier-${r}`} castShadow receiveShadow material={matStandConcrete} position={[-(r * 1.6), r * 0.85 + 0.42, 0]}>
-                <boxGeometry args={[2.0, 0.85, 46]} />
-              </mesh>
-            ))}
-            <mesh castShadow receiveShadow material={matLedBanner} position={[5.8, 0.5, 0]}>
-              <boxGeometry args={[0.2, 1.0, 46]} />
-            </mesh>
-          </group>
-
-          <group position={[17.5, 0, 0]}>
-            {[0, 1, 2, 3, 4, 5].map(r => (
-              <mesh key={`east-tier-${r}`} castShadow receiveShadow material={matStandConcrete} position={[(r * 1.6), r * 0.85 + 0.42, 0]}>
-                <boxGeometry args={[2.0, 0.85, 46]} />
-              </mesh>
-            ))}
-            <mesh castShadow receiveShadow material={matLedBanner} position={[-5.8, 0.5, 0]}>
-              <boxGeometry args={[0.2, 1.0, 46]} />
-            </mesh>
-          </group>
-        </>
-      )}
-
-      {/* 2. Seated Spectators on Chairs */}
-      {showSpectators && (
-        <>
-          {westSpectators.map((spec, i) => (
-            <SeatedSpectator
-              key={`w-spec-${i}`}
-              x={spec.x}
-              y={spec.y}
-              z={spec.z}
-              facing="west"
-              shirtColor={spec.color}
-              chairColor="#0284c7"
-              ballPos={ballPos}
-              isCheering={isCheering}
-              cheerIntensity={cheerIntensity}
-              idx={i}
-              hasFlag={spec.hasFlag}
-            />
-          ))}
-
-          {eastSpectators.map((spec, i) => (
-            <SeatedSpectator
-              key={`e-spec-${i}`}
-              x={spec.x}
-              y={spec.y}
-              z={spec.z}
-              facing="east"
-              shirtColor={spec.color}
-              chairColor="#d97706"
-              ballPos={ballPos}
-              isCheering={isCheering}
-              cheerIntensity={cheerIntensity}
-              idx={i}
-              hasFlag={spec.hasFlag}
-            />
-          ))}
-        </>
-      )}
-    </group>
-  );
-}
-
-// --- 🏟️ HIGH-PRECISION 3D TENNIS COURT & STADIUM ARENA ---
-function TennisCourtArena({ surface = 'clay' }: { surface: CourtSurface }) {
-  const courtLength = 23.77;
-  const courtWidth = 10.97;
-  const singlesWidth = 8.23;
-  const serviceLineZ = 6.40;
-
-  const courtTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    if (surface === 'clay') {
-      ctx.fillStyle = '#b4461b';
-      ctx.fillRect(0, 0, 1024, 1024);
-      for (let i = 0; i < 40000; i++) {
-        const x = Math.random() * 1024;
-        const y = Math.random() * 1024;
-        const col = Math.random() > 0.5 ? 'rgba(140, 45, 15, 0.25)' : 'rgba(215, 95, 45, 0.22)';
-        ctx.fillStyle = col;
-        ctx.fillRect(x, y, Math.random() * 2 + 1, Math.random() * 2 + 1);
-      }
-    } else if (surface === 'grass') {
-      ctx.fillStyle = '#1e5e22';
-      ctx.fillRect(0, 0, 1024, 1024);
-      for (let y = 0; y < 1024; y += 64) {
-        ctx.fillStyle = (y / 64) % 2 === 0 ? 'rgba(30, 94, 34, 0.85)' : 'rgba(46, 125, 50, 0.85)';
-        ctx.fillRect(0, y, 1024, 64);
-      }
-      for (let i = 0; i < 30000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(76, 175, 80, 0.15)' : 'rgba(20, 60, 20, 0.15)';
-        ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 2, 2);
-      }
-    } else if (surface === 'hardcourt') {
-      ctx.fillStyle = '#1d4ed8';
-      ctx.fillRect(0, 0, 1024, 1024);
-      for (let i = 0; i < 20000; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(37, 99, 235, 0.2)' : 'rgba(29, 78, 216, 0.2)';
-        ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 3, 3);
-      }
-    } else {
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(0, 0, 1024, 1024);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-      ctx.lineWidth = 2;
-      for (let x = 0; x <= 1024; x += 64) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, 1024);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= 1024; y += 64) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(1024, y);
-        ctx.stroke();
-      }
-    }
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.ClampToEdgeWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    return tex;
-  }, [surface]);
-
-  const matLineWhite = useMemo(() => new THREE.MeshStandardMaterial({
-    color: surface === 'cyber' ? '#38bdf8' : '#ffffff',
-    emissive: surface === 'cyber' ? '#38bdf8' : '#000000',
-    emissiveIntensity: surface === 'cyber' ? 0.8 : 0,
-    roughness: 0.3,
-    metalness: 0.1
-  }), [surface]);
-
-  const matNetMesh = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x181c24,
-    roughness: 0.8,
-    metalness: 0.2,
-    transparent: true,
-    opacity: 0.65,
-    wireframe: true
-  }), []);
-
-  const matNetBand = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.4
-  }), []);
-
-  const matNetPost = useMemo(() => new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
-    metalness: 0.8,
-    roughness: 0.3
-  }), []);
-
-  const matSurround = useMemo(() => new THREE.MeshStandardMaterial({
-    color: surface === 'clay' ? '#853112' : surface === 'hardcourt' ? '#047857' : surface === 'grass' ? '#14532d' : '#040711',
-    roughness: 0.9,
-    metalness: 0.05
-  }), [surface]);
-
-  return (
-    <group position={[0, 0, 0]}>
-      <mesh receiveShadow position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[44, 70]} />
-        <primitive object={matSurround} attach="material" />
-      </mesh>
-
-      <mesh receiveShadow position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[courtWidth, courtLength]} />
-        {courtTexture && <meshStandardMaterial map={courtTexture} roughness={0.7} metalness={0.08} />}
-      </mesh>
-
-      <mesh receiveShadow material={matLineWhite} position={[0, 0.001, -courtLength / 2]}>
-        <boxGeometry args={[courtWidth, 0.004, 0.10]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[0, 0.001, courtLength / 2]}>
-        <boxGeometry args={[courtWidth, 0.004, 0.10]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[-courtWidth / 2, 0.001, 0]}>
-        <boxGeometry args={[0.05, 0.004, courtLength]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[courtWidth / 2, 0.001, 0]}>
-        <boxGeometry args={[0.05, 0.004, courtLength]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[-singlesWidth / 2, 0.001, 0]}>
-        <boxGeometry args={[0.05, 0.004, courtLength]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[singlesWidth / 2, 0.001, 0]}>
-        <boxGeometry args={[0.05, 0.004, courtLength]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[0, 0.001, -serviceLineZ]}>
-        <boxGeometry args={[singlesWidth, 0.004, 0.05]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[0, 0.001, serviceLineZ]}>
-        <boxGeometry args={[singlesWidth, 0.004, 0.05]} />
-      </mesh>
-      <mesh receiveShadow material={matLineWhite} position={[0, 0.001, 0]}>
-        <boxGeometry args={[0.05, 0.004, serviceLineZ * 2]} />
-      </mesh>
-
-      <group position={[0, 0, 0]}>
-        <mesh castShadow receiveShadow material={matNetPost} position={[-6.2, 0.535, 0]}>
-          <cylinderGeometry args={[0.065, 0.075, 1.07, 24]} />
-        </mesh>
-        <mesh castShadow receiveShadow material={matNetPost} position={[6.2, 0.535, 0]}>
-          <cylinderGeometry args={[0.065, 0.075, 1.07, 24]} />
-        </mesh>
-        <mesh castShadow receiveShadow material={matNetMesh} position={[0, 0.48, 0]}>
-          <boxGeometry args={[12.4, 0.94, 0.02]} />
-        </mesh>
-        <mesh castShadow receiveShadow material={matNetBand} position={[0, 0.95, 0]}>
-          <boxGeometry args={[12.4, 0.065, 0.04]} />
-        </mesh>
-        <mesh castShadow receiveShadow material={matNetBand} position={[0, 0.46, 0]}>
-          <boxGeometry args={[0.06, 0.92, 0.045]} />
-        </mesh>
-      </group>
-    </group>
-  );
+  rk4Trajectory?: TennisRK4Sample[];
 }
 
 // --- 🎾 MAIN CRANE TENNIS 3D SCENE ---
@@ -1182,7 +100,10 @@ function CraneTennisScene({
   manualSliceTrigger,
   manualNetErrorTrigger,
   manualOutErrorTrigger,
-  manualResetTrigger
+  manualResetTrigger,
+  showScoreboard3D = true,
+  onDirectorInfoChange,
+  onHawkEyeTrigger
 }: {
   courtSurface: CourtSurface;
   cameraMode: TennisCameraMode;
@@ -1194,6 +115,7 @@ function CraneTennisScene({
   showSpectators: boolean;
   showCourtsideStaff: boolean;
   showGrandstands: boolean;
+  showScoreboard3D?: boolean;
   manualVolleyTrigger?: number;
   manualSmashTrigger?: number;
   manualTopspinLobTrigger?: number;
@@ -1206,10 +128,13 @@ function CraneTennisScene({
   manualNetErrorTrigger?: number;
   manualOutErrorTrigger?: number;
   manualResetTrigger?: number;
+  onDirectorInfoChange?: (info: { cam: TennisCameraMode; label: string; reason: string }) => void;
+  onHawkEyeTrigger?: (data: HawkEyeData) => void;
 }) {
   const [crane1, setCrane1] = useState<Supertechno50FBXModel | null>(null);
   const [crane2, setCrane2] = useState<Supertechno50FBXModel | null>(null);
 
+  const outErrorDetailRef = useRef<{ cmOut: number; lineType: 'baseline' | 'sideline' | 'serviceline' } | null>(null);
   const showcaseTimerRef = useRef(4.8); // 4.8s Voll-Ausfahr- & Intro-Kamera-Sequenz
   const showcaseTypeRef = useRef<'intro' | 'gamewin'>('intro');
 
@@ -1217,6 +142,8 @@ function CraneTennisScene({
     if (manualResetTrigger && manualResetTrigger > 0) {
       showcaseTimerRef.current = 4.8;
       showcaseTypeRef.current = 'intro';
+      currentPointIndexRef.current = 1;
+      pointDirectorPlanRef.current = generatePointDirectorPlan(1, 1);
     }
   }, [manualResetTrigger]);
 
@@ -1242,8 +169,11 @@ function CraneTennisScene({
     headRoll: 0
   });
 
-  const crane1BaseZ = -15.2;
-  const crane2BaseZ = 15.2;
+  const p1IsSouthRef = useRef(true);
+  const sideChangeTimerRef = useRef(0);
+  const sideChangeTotalDurationRef = useRef(8.0);
+  const pendingSideChangeRef = useRef(false);
+  const pendingShowcaseRef = useRef(false);
 
   const dolly1GroupRef = useRef<THREE.Group>(null);
   const dolly2GroupRef = useRef<THREE.Group>(null);
@@ -1253,55 +183,73 @@ function CraneTennisScene({
   const racket1WorldQuat = useRef(new THREE.Quaternion());
   const racket2WorldQuat = useRef(new THREE.Quaternion());
 
+  // ⚡ ZERO-GC SCRATCH VECTORS FOR CAMERA & DIRECTOR (Agent 20)
+  const _camDesiredPos = useRef(new THREE.Vector3()).current;
+  const _camDesiredTarget = useRef(new THREE.Vector3()).current;
+
+  // 🎬 AGENT 20: TV BROADCAST AUTO-DIRECTOR STATE REFS
+  const pointDirectorPlanRef = useRef<PointDirectorPlan>(generatePointDirectorPlan(1, 1));
+  const currentPointIndexRef = useRef(1);
+  const directorCurrentCamRef = useRef<TennisCameraMode>('broadcast');
+  const lastRenderedCamRef = useRef<TennisCameraMode | null>(null);
+  const directorShotTimerRef = useRef(0);
+  const directorCutReasonRef = useRef('TV-Hauptkamera (Center Court)');
+
   const [ballVisualPos, setBallVisualPos] = useState(new THREE.Vector3(0, 2.2, -9.8));
-  const [impactBurst, setImpactBurst] = useState<{ pos: THREE.Vector3; time: number } | null>(null);
-  const [smashBurst, setSmashBurst] = useState<{ pos: THREE.Vector3; time: number } | null>(null);
+  const serveImpactPosRef = useRef(new THREE.Vector3());
 
   const shotRef = useRef<RallyShot>({
     shooter: 1,
-    startPos: new THREE.Vector3(-1.0, 2.3, -9.8),
-    targetPos: new THREE.Vector3(1.2, 2.2, 9.8),
-    bouncePos: new THREE.Vector3(0.5, 0.16, 6.8),
-    duration: 1.25,
-    progress: 0.0,
-    netHeight: 1.9,
-    shotType: '💥 VORHAND-CROSS SCHWENK',
+    startPos: new THREE.Vector3(0, 2.2, -9.8),
+    targetPos: new THREE.Vector3(0, 2.2, 9.8),
+    bouncePos: new THREE.Vector3(0, 0.105, 5.5),
+    duration: 1.4,
+    progress: 1.0,
+    netHeight: 1.6,
+    shotType: '🎾 START-AUFSCHLAG (VORHAND TOPSPIN)',
     strokeSide: 'forehand',
-    speedKmh: 178,
+    spinType: 'topspin',
+    rpm: 2800,
+    speedKmh: 148,
     hasBounced: false,
     isDecisive: false,
     isServe: false,
     servePhase: 0.0
   });
 
-  const getUmpireScoreCall = (p1: number, p2: number, g1: number, g2: number): string => {
+  const getUmpireScoreCall = (p1: number, p2: number, g1: number, g2: number, isTb?: boolean, tb1?: number, tb2?: number): string => {
+    if (isTb) {
+      return `Tiebreak: ${tb1 || 0} - ${tb2 || 0}`;
+    }
     const terms: Record<number, string> = { 0: 'Love', 15: '15', 30: '30', 40: '40' };
-    if (p1 === 45) return 'Advantage Kran 1!';
-    if (p2 === 45) return 'Advantage Kran 2!';
-    if (p1 === 40 && p2 === 40) return 'Deuce!';
+    if (p1 === 45) return 'Advantage Sinner!';
+    if (p2 === 45) return 'Advantage Alcaraz!';
+    if (p1 === 40 && p2 === 40) return 'Deuce (Einstand)!';
     if (p1 === p2 && p1 > 0) return `${terms[p1]}-All`;
     return `${terms[p1]} - ${terms[p2]} (${g1}:${g2})`;
   };
 
   const triggerGrandSlamServe = (server: 1 | 2, forceWinner?: boolean, serveAttempt: 1 | 2 = 1) => {
+    const receiver: 1 | 2 = server === 1 ? 2 : 1;
     const isSinner = server === 1;
-    const receiver = isSinner ? 2 : 1;
+    const isServerSouth = (server === 1 && p1IsSouthRef.current) || (server === 2 && !p1IsSouthRef.current);
+    const isReceiverSouth = !isServerSouth;
     const totalPoints = (matchScore.p1Points || 0) + (matchScore.p2Points || 0);
     const isDeuceCourt = totalPoints % 2 === 0; // Gerade Punktzahl ➜ Einstand/Deuce (Rechts), Ungerade ➜ Vorteil/Ad (Links)
 
     // Position hinter der Grundlinie
-    const serverZ = isSinner ? -13.8 : 13.8;
-    const serverX = isSinner 
+    const serverZ = isServerSouth ? -13.8 : 13.8;
+    const serverX = isServerSouth 
       ? (isDeuceCourt ? -2.2 : 2.2) 
       : (isDeuceCourt ? 2.2 : -2.2);
 
     // Diagonales Zielfeld (Aufschlagfeld des Gegners bei Z = ±6.2m)
-    const targetServiceZ = isSinner ? 6.2 : -6.2;
+    const targetServiceZ = isServerSouth ? 6.2 : -6.2;
     const servePlacement = Math.random();
     let targetX = 0;
     let targetDescription = '';
 
-    if (isSinner) {
+    if (isServerSouth) {
       if (isDeuceCourt) {
         // Von Süd-Rechts (-2.2) diagonal in Nord-Rechts (+0.35 bis +3.65)
         if (servePlacement < 0.45) { targetX = 0.40; targetDescription = 'T-LINIE (FLAT)'; }
@@ -1327,7 +275,54 @@ function CraneTennisScene({
       }
     }
 
-    const receiverTargetZ = isSinner ? 11.2 : -11.2;
+    const receiverTargetZ = isServerSouth ? 11.2 : -11.2;
+
+    const p1Points = matchScore.p1Points || 0;
+    const p2Points = matchScore.p2Points || 0;
+    const isBreakPoint = (p1Points === 45 || (p1Points === 40 && p2Points <= 30 && server === 2)) ||
+                         (p2Points === 45 || (p2Points === 40 && p1Points <= 30 && server === 1));
+    const isDeuce = p1Points === 40 && p2Points === 40;
+    const isTiebreak = !!matchScore.isTiebreak;
+
+    // 🎯 Dynamisch variierende Aufschlag-Konzentrationsdauer (Pre-Serve Concentration Duration)
+    let readyDuration = 3.2; // Sekunden Vorbereitung & Dribbeln
+    let bounceCount = 5;
+
+    if (isBreakPoint) {
+      // ⚡ Breakball-Spannung: Maximale Konzentration, langes Durchatmen (4.8s - 6.4s, 8-10 Bounces)
+      readyDuration = 4.8 + Math.random() * 1.6;
+      bounceCount = Math.round(8 + Math.random() * 2);
+    } else if (isDeuce || isTiebreak) {
+      // 💥 Big Point (Einstand / Tiebreak): 3.8s - 5.2s, 6-8 Bounces
+      readyDuration = 3.8 + Math.random() * 1.4;
+      bounceCount = Math.round(6 + Math.random() * 2);
+    } else if (serveAttempt === 2) {
+      // 🎯 2. Aufschlag nach Fehler: Bedächtige Ballprüfung (3.0s - 4.4s, 5-6 Bounces)
+      readyDuration = 3.0 + Math.random() * 1.4;
+      bounceCount = Math.round(5 + Math.random() * 2);
+    } else {
+      // 🎾 1. Aufschlag mit natürlicher, menschlicher Varianz:
+      const rhythmRoll = Math.random();
+      if (rhythmRoll < 0.28) {
+        // Zügiger Rhythmus (1.8s - 2.6s, 3-4 Bounces)
+        readyDuration = 1.8 + Math.random() * 0.8;
+        bounceCount = Math.round(3 + Math.random() * 1);
+      } else if (rhythmRoll < 0.75) {
+        // Standard Rhythmus (2.8s - 3.8s, 5-6 Bounces)
+        readyDuration = 2.8 + Math.random() * 1.0;
+        bounceCount = Math.round(5 + Math.random() * 1);
+      } else {
+        // Tiefer Fokus / Strings-Check (4.0s - 5.4s, 7-9 Bounces)
+        readyDuration = 4.0 + Math.random() * 1.4;
+        bounceCount = Math.round(7 + Math.random() * 2);
+      }
+    }
+
+    const tossDuration = 1.15 + Math.random() * 0.15; // 1.15s - 1.30s Ballwurf
+    const flightDuration = serveAttempt === 1 ? 1.70 : 1.85; // Ballflug nach Treffpunkt
+    const totalServeDuration = readyDuration + tossDuration + flightDuration;
+    const serveReadyFraction = readyDuration / totalServeDuration;
+    const serveTossFraction = (readyDuration + tossDuration) / totalServeDuration;
 
     if (serveAttempt === 1) {
       // --- 1. AUFSCHLAG (FIRST SERVICE) ---
@@ -1337,14 +332,17 @@ function CraneTennisScene({
 
       if (isFault) {
         const isNetFault = Math.random() < 0.55;
-        const faultBounceZ = isNetFault ? (receiver === 1 ? -0.5 : 0.5) : (receiver === 1 ? -7.8 : 7.8);
+        const serverSideSign = isReceiverSouth ? 1 : -1;
+        const faultBounceZ = isNetFault ? (serverSideSign * 0.45) : (isReceiverSouth ? -7.8 : 7.8);
+        const cmOut = Math.round(1.5 + Math.random() * 5.5);
+        outErrorDetailRef.current = isNetFault ? null : { cmOut, lineType: 'serviceline' };
         
         shotRef.current = {
           shooter: server,
-          startPos: new THREE.Vector3(serverX, 3.2, serverZ),
+          startPos: new THREE.Vector3(serverX, 1.4, serverZ),
           targetPos: new THREE.Vector3(targetX, isNetFault ? 0.85 : 0.2, faultBounceZ),
-          bouncePos: new THREE.Vector3(targetX * 0.8, 0.16, faultBounceZ),
-          duration: 2.85,
+          bouncePos: new THREE.Vector3(targetX * 0.8, 0.105, faultBounceZ),
+          duration: totalServeDuration,
           progress: 0.0,
           netHeight: isNetFault ? 0.92 : 1.5,
           shotType: isNetFault ? `⚠️ ${speed} km/h 1. AUFSCHLAG (INS NETZ - FAULT)` : `⚠️ ${speed} km/h 1. AUFSCHLAG (KNAPP IM AUS - FAULT)`,
@@ -1358,6 +356,11 @@ function CraneTennisScene({
           serveAttempt: 1,
           isFault: true,
           servePhase: 0.0,
+          serveReadyDuration: readyDuration,
+          serveTossDuration: tossDuration,
+          serveBounceCount: bounceCount,
+          serveReadyFraction,
+          serveTossFraction,
           endReason: 'FAULT',
           pointWinner: server
         };
@@ -1374,21 +377,21 @@ function CraneTennisScene({
       let endReason = '';
 
       if (isAce) {
-        shotType = isSinner ? `🚀 ${speed} km/h SINNER FLAT-BOMB (DIREKTES ASS)` : `⚡ ${speed} km/h ALCARAZ SLICE (DIREKTES ASS)`;
-        endReason = `ASS (${speed} km/h)`;
+        shotType = isSinner ? `⚡ DIREKTES ASS! (${speed} km/h SINNER BOMB)` : `⚡ DIREKTES ASS! (${speed} km/h ALCARAZ KICK)`;
+        endReason = `ACE (${speed} km/h)`;
       } else if (isServiceWinner) {
-        shotType = isSinner ? `🎯 ${speed} km/h SINNER SERVICE WINNER (${targetDescription})` : `🎯 ${speed} km/h ALCARAZ SERVICE WINNER (${targetDescription})`;
+        shotType = isSinner ? `🎯 232 km/h SINNER SERVICE WINNER (${targetDescription})` : `🎯 226 km/h ALCARAZ SERVICE WINNER (${targetDescription})`;
         endReason = `SERVICE WINNER (${speed} km/h)`;
       }
 
       shotRef.current = {
         shooter: server,
-        startPos: new THREE.Vector3(serverX, 3.2, serverZ),
-        targetPos: new THREE.Vector3(targetX, 1.8, receiverTargetZ),
-        bouncePos: new THREE.Vector3(targetX, 0.16, targetServiceZ),
-        duration: 2.75,
+        startPos: new THREE.Vector3(serverX, 1.4, serverZ),
+        targetPos: new THREE.Vector3(targetX, 2.1, receiverTargetZ),
+        bouncePos: new THREE.Vector3(targetX, 0.105, targetServiceZ),
+        duration: totalServeDuration,
         progress: 0.0,
-        netHeight: 1.45,
+        netHeight: 1.7,
         shotType,
         strokeSide: 'serve',
         spinType: isSinner ? 'flat' : 'kick',
@@ -1400,6 +403,11 @@ function CraneTennisScene({
         serveAttempt: 1,
         isFault: false,
         servePhase: 0.0,
+        serveReadyDuration: readyDuration,
+        serveTossDuration: tossDuration,
+        serveBounceCount: bounceCount,
+        serveReadyFraction,
+        serveTossFraction,
         endReason,
         pointWinner: server
       };
@@ -1409,16 +417,22 @@ function CraneTennisScene({
       const speed = isSinner ? Math.round(186 + Math.random() * 12) : Math.round(178 + Math.random() * 14);
 
       if (isDoubleFault) {
-        const doubleFaultZ = receiver === 1 ? -0.2 : 0.2;
+        const isNetFault = Math.random() < 0.60;
+        const serverSideSign = isReceiverSouth ? 1 : -1;
+        const doubleFaultZ = isNetFault ? (serverSideSign * 0.45) : (isReceiverSouth ? -7.6 : 7.6);
+        const cmOut = Math.round(1.2 + Math.random() * 4.8);
+        outErrorDetailRef.current = isNetFault ? null : { cmOut, lineType: 'serviceline' };
         shotRef.current = {
           shooter: server,
-          startPos: new THREE.Vector3(serverX, 3.2, serverZ),
-          targetPos: new THREE.Vector3(targetX, 0.75, doubleFaultZ),
-          bouncePos: new THREE.Vector3(targetX * 0.8, 0.16, doubleFaultZ),
-          duration: 2.85,
+          startPos: new THREE.Vector3(serverX, 1.4, serverZ),
+          targetPos: new THREE.Vector3(targetX, isNetFault ? 0.75 : 0.2, doubleFaultZ),
+          bouncePos: new THREE.Vector3(targetX * 0.8, 0.105, doubleFaultZ),
+          duration: totalServeDuration,
           progress: 0.0,
-          netHeight: 0.88,
-          shotType: `❌ 2. AUFSCHLAG DOPPELFEHLER (Punkt für ${receiver === 1 ? 'Sinner' : 'Alcaraz'})`,
+          netHeight: isNetFault ? 0.88 : 1.45,
+          shotType: isNetFault
+            ? `❌ 2. AUFSCHLAG DOPPELFEHLER (Ins Netz • Punkt für ${receiver === 1 ? 'Sinner' : 'Alcaraz'})`
+            : `❌ 2. AUFSCHLAG DOPPELFEHLER (${cmOut} cm im Aus • Punkt für ${receiver === 1 ? 'Sinner' : 'Alcaraz'})`,
           strokeSide: 'serve',
           spinType: 'kick',
           rpm: 2800,
@@ -1429,16 +443,21 @@ function CraneTennisScene({
           serveAttempt: 2,
           isFault: true,
           servePhase: 0.0,
+          serveReadyDuration: readyDuration,
+          serveTossDuration: tossDuration,
+          serveBounceCount: bounceCount,
+          serveReadyFraction,
+          serveTossFraction,
           endReason: 'DOUBLE FAULT',
           pointWinner: receiver
         };
       } else {
         shotRef.current = {
           shooter: server,
-          startPos: new THREE.Vector3(serverX, 3.2, serverZ),
+          startPos: new THREE.Vector3(serverX, 1.4, serverZ),
           targetPos: new THREE.Vector3(targetX, 2.1, receiverTargetZ),
-          bouncePos: new THREE.Vector3(targetX, 0.16, targetServiceZ),
-          duration: 2.75,
+          bouncePos: new THREE.Vector3(targetX, 0.105, targetServiceZ),
+          duration: totalServeDuration,
           progress: 0.0,
           netHeight: 1.65,
           shotType: isSinner ? `🎾 ${speed} km/h SINNER 2. AUFSCHLAG (TOPSPIN DRIVE)` : `🎾 ${speed} km/h ALCARAZ 2. AUFSCHLAG (3.400 RPM HEAVY KICK)`,
@@ -1452,6 +471,11 @@ function CraneTennisScene({
           serveAttempt: 2,
           isFault: false,
           servePhase: 0.0,
+          serveReadyDuration: readyDuration,
+          serveTossDuration: tossDuration,
+          serveBounceCount: bounceCount,
+          serveReadyFraction,
+          serveTossFraction,
           endReason: '',
           pointWinner: server
         };
@@ -1527,6 +551,15 @@ function CraneTennisScene({
     let isDecisive = currentRally >= 6 && Math.random() > 0.65;
     let pointWinner: 1 | 2 = fromHitter;
 
+    const createRallyShot = (s: RallyShot): RallyShot => {
+      s.rk4Trajectory = simulateTennisShotTrajectoryRK4(s, courtSurface, 100);
+      return s;
+    };
+
+    const isNextHitterSouth = (nextHitter === 1 && p1IsSouthRef.current) || (nextHitter === 2 && !p1IsSouthRef.current);
+    const nextHitterSideSign = isNextHitterSouth ? -1 : 1;
+    const fromHitterSideSign = isNextHitterSouth ? 1 : -1;
+
     // Realistische ATP-Fehlerquote: ca. 28% aller offenen Schläge in Rallyes resultieren in einem Fehler (Out oder Netz)
     const isErrorChance = !forceMode && !wantsDirectSmash && !wantsTopspinLob && !wantsSkyLob && !wantsNetVolley && currentRally >= 2 && Math.random() < 0.28;
 
@@ -1546,8 +579,9 @@ function CraneTennisScene({
       if (isDeepOut) {
         // Deep Out: Ball segelt über die Grundlinie (Z = 11.885m) hinaus
         cmOut = Math.round(2 + Math.random() * 12);
+        outErrorDetailRef.current = { cmOut, lineType: 'baseline' };
         const outDistM = cmOut / 100;
-        targetZ = nextHitter === 1 ? (-11.885 - outDistM - 0.4) : (11.885 + outDistM + 0.4);
+        targetZ = nextHitterSideSign * (11.885 + outDistM + 0.4);
         targetX = (Math.random() - 0.5) * 5.6;
         targetY = 0.9 + Math.random() * 0.4;
 
@@ -1565,10 +599,11 @@ function CraneTennisScene({
       } else {
         // Wide Out: Ball verzieht seitlich in den Korridor / ins Seitenaus (X = 4.115m)
         cmOut = Math.round(2 + Math.random() * 9);
+        outErrorDetailRef.current = { cmOut, lineType: 'sideline' };
         const isRight = Math.random() > 0.5;
         const outDistM = cmOut / 100;
         targetX = isRight ? (4.115 + outDistM + 0.3) : (-4.115 - outDistM - 0.3);
-        targetZ = nextHitter === 1 ? (-7.0 - Math.random() * 4.2) : (7.0 + Math.random() * 4.2);
+        targetZ = nextHitterSideSign * (7.0 + Math.random() * 4.2);
         targetY = 0.8 + Math.random() * 0.4;
 
         if (isSinner) {
@@ -1580,9 +615,9 @@ function CraneTennisScene({
         }
       }
 
-      const bouncePos = new THREE.Vector3(targetX, 0.16, targetZ * 0.96);
+      const bouncePos = new THREE.Vector3(targetX, 0.105, targetZ * 0.96);
 
-      return {
+      return createRallyShot({
         shooter: fromHitter,
         startPos: startPosition.clone(),
         targetPos: new THREE.Vector3(targetX, targetY, targetZ),
@@ -1602,15 +637,15 @@ function CraneTennisScene({
         isOutError: true,
         endReason,
         pointWinner
-      };
+      });
     } else if (forceMode === 'net_error' || (isErrorChance && Math.random() < 0.92)) {
       // 🕸️ NETZFEHLER (37% aller Fehler: Ball bleibt im Netz / an der Netzkante hängen)
       isNetError = true;
       isDecisive = true;
       pointWinner = nextHitter; // Punkt für den Gegner!
-      speed = Math.round(135 + Math.random() * 25);
-      targetZ = nextHitter === 1 ? -0.1 : 0.1;
-      targetY = 0.72 + Math.random() * 0.15;
+      speed = Math.round(128 + Math.random() * 20);
+      targetZ = fromHitterSideSign * 0.35; // Bleibt strikt auf der Seite des Schlägers an der Netzbasis
+      targetY = 0.88 + Math.random() * 0.12; // Netzkante / oberes Netzband (0.88m - 1.00m)
       targetX = (Math.random() - 0.5) * 3.5;
       
       if (isSinner) {
@@ -1625,12 +660,12 @@ function CraneTennisScene({
         endReason = 'ALCARAZ NETZFEHLER (Unforced Error)';
       }
 
-      return {
+      return createRallyShot({
         shooter: fromHitter,
         startPos: startPosition.clone(),
-        targetPos: new THREE.Vector3(targetX, targetY, targetZ),
-        bouncePos: new THREE.Vector3(targetX, 0.16, targetZ),
-        duration: 0.95,
+        targetPos: new THREE.Vector3(targetX, 0.065, targetZ),
+        bouncePos: new THREE.Vector3(targetX, 0.065, targetZ),
+        duration: 1.35,
         progress: 0.0,
         netHeight: targetY,
         shotType: chosenType,
@@ -1645,24 +680,24 @@ function CraneTennisScene({
         isNetError: true,
         endReason,
         pointWinner
-      };
+      });
     } else if (!forceMode && currentRally >= 4 && Math.random() < 0.05) {
       // 💫 NETZROLLER DRAMA (5% aller Fehler/Glücksbälle: Ball touchiert das Netzkabel)
       isNetCord = true;
       isDecisive = true;
       pointWinner = fromHitter;
       speed = 118;
-      targetZ = nextHitter === 1 ? (-2.4 - Math.random() * 1.4) : (2.4 + Math.random() * 1.4);
+      targetZ = nextHitterSideSign * (2.4 + Math.random() * 1.4);
       targetX = (Math.random() - 0.5) * 3.5;
       targetY = 0.4;
       chosenType = '💫 NETZROLLER! (Ball touchiert das Netzkabel und tropft unerreichbar ins Feld)';
       endReason = 'NETZROLLER WINNER (Net Cord)';
 
-      return {
+      return createRallyShot({
         shooter: fromHitter,
         startPos: startPosition.clone(),
         targetPos: new THREE.Vector3(targetX, targetY, targetZ),
-        bouncePos: new THREE.Vector3(targetX, 0.16, targetZ),
+        bouncePos: new THREE.Vector3(targetX, 0.105, targetZ),
         duration: 1.45,
         progress: 0.0,
         netHeight: 1.05,
@@ -1678,7 +713,7 @@ function CraneTennisScene({
         isNetCord: true,
         endReason,
         pointWinner
-      };
+      });
     } else if (wantsTopspinLob) {
       // 🌈 10.5m TOPSPIN-LOB WINNER
       isLob = true;
@@ -1690,10 +725,10 @@ function CraneTennisScene({
       rpm = isAlcaraz ? 3250 : 2600;
       
       targetX = (Math.random() - 0.5) * 4.6;
-      targetZ = nextHitter === 1 ? (-12.8 - Math.random() * 1.4) : (12.8 + Math.random() * 1.4);
+      targetZ = nextHitterSideSign * (12.8 + Math.random() * 1.4);
       targetY = 1.1;
-      const bounceZ = nextHitter === 1 ? -11.4 : 11.4;
-      const bouncePosition = new THREE.Vector3(targetX, 0.16, bounceZ);
+      const bounceZ = nextHitterSideSign * 11.4;
+      const bouncePosition = new THREE.Vector3(targetX, 0.105, bounceZ);
 
       if (isSinner) {
         chosenType = '🌈 10.5m SINNER TOPSPIN-LOB WINNER (Millimetergenau auf die Grundlinie)';
@@ -1703,7 +738,7 @@ function CraneTennisScene({
         endReason = 'ALCARAZ LOB WINNER';
       }
 
-      return {
+      return createRallyShot({
         shooter: fromHitter,
         startPos: startPosition.clone(),
         targetPos: new THREE.Vector3(targetX, targetY, targetZ),
@@ -1724,7 +759,7 @@ function CraneTennisScene({
         lobKind: 'topspin_winner',
         endReason,
         pointWinner
-      };
+      });
     } else if (wantsSkyLob) {
       // 🛡️ 11.2m HOHE DEFENSIVE SKY-NOTKERZE
       isLob = true;
@@ -1733,11 +768,11 @@ function CraneTennisScene({
       speed = 110;
       spinType = 'slice';
       rpm = 1800;
-      targetZ = nextHitter === 1 ? -6.5 : 6.5;
+      targetZ = nextHitterSideSign * 6.5;
       targetY = 2.9;
-      const bouncePosition = new THREE.Vector3(targetX * 0.5, 0.16, targetZ);
+      const bouncePosition = new THREE.Vector3(targetX * 0.5, 0.105, targetZ);
 
-      return {
+      return createRallyShot({
         shooter: fromHitter,
         startPos: startPosition.clone(),
         targetPos: new THREE.Vector3(targetX, targetY, targetZ),
@@ -1759,7 +794,7 @@ function CraneTennisScene({
         lobKind: 'sky_moonball',
         endReason: '',
         pointWinner
-      };
+      });
     } else if (wantsDirectSmash) {
       // 🔥 MONSTER-SMASH
       isSmash = true;
@@ -1767,14 +802,14 @@ function CraneTennisScene({
       spinType = 'flat';
       rpm = 2200;
       
-      const isSmashWinner = forceMode === 'smash' ? (Math.random() < 0.60) : (Math.random() < 0.40);
+      const isSmashWinner = forceMode === 'smash' ? (Math.random() < 0.70) : (Math.random() < 0.50);
       isDecisive = isSmashWinner;
       pointWinner = fromHitter;
 
-      const frontCourtZ = nextHitter === 1 ? (-2.8 - Math.random() * 2.2) : (2.8 + Math.random() * 2.2);
+      const frontCourtZ = nextHitterSideSign * (2.5 + Math.random() * 1.8);
 
       if (isSmashWinner) {
-        const grandstandZ = nextHitter === 1 ? -17.8 : 17.8;
+        const grandstandZ = nextHitterSideSign * 18.5;
         if (isAlcaraz) {
           chosenType = '🔥 248 km/h CARLITOS MONSTER-SMASH WINNER (Rebound über die Stadionwand)';
           endReason = `ALCARAZ SMASH (${speed} km/h)`;
@@ -1784,12 +819,12 @@ function CraneTennisScene({
         }
 
         targetX = (Math.random() - 0.5) * 5.2;
-        targetY = 5.2;
+        targetY = 6.5;
         targetZ = grandstandZ;
       } else {
         // 🛡️ SMASH WIRD AN DER GRUNDLINIE ERWISCHT
-        const returnZ = nextHitter === 1 ? (-11.2 - Math.random() * 2.2) : (11.2 + Math.random() * 2.2);
-        chosenType = nextHitter === 1 ? '🔥 242 km/h SCHMETTERBALL ➜ 🛡️ SINNER REFLEX-DIG AN DER GRUNDLINIE!' : '🔥 242 km/h SCHMETTERBALL ➜ 🛡️ ALCARAZ HECHTSPRUNG-RETURN!';
+        const returnZ = nextHitterSideSign * (11.2 + Math.random() * 2.2);
+        chosenType = isNextHitterSouth ? '🔥 242 km/h SCHMETTERBALL ➜ 🛡️ SINNER REFLEX-DIG AN DER GRUNDLINIE!' : '🔥 242 km/h SCHMETTERBALL ➜ 🛡️ ALCARAZ HECHTSPRUNG-RETURN!';
         endReason = '';
 
         targetX = (Math.random() - 0.5) * 4.6;
@@ -1797,16 +832,21 @@ function CraneTennisScene({
         targetZ = returnZ;
       }
 
-      const bouncePosition = new THREE.Vector3(targetX * 0.75, 0.16, frontCourtZ);
+      const bouncePosition = new THREE.Vector3(targetX * 0.65, 0.065, frontCourtZ);
 
-      return {
+      // Smash-Treffpunkt liegt oben am Apex über dem Hitter im Halbfeld
+      const smashStartPos = startPosition.clone();
+      smashStartPos.y = 4.95;
+      smashStartPos.z = fromHitterSideSign * 4.5;
+
+      return createRallyShot({
         shooter: fromHitter,
-        startPos: startPosition.clone(),
+        startPos: smashStartPos,
         targetPos: new THREE.Vector3(targetX, targetY, targetZ),
         bouncePos: bouncePosition,
-        duration: isSmashWinner ? 0.68 : 0.88,
+        duration: isSmashWinner ? 1.15 : 1.35,
         progress: 0.0,
-        netHeight: 1.2,
+        netHeight: 1.8,
         shotType: chosenType,
         strokeSide,
         spinType,
@@ -1819,19 +859,19 @@ function CraneTennisScene({
         isSmash: true,
         endReason,
         pointWinner
-      };
+      });
     } else if (wantsDropShot) {
       // 💫 DISGUISED STOPPBALL (DROP SHOT) - ALCARAZ SIGNATURE WEAPON
       isDropShot = true;
       speed = Math.round(88 + Math.random() * 20);
       spinType = 'dropshot';
       rpm = isAlcaraz ? 2600 : 2100;
-      targetZ = nextHitter === 1 ? (-2.2 - Math.random() * 1.4) : (2.2 + Math.random() * 1.4);
+      targetZ = nextHitterSideSign * (2.2 + Math.random() * 1.4);
       targetY = 1.1;
       targetX = (Math.random() - 0.5) * 4.4;
 
-      const dropBounceZ = nextHitter === 1 ? (-1.8 - Math.random() * 0.8) : (1.8 + Math.random() * 0.8);
-      const dropBouncePos = new THREE.Vector3(targetX, 0.16, dropBounceZ);
+      const dropBounceZ = nextHitterSideSign * (1.8 + Math.random() * 0.8);
+      const dropBouncePos = new THREE.Vector3(targetX, 0.105, dropBounceZ);
 
       if (isAlcaraz) {
         chosenType = `💫 ${speed} km/h ALCARAZ DISGUISED STOPPBALL (2.600 RPM Backspin • Signature Move 👑)`;
@@ -1841,7 +881,7 @@ function CraneTennisScene({
         endReason = 'SINNER DROP-SHOT WINNER';
       }
 
-      return {
+      return createRallyShot({
         shooter: fromHitter,
         startPos: startPosition.clone(),
         targetPos: new THREE.Vector3(targetX, targetY, targetZ),
@@ -1864,12 +904,12 @@ function CraneTennisScene({
         isNetCord,
         endReason,
         pointWinner
-      };
+      });
     } else if (wantsNetVolley) {
       // 🎾 RECEIVER RÜCKT WEIT VOR ANS NETZ
       isVolley = true;
       isNetRush = true;
-      targetZ = nextHitter === 1 ? (-1.8 - Math.random() * 2.0) : (1.8 + Math.random() * 2.0);
+      targetZ = nextHitterSideSign * (1.8 + Math.random() * 2.0);
 
       if (forceMode === 'volley') {
         volleyKind = 'drive';
@@ -1935,11 +975,11 @@ function CraneTennisScene({
         targetY = 1.3 + Math.random() * 0.4;
         targetX = (Math.random() - 0.5) * 4.2;
       } else {
-        targetZ = nextHitter === 1 ? -10.2 : 10.2;
+        targetZ = nextHitterSideSign * 10.2;
         targetY = 1.6 + Math.random() * 0.8;
       }
     } else {
-      targetZ = nextHitter === 1 ? -9.8 : 9.8;
+      targetZ = nextHitterSideSign * 9.8;
       targetY = 1.7 + Math.random() * 0.9;
     }
 
@@ -2045,11 +1085,11 @@ function CraneTennisScene({
     const duration = isNetError ? 0.95 : isNetCord ? 1.45 : (isVolley ? 0.92 : (isFast ? 1.02 : (spinType === 'slice' ? 1.35 : 1.25)));
     const netHeight = isNetError ? (0.75 + Math.random() * 0.14) : isNetCord ? 1.05 : (isVolley ? (1.30 + Math.random() * 0.35) : (spinType === 'slice' ? 1.25 : (spinType === 'topspin' ? 1.95 : 1.65)));
 
-    const bounceZ = nextHitter === 1 ? (-5.5 - Math.random() * 3.0) : (5.5 + Math.random() * 3.0);
+    const bounceZ = nextHitterSideSign * (5.5 + Math.random() * 3.0);
     const bounceX = THREE.MathUtils.lerp(startPosition.x, targetX, 0.70);
-    const bouncePosition = new THREE.Vector3(bounceX, 0.16, bounceZ);
+    const bouncePosition = new THREE.Vector3(bounceX, 0.105, bounceZ);
 
-    return {
+    return createRallyShot({
       shooter: fromHitter,
       startPos: startPosition.clone(),
       targetPos: new THREE.Vector3(targetX, targetY, targetZ),
@@ -2079,7 +1119,7 @@ function CraneTennisScene({
       isNetCord,
       endReason,
       pointWinner
-    };
+    });
   };
 
   const lastVolleyTrigger = useRef(manualVolleyTrigger || 0);
@@ -2094,7 +1134,39 @@ function CraneTennisScene({
   const lastNetErrorTrigger = useRef(manualNetErrorTrigger || 0);
   const lastOutErrorTrigger = useRef(manualOutErrorTrigger || 0);
   const celebrationTimerRef = useRef(0);
+  const celebrationTotalDurationRef = useRef(2.6);
+  const celebrationIsGameWinRef = useRef(false);
   const celebrationWinnerRef = useRef<1 | 2 | null>(null);
+  const p1PsychRef = useRef<PlayerLivePsychology>({
+    momentum: 0.2,
+    frustration: 0.1,
+    stamina: 1.0,
+    consecutiveWinners: 0,
+    consecutiveErrors: 0,
+    currentEmotion: 'idle_ready'
+  });
+  const p2PsychRef = useRef<PlayerLivePsychology>({
+    momentum: 0.2,
+    frustration: 0.1,
+    stamina: 1.0,
+    consecutiveWinners: 0,
+    consecutiveErrors: 0,
+    currentEmotion: 'idle_ready'
+  });
+  const p1ActiveEmotionRef = useRef<PlayerEmotionalState>('idle_ready');
+  const p2ActiveEmotionRef = useRef<PlayerEmotionalState>('idle_ready');
+  const p1TimingRef = useRef<PlayerEmotionTiming>({ delay: 0.25, duration: 2.8 });
+  const p2TimingRef = useRef<PlayerEmotionTiming>({ delay: 0.50, duration: 2.4 });
+  const nextServeConfigRef = useRef<{ server: 1 | 2; attempt: 1 | 2 } | null>(null);
+  const ballCoastRef = useRef<{
+    active: boolean;
+    pos: THREE.Vector3;
+    vel: THREE.Vector3;
+    spinType?: TennisSpinType;
+    rpm?: number;
+  } | null>(null);
+  const prevBallPosRef = useRef(new THREE.Vector3(0, 2.2, -9.8));
+  const ballVelocityRef = useRef(new THREE.Vector3(0, 0, 0));
 
   useEffect(() => {
     if (manualVolleyTrigger && manualVolleyTrigger !== lastVolleyTrigger.current) {
@@ -2247,18 +1319,248 @@ function CraneTennisScene({
     };
   }, []);
 
-  useFrame(({ camera, clock }, delta) => {
+  useFrame(({ camera }, delta) => {
     const playFactor = isAIvsAI ? 1.0 : 0.0;
     const dt = Math.min(0.05, delta) * gameSpeed * playFactor;
     const shot = shotRef.current;
-    const time = clock.elapsedTime;
 
     const kin1 = kin1Ref.current;
     const kin2 = kin2Ref.current;
 
+    // 🎾 UNIFIED CONTINUOUS BALL PHYSICS (LÄUFT IMMER FLÜSSIG WEITER, WENN EIN BALLWECHSEL BEENDET IST)
+    const updateBallCoastingPhysics = (deltaTime: number) => {
+      const bc = ballCoastRef.current;
+      if (!bc || !bc.active) return;
+
+      // 1. Aerodynamik & Schwerkraft
+      bc.vel.y -= 9.81 * deltaTime;
+      const speed = bc.vel.length();
+      if (speed > 0.05) {
+        // Luftwiderstand nach ITF-Parametern
+        const dragFactor = Math.max(0, 1.0 - (0.008 + (speed / 100) * 0.012) * deltaTime);
+        bc.vel.multiplyScalar(dragFactor);
+      }
+      bc.pos.addScaledVector(bc.vel, deltaTime);
+
+      // 2. Bodenkollision & physikalischer Stoß / Rebound
+      if (bc.pos.y <= 0.102) {
+        bc.pos.y = 0.102;
+        if (Math.abs(bc.vel.y) > 0.30) {
+          // Elastischer Stoß mit Belagsreibung und Drall
+          const vRebound = calculateBallBounceReboundVelocity(bc.vel, courtSurface, bc.spinType, bc.rpm || 0);
+          bc.vel.copy(vRebound);
+        } else {
+          // Reines Rollen auf dem Boden mit Belagsreibung
+          bc.vel.y = 0;
+          const mu = SURFACE_FRICTION[courtSurface] ?? 0.40;
+          const rollFriction = Math.max(0, 1.0 - (1.4 + mu * 2.8) * deltaTime);
+          bc.vel.x *= rollFriction;
+          bc.vel.z *= rollFriction;
+        }
+      }
+
+      // 3. Netz-Kollision (Netz bei Z = 0, Höhe = 1.07m, Breite = ±6.4m)
+      if (Math.abs(bc.pos.z) < 0.20 && Math.abs(bc.pos.x) < 6.4 && bc.pos.y < 1.07) {
+        // Ball darf das Netz bei Y < 1.07m NIEMALS durchdringen!
+        const approachSide = Math.sign(bc.pos.z - bc.vel.z * deltaTime) || Math.sign(bc.pos.z) || 1;
+        bc.pos.z = approachSide * 0.20;
+        bc.vel.z = -Math.sign(approachSide) * Math.abs(bc.vel.z) * 0.20; // Reboundet immer strikt zurück auf die Anflugseite
+        bc.vel.x *= 0.5;
+        bc.vel.y = Math.max(0, bc.vel.y * 0.3);
+      }
+
+      // 4. Stadion-Banden & Rückwand-Abprall (Z = ±21.5m, X = ±10.5m)
+      if (Math.abs(bc.pos.z) > 21.5) {
+        bc.pos.z = Math.sign(bc.pos.z) * 21.5;
+        bc.vel.z = -bc.vel.z * 0.42;
+        bc.vel.y = Math.max(0.5, bc.vel.y * 0.6 + 1.2); // Banden-Kick
+      }
+      if (Math.abs(bc.pos.x) > 10.5) {
+        bc.pos.x = Math.sign(bc.pos.x) * 10.5;
+        bc.vel.x = -bc.vel.x * 0.42;
+        bc.vel.y = Math.max(0.5, bc.vel.y * 0.6 + 1.0);
+      }
+
+      // 5. Visualisierung kontinuierlich synchronisieren
+      setBallVisualPos(bc.pos.clone());
+    };
+
+    // --- 🔄 DYNAMISCHER SEITENWECHSEL (CHANGE OF ENDS: KRÄNE FAHREN MIT UNTERSCHIEDLICHEN GESCHWINDIGKEITEN & EMOTIONEN) ---
+    if (sideChangeTimerRef.current > 0) {
+      sideChangeTimerRef.current -= dt;
+      updateBallCoastingPhysics(dt);
+      const totalDur = sideChangeTotalDurationRef.current || 8.0;
+      const elapsed = Math.max(0, totalDur - sideChangeTimerRef.current);
+
+      const isP1CurrentlySouth = p1IsSouthRef.current;
+      const p1StartZ = isP1CurrentlySouth ? -15.2 : 15.2;
+      const p1EndZ = isP1CurrentlySouth ? 15.2 : -15.2;
+      const p2StartZ = isP1CurrentlySouth ? 15.2 : -15.2;
+      const p2EndZ = isP1CurrentlySouth ? -15.2 : 15.2;
+
+      // Bypass-Schienenbreite (X-Richtung): Kran 1 fährt auf Westseite (-8.6m), Kran 2 auf Ostseite (+8.6m)
+      const p1BypassX = -8.6;
+      const p2BypassX = 8.6;
+
+      // ⏱️ KRAN 1 (Jannik Sinner 🇮🇹 - Bedächtig, stoisch, gleichmäßiges Tempo, Schläger-Check)
+      // Sinner atmet erst 0.6s durch, fährt dann mit ruhigem, ökonomischem Tempo
+      const p1T = THREE.MathUtils.clamp((elapsed - 0.6) / Math.max(1.0, totalDur - 1.2), 0, 1);
+      let p1X = 0, p1Z = p1StartZ, p1RotY = isP1CurrentlySouth ? Math.PI : 0;
+
+      if (p1T < 0.22) {
+        // Phase 1 (Sinner): Ruhiges Ausscheren zur Westseite (-8.6m)
+        const subP = p1T / 0.22;
+        const smoothP = THREE.MathUtils.smoothstep(subP, 0, 1);
+        p1X = THREE.MathUtils.lerp(0, p1BypassX, smoothP);
+        p1Z = p1StartZ;
+        p1RotY = isP1CurrentlySouth ? Math.PI : 0;
+
+        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 3.0, dt * 3.0);
+        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.15, dt * 3.0);
+        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 14.0, dt * 3.0);
+        kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, isP1CurrentlySouth ? -20 : 20, dt * 3.0);
+        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -12.0, dt * 3.0); // Schaut konzentriert nach unten
+        kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 3.0);
+        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 3.0);
+      } else if (p1T < 0.78) {
+        // Phase 2 (Sinner): Gleichmäßige, stoische Fahrt an der Westtribüne / Spielerbank vorbei
+        const subP = (p1T - 0.22) / 0.56;
+        const smoothP = subP < 0.5 ? 2 * subP * subP : 1 - Math.pow(-2 * subP + 2, 2) / 2;
+        p1X = p1BypassX;
+        p1Z = THREE.MathUtils.lerp(p1StartZ, p1EndZ, smoothP);
+        p1RotY = isP1CurrentlySouth ? Math.PI : 0;
+
+        // Saiten-Inspektion & ruhiges Nicken bei Netzpassage (Z ≈ 0)
+        const nearNet = Math.sin(subP * Math.PI);
+        kin1.teleExtension = 3.0 + nearNet * 0.4;
+        kin1.boomTilt = 14.0 - nearNet * 2.0;
+        kin1.headTilt = -18.0 + Math.sin(subP * Math.PI * 4) * 4.0; // Akribischer Blick auf die Bespannung
+        kin1.headPan = nearNet * 22.0; // Blickkontakt rüber nach Ost zu Alcaraz & Chair Umpire
+        kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, 0, dt * 2.0);
+      } else {
+        // Phase 3 (Sinner): Einschwenken auf die neue Grundlinie & stoischer Ready-Stance
+        const subP = (p1T - 0.78) / 0.22;
+        const smoothP = THREE.MathUtils.smoothstep(subP, 0, 1);
+        p1X = THREE.MathUtils.lerp(p1BypassX, 0, smoothP);
+        p1Z = p1EndZ;
+
+        const targetRotP1 = isP1CurrentlySouth ? 0 : Math.PI;
+        p1RotY = THREE.MathUtils.lerp(isP1CurrentlySouth ? Math.PI : 0, targetRotP1, smoothP);
+
+        kin1.teleExtension = THREE.MathUtils.lerp(3.0, 4.2, smoothP);
+        kin1.columnElevation = THREE.MathUtils.lerp(2.15, 1.85, smoothP);
+        kin1.boomTilt = THREE.MathUtils.lerp(14.0, 8.0, smoothP);
+        kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, 0, dt * 4.0);
+        kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 4.0);
+        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 4.0);
+      }
+
+      // ⏱️ KRAN 2 (Carlos Alcaraz 🇪🇸 - Spritziger Antritt, Fan-Interaktion, schnelleres Parken & Racket-Twirl)
+      // Alcaraz startet sofort bei t=0.0s, sprintet los und parkt früher ein
+      const p2T = THREE.MathUtils.clamp(elapsed / Math.max(1.0, totalDur - 1.6), 0, 1);
+      let p2X = 0, p2Z = p2StartZ, p2RotY = isP1CurrentlySouth ? 0 : Math.PI;
+
+      if (p2T < 0.16) {
+        // Phase 1 (Alcaraz): Schnelles dynamisches Ausscheren zur Ostseite (+8.6m)
+        const subP = p2T / 0.16;
+        const smoothP = THREE.MathUtils.smoothstep(subP, 0, 1);
+        p2X = THREE.MathUtils.lerp(0, p2BypassX, smoothP);
+        p2Z = p2StartZ;
+        p2RotY = isP1CurrentlySouth ? 0 : Math.PI;
+
+        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 3.4, dt * 5.0);
+        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 2.25, dt * 5.0);
+        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 18.0, dt * 5.0);
+        kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, isP1CurrentlySouth ? 30 : -30, dt * 5.0);
+        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 14.0, dt * 5.0); // Schaut stolz hoch zur Fankurve
+        kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 40.0, dt * 5.0);
+      } else if (p2T < 0.72) {
+        // Phase 2 (Alcaraz): Energetische Fahrt zur Osttribüne mit Fan-Jubel & Schläger-Wippen
+        const subP = (p2T - 0.16) / 0.56;
+        // Dynamische S-Kurve: schnelles Anfahren, Verlangsamen am Netz für Fan-Jubel, schneller Schlussspurt
+        const smoothP = subP < 0.5 ? 4 * subP * subP * subP : 1 - Math.pow(-2 * subP + 2, 3) / 2;
+        p2X = p2BypassX;
+        p2Z = THREE.MathUtils.lerp(p2StartZ, p2EndZ, smoothP);
+        p2RotY = isP1CurrentlySouth ? 0 : Math.PI;
+
+        const fanWave = Math.sin(subP * Math.PI * 3);
+        const nearNet = Math.sin(subP * Math.PI);
+
+        kin2.teleExtension = 3.4 + nearNet * 0.8;
+        kin2.boomTilt = 18.0 + nearNet * 6.0; // Hebt den Ausleger stolz an
+        kin2.columnElevation = 2.25 + nearNet * 0.15;
+        kin2.headTilt = 12.0 + fanWave * 8.0; // Dynamisches Wippen
+        kin2.headPan = THREE.MathUtils.lerp(45.0, -35.0, nearNet); // Schwenkt von der Tribüne kurz rüber zu Sinner
+        kin2.headRoll = Math.sin(subP * Math.PI * 6) * 15.0; // Verspieltes Schläger-Kippen
+      } else {
+        // Phase 3 (Alcaraz): Flinkes Einschwenken auf die neue Grundlinie mit 360° Racket-Twirl
+        const subP = (p2T - 0.72) / 0.28;
+        const smoothP = THREE.MathUtils.smoothstep(subP, 0, 1);
+        p2X = THREE.MathUtils.lerp(p2BypassX, 0, smoothP);
+        p2Z = p2EndZ;
+
+        const targetRotP2 = isP1CurrentlySouth ? Math.PI : 0;
+        p2RotY = THREE.MathUtils.lerp(isP1CurrentlySouth ? 0 : Math.PI, targetRotP2, smoothP);
+
+        // Spektakulärer Racket-Twirl beim Einparken
+        const twirlAngle = (1.0 - smoothP) * 360.0;
+        kin2.teleExtension = THREE.MathUtils.lerp(3.4, 4.2, smoothP);
+        kin2.columnElevation = THREE.MathUtils.lerp(2.25, 1.85, smoothP);
+        kin2.boomTilt = THREE.MathUtils.lerp(18.0, 8.0, smoothP);
+        kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, 0, dt * 5.0);
+        kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 5.0);
+        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 5.0);
+        kin2.headRoll = twirlAngle;
+      }
+
+      // 🎥 DYNAMISCHE TV-BROADCAST SEITENWECHSEL-KAMERA (Schwenkt mit beiden Kränen mit)
+      if (orbitControlsRef.current) {
+        const controls = orbitControlsRef.current;
+        const globalP = Math.min(1.0, elapsed / totalDur);
+        const camX = THREE.MathUtils.lerp(-25, -19, Math.sin(globalP * Math.PI));
+        const camY = THREE.MathUtils.lerp(17, 11, Math.sin(globalP * Math.PI));
+        const camZ = THREE.MathUtils.lerp(p1StartZ * 0.45, p1EndZ * 0.45, globalP);
+        camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.08);
+        controls.target.lerp(new THREE.Vector3(0, 2.0, 0), 0.08);
+        controls.update();
+      }
+
+      // Position und Rotation der Dolly-Gruppen setzen
+      if (dolly1GroupRef.current) {
+        dolly1GroupRef.current.position.set(p1X, 0, p1Z);
+        dolly1GroupRef.current.rotation.set(0, p1RotY, 0);
+      }
+      if (dolly2GroupRef.current) {
+        dolly2GroupRef.current.position.set(p2X, 0, p2Z);
+        dolly2GroupRef.current.rotation.set(0, p2RotY, 0);
+      }
+
+      if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
+      if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
+
+      // Nach Abschluss des Seitenwechsels Seiten-Zustand umkehren!
+      if (sideChangeTimerRef.current <= 0) {
+        p1IsSouthRef.current = !p1IsSouthRef.current;
+        const nextServer = celebrationWinnerRef.current || 1;
+        celebrationWinnerRef.current = null;
+
+        // 🎬 AGENT 20: GENERATE DYNAMIC NON-REPETITIVE DIRECTOR PLAN FOR NEW GAME
+        currentPointIndexRef.current += 1;
+        pointDirectorPlanRef.current = generatePointDirectorPlan(
+          currentPointIndexRef.current,
+          nextServer,
+          pointDirectorPlanRef.current
+        );
+
+        triggerGrandSlamServe(nextServer);
+      }
+      return;
+    }
+
     // --- 🌟 FULL EXTENSION SHOWCASE & INTRODUCTORY CAMERA TOUR (MATCH START & AFTER EACH GAME) ---
     if (showcaseTimerRef.current > 0) {
       showcaseTimerRef.current -= dt;
+      updateBallCoastingPhysics(dt);
       const totalDuration = 4.8;
       const tElapsed = totalDuration - showcaseTimerRef.current;
       const progress = Math.min(1.0, Math.max(0.0, tElapsed / totalDuration));
@@ -2338,8 +1640,20 @@ function CraneTennisScene({
         controls.update();
       }
 
-      if (dolly1GroupRef.current) dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -15.2);
-      if (dolly2GroupRef.current) dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 15.2);
+      const isP1SouthShowcase = p1IsSouthRef.current;
+      const baseZ1Showcase = isP1SouthShowcase ? -15.2 : 15.2;
+      const rotY1Showcase = isP1SouthShowcase ? Math.PI : 0;
+      const baseZ2Showcase = isP1SouthShowcase ? 15.2 : -15.2;
+      const rotY2Showcase = isP1SouthShowcase ? 0 : Math.PI;
+
+      if (dolly1GroupRef.current) {
+        dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, baseZ1Showcase);
+        dolly1GroupRef.current.rotation.set(0, rotY1Showcase, 0);
+      }
+      if (dolly2GroupRef.current) {
+        dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, baseZ2Showcase);
+        dolly2GroupRef.current.rotation.set(0, rotY2Showcase, 0);
+      }
       if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
       if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
 
@@ -2350,56 +1664,93 @@ function CraneTennisScene({
       return;
     }
 
-    // --- 🏆 EMOTIONAL GESTURES & CELEBRATION BETWEEN POINTS ---
+    // --- ⚡ CALM TRANSITION & BALL COAST-OUT BETWEEN POINTS (REALISTIC SPACING & ZERO FREEZE) ---
     if (celebrationTimerRef.current > 0) {
       celebrationTimerRef.current -= dt;
-      const tElapsed = 2.4 - celebrationTimerRef.current;
-      const winner = celebrationWinnerRef.current;
+      updateBallCoastingPhysics(dt);
 
-      if (winner === 1) {
-        // 🇮🇹 JANNIK SINNER WINNER: "Ice-Cold Focused Nod & Steely Fist"
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, 0, dt * 4.0);
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.35, dt * 5.0);
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 18, dt * 6.0);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 3.8, dt * 4.0);
-        kin1.headTilt = Math.sin(tElapsed * 6.5) * 14.0; // Entschlossenes Nicken
-        kin1.headRoll = Math.sin(tElapsed * 4.0) * 10.0;
-        kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 5.0);
+      // Beide Kräne gleiten mit lebendigen Gesten und asynchronen Emotionen in die Grundlinien-Bereitschaftsstellung zurück (Agent 18: tennis_emotions)
+      const totalDur = celebrationTotalDurationRef.current || 3.2;
+      const elapsed = Math.max(0, totalDur - celebrationTimerRef.current);
+      const winner = celebrationWinnerRef.current || 1;
+      const isGameWin = celebrationIsGameWinRef.current;
 
-        // 🇪🇸 CARLOS ALCARAZ FRUSTRATION: "Kopfschütteln & Blick zum Himmel"
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.72, dt * 5.0);
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, -6, dt * 5.0);
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.2, dt * 4.0);
-        kin2.headPan = Math.sin(tElapsed * 7.5) * 26.0; // Ungläubiges Kopfschütteln
-        kin2.headTilt = 32 + Math.sin(tElapsed * 3.0) * 14.0; // Blick frustriert nach oben
-        kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, 0, dt * 5.0);
-      } else if (winner === 2) {
-        // 🇪🇸 CARLOS ALCARAZ WINNER: "Explosives Vamos-Faustballen & 360° Racket Twirl"
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, 0, dt * 5.0);
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 2.85, dt * 7.0);
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 34, dt * 7.0); // Ausleger reckt sich empor!
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.5, dt * 5.0);
-        kin2.headTilt = -24 + Math.sin(tElapsed * 14.0) * 22.0; // Kraftvolles Faust-Pumpen!
-        kin2.headRoll = Math.sin(tElapsed * 9.0) * 55.0; // Dynamischer Schläger-Twirl
-        kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 5.0);
+      const p1Progress = THREE.MathUtils.clamp((elapsed - p1TimingRef.current.delay) / Math.max(0.2, p1TimingRef.current.duration), 0, 1);
+      const p2Progress = THREE.MathUtils.clamp((elapsed - p2TimingRef.current.delay) / Math.max(0.2, p2TimingRef.current.duration), 0, 1);
 
-        // 🇮🇹 JANNIK SINNER FRUSTRATION: "Konzentriertes Frust-Kopfschütteln & Saiten-Zupfen"
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.78, dt * 5.0);
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, -4, dt * 5.0);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 4.0, dt * 4.0);
-        kin1.headPan = Math.sin(tElapsed * 6.0) * 22.0; // Kopfschütteln
-        kin1.headTilt = 28 + Math.sin(tElapsed * 3.0) * 10.0;
-        kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 0, dt * 5.0);
+      const p1Off = calculateEmotionKinematicOffsets(1, winner === 1, p1Progress, isGameWin, shotRef.current?.shotType, p1ActiveEmotionRef.current);
+      const p2Off = calculateEmotionKinematicOffsets(2, winner === 2, p2Progress, isGameWin, shotRef.current?.shotType, p2ActiveEmotionRef.current);
+
+      kin1.dollyTrack = THREE.MathUtils.clamp(kin1.dollyTrack + p1Off.deltaDolly * dt * 3.0, -7.5, 7.5);
+      kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.82 + p1Off.deltaColumn, dt * 4.0);
+      kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 8.0 + p1Off.deltaBoomTilt, dt * 4.0);
+      kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 4.2 + p1Off.deltaTele, dt * 4.0);
+      kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, p1Off.deltaBasePan, dt * 4.0);
+      kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, p1Off.deltaHeadTilt, dt * 6.0);
+      kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, p1Off.deltaHeadPan, dt * 6.0);
+      kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, p1Off.deltaHeadRoll + p1Off.racketSpinAngle * 57.3, dt * 8.0);
+
+      kin2.dollyTrack = THREE.MathUtils.clamp(kin2.dollyTrack + p2Off.deltaDolly * dt * 3.0, -7.5, 7.5);
+      kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.82 + p2Off.deltaColumn, dt * 4.0);
+      kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 8.0 + p2Off.deltaBoomTilt, dt * 4.0);
+      kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.2 + p2Off.deltaTele, dt * 4.0);
+      kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, p2Off.deltaBasePan, dt * 4.0);
+      kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, p2Off.deltaHeadTilt, dt * 6.0);
+      kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, p2Off.deltaHeadPan, dt * 6.0);
+      kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, p2Off.deltaHeadRoll + p2Off.racketSpinAngle * 57.3, dt * 8.0);
+
+      const baseZ1Celeb = p1IsSouthRef.current ? -15.2 : 15.2;
+      const baseZ2Celeb = p1IsSouthRef.current ? 15.2 : -15.2;
+      const rotY1Celeb = p1IsSouthRef.current ? Math.PI : 0;
+      const rotY2Celeb = p1IsSouthRef.current ? 0 : Math.PI;
+
+      if (dolly1GroupRef.current) {
+        dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, baseZ1Celeb);
+        dolly1GroupRef.current.rotation.set(0, rotY1Celeb, 0);
       }
-
-      if (celebrationTimerRef.current <= 0) {
-        const nextServer = celebrationWinnerRef.current || 1;
-        celebrationWinnerRef.current = null;
-        triggerGrandSlamServe(nextServer);
+      if (dolly2GroupRef.current) {
+        dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, baseZ2Celeb);
+        dolly2GroupRef.current.rotation.set(0, rotY2Celeb, 0);
       }
-
       if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
       if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
+
+      if (celebrationTimerRef.current <= 0) {
+        ballCoastRef.current = null;
+        kin1.headRoll = 0;
+        kin2.headRoll = 0;
+        kin1.basePan = 0;
+        kin2.basePan = 0;
+        kin1.headPan = 0;
+        kin2.headPan = 0;
+
+        if (pendingSideChangeRef.current) {
+          pendingSideChangeRef.current = false;
+          const sideChangeDur = 8.5 + Math.random() * 2.0;
+          sideChangeTimerRef.current = sideChangeDur;
+          sideChangeTotalDurationRef.current = sideChangeDur;
+          return;
+        }
+
+        if (pendingShowcaseRef.current) {
+          pendingShowcaseRef.current = false;
+          const showcaseDur = 6.0 + Math.random() * 1.8;
+          showcaseTimerRef.current = showcaseDur;
+          showcaseTypeRef.current = 'gamewin';
+          return;
+        }
+
+        if (nextServeConfigRef.current) {
+          const cfg = nextServeConfigRef.current;
+          nextServeConfigRef.current = null;
+          triggerGrandSlamServe(cfg.server, false, cfg.attempt);
+        } else {
+          const nextServer = celebrationWinnerRef.current || 1;
+          celebrationWinnerRef.current = null;
+          triggerGrandSlamServe(nextServer);
+        }
+      }
+
       return;
     }
 
@@ -2412,161 +1763,192 @@ function CraneTennisScene({
 
     if (shot.isServe) {
       const server = shot.shooter;
-      const dribbleEndTime = 0.28;
-      const tossEndTime = 0.50;
+      const isSinner = server === 1;
+      const readyEndTime = shot.serveReadyFraction ?? 0.44; // Dynamisch variierende Konzentrationsdauer (1.8s bis 6.2s)
+      const tossEndTime = shot.serveTossFraction ?? 0.68;  // Ballwurf in Trophy Pose (ca. 1.2s)
+      const bounceCount = shot.serveBounceCount ?? (isSinner ? 5 : 6);
+      const serverRacketPos = (server === 1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
+      const kinServer = server === 1 ? kin1 : kin2;
+      const kinReceiver = server === 1 ? kin2 : kin1;
+      const rollDir = server === 1 ? 1 : -1;
+      const isP1South = p1IsSouthRef.current;
+      const serverZSign = (server === 1 && isP1South) || (server === 2 && !isP1South) ? -1 : 1;
 
-      if (p < dribbleEndTime) {
-        // 🏀 Phase 1: Dribbel-Vorbereitungsphase an der Grundlinie (3 rhythmische Bounces mit abklingender Höhe)
-        const dribbleT = p / dribbleEndTime;
-        const numBounces = 3;
-        const cycle = (dribbleT * numBounces) % 1.0;
-        const bounceHeight = Math.abs(Math.sin(cycle * Math.PI)) * (0.65 - dribbleT * 0.18);
-        currentX = shot.startPos.x;
-        currentZ = shot.startPos.z + (server === 1 ? 0.45 : -0.45);
-        currentY = 0.16 + bounceHeight;
+      // Dolly bleibt stabil an der Grundlinie
+      kinServer.dollyTrack = THREE.MathUtils.lerp(kinServer.dollyTrack, shot.startPos.x, dt * 6.0);
+      // Kranarm bleibt während des gesamten Aufschlags absolut eingefahren!
+      kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 0.0, dt * 10.0);
 
-        if (server === 1) {
-          // Server Sinner (South)
-          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, shot.startPos.x, dt * 7.0);
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.85 + Math.sin(cycle * Math.PI) * 0.05, dt * 8.0);
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 12, dt * 6.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 4.8, dt * 6.0);
-          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 6.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -26 + Math.abs(Math.sin(cycle * Math.PI)) * 16, dt * 14.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 8, dt * 6.0);
+      if (p < readyEndTime) {
+        // 🎾 Phase 1: Ball bekommen, Konzentration & echtes physikalisches Ball-Dribbeln an der Grundlinie
+        const dribbleProgress = p / readyEndTime;
+        const dribbleAngle = dribbleProgress * bounceCount * Math.PI * 2;
+        const bounceParabola = Math.abs(Math.sin(dribbleAngle));
 
-          // Receiver Alcaraz (North): Split-Step Bouncing & Tension
-          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, shot.targetPos.x * 0.75 + Math.sin(time * 14.0) * 0.18, dt * 8.0);
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.82 + Math.abs(Math.sin(time * 10.0)) * 0.04, dt * 6.0);
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 8, dt * 6.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.2, dt * 6.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -10, dt * 6.0);
-          kin2.headRoll = Math.sin(time * 16.0) * 12.0;
-        } else {
-          // Server Alcaraz (North)
-          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, shot.startPos.x, dt * 7.0);
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.85 + Math.sin(cycle * Math.PI) * 0.05, dt * 8.0);
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 12, dt * 6.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 4.8, dt * 6.0);
-          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 6.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -26 + Math.abs(Math.sin(cycle * Math.PI)) * 16, dt * 14.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -8, dt * 6.0);
+        currentX = shot.startPos.x + (isSinner ? -0.28 : 0.28);
+        currentZ = shot.startPos.z + serverZSign * 0.85;
+        currentY = 0.065 + bounceParabola * 0.72; // Ball dotzt dynamisch bis auf 78cm Höhe
 
-          // Receiver Sinner (South): Split-Step Bouncing & Tension
-          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, shot.targetPos.x * 0.75 + Math.sin(time * 14.0) * 0.18, dt * 8.0);
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.82 + Math.abs(Math.sin(time * 10.0)) * 0.04, dt * 6.0);
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 8, dt * 6.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.2, dt * 6.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -10, dt * 6.0);
-          kin1.headRoll = Math.sin(time * 16.0) * 12.0;
-        }
+        // 🎾 Der Schläger bleibt während der gesamten Konzentrationsphase absolut ruhig, waagerecht und stabil (kein Wackeln!)
+        kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 1.72, dt * 6.0);
+        kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 8.0, dt * 6.0);
+        kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, 6.0, dt * 6.0);
+        kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, 0.0, dt * 6.0);
+        kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, 0.0, dt * 6.0);
+
+        serveImpactPosRef.current.copy(serverRacketPos);
+
+        // Receiver: Ruhiger, stabiler Ready-Stance
+        kinReceiver.dollyTrack = THREE.MathUtils.lerp(kinReceiver.dollyTrack, shot.targetPos.x * 0.75, dt * 6.0);
+        kinReceiver.columnElevation = THREE.MathUtils.lerp(kinReceiver.columnElevation, 1.82, dt * 6.0);
+        kinReceiver.boomTilt = THREE.MathUtils.lerp(kinReceiver.boomTilt, 8.0, dt * 6.0);
+        kinReceiver.teleExtension = THREE.MathUtils.lerp(kinReceiver.teleExtension, 4.5, dt * 6.0);
+        kinReceiver.headTilt = THREE.MathUtils.lerp(kinReceiver.headTilt, -8.0, dt * 6.0);
+        kinReceiver.headRoll = THREE.MathUtils.lerp(kinReceiver.headRoll, 0.0, dt * 6.0);
       } else if (p < tossEndTime) {
-        // 🚀 Phase 2: Parabolischer Ballaufwurf (Toss) bis auf 6.0m Höhe & Trophy Pose (Loading Phase)
-        const tossT = (p - dribbleEndTime) / (tossEndTime - dribbleEndTime);
-        const tossHeight = Math.sin(tossT * Math.PI) * 4.2;
-        // Ball driftet um 0.60m nach vorne ins Feld (optimale Treffpunkt-Koordinate)
-        const forwardDrift = (server === 1 ? 0.60 : -0.60) * Math.sin(tossT * (Math.PI / 2));
-        currentX = shot.startPos.x;
-        currentZ = shot.startPos.z + forwardDrift;
-        currentY = 1.8 + tossHeight;
+        // 🚀 Phase 2: Präziser, flüssiger Aufwurf direkt in den Sweet Spot des Schlägers (Trophy Stance)
+        const tossT = (p - readyEndTime) / (tossEndTime - readyEndTime);
+        const smoothToss = THREE.MathUtils.smoothstep(tossT, 0, 1);
+        const tossArc = Math.sin(smoothToss * Math.PI); // Parabelbogen
 
-        if (server === 1) {
-          // Sinner Trophy Pose & Racket Drop
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.75, dt * 9.0);
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 32, dt * 9.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 7.8, dt * 9.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 38, dt * 10.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 42, dt * 10.0);
-          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, -12, dt * 8.0);
-        } else {
-          // Alcaraz Trophy Pose & Racket Drop
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 2.75, dt * 9.0);
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 32, dt * 9.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 7.8, dt * 9.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 38, dt * 10.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -42, dt * 10.0);
-          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 12, dt * 8.0);
-        }
+        // Kran steigt synchron in die Trophy Pose
+        kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 2.50, dt * 9.0);
+        kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 24.0, dt * 9.0);
+        kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, 52.0, dt * 9.0);
+        kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, 32.0 * rollDir, dt * 9.0);
+        kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, -4.0 * rollDir, dt * 8.0);
+
+        // Ball steigt aus der Hand direkt in den Schläger-Sweet-Spot auf
+        currentX = THREE.MathUtils.lerp(shot.startPos.x, serverRacketPos.x, smoothToss);
+        currentZ = THREE.MathUtils.lerp(shot.startPos.z + serverZSign * 0.60, serverRacketPos.z, smoothToss);
+        currentY = THREE.MathUtils.lerp(1.75, serverRacketPos.y, smoothToss) + tossArc * 0.40;
+
+        // Kontinuierliche Speicherung des exakten Treffpunkts
+        serveImpactPosRef.current.copy(serverRacketPos);
       } else {
-        // ⚡ Phase 3: Explosiver Ballschlag & Flugkurve über das Netz ins gegnerische Feld
+        // ⚡ Phase 3: Treffpunkt & butterweicher, harmonischer Ausschwung
         const flightT = (p - tossEndTime) / (1.0 - tossEndTime);
-        currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x, flightT);
-        currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.targetPos.z, flightT);
+        const impactPos = serveImpactPosRef.current; // Exakter 3D-Treffpunkt am Sweet Spot
 
-        const serveBounceT = shot.isFault ? 0.85 : 0.65;
+        const serveBounceT = shot.isFault ? 0.82 : 0.60;
         if (flightT < serveBounceT) {
           const t = flightT / serveBounceT;
-          const apexY = 6.0;
-          currentY = THREE.MathUtils.lerp(apexY, shot.bouncePos.y, t * t);
+          currentX = THREE.MathUtils.lerp(impactPos.x, shot.bouncePos.x, t);
+          currentZ = THREE.MathUtils.lerp(impactPos.z, shot.bouncePos.z, t);
+          currentY = THREE.MathUtils.lerp(impactPos.y, 0.065, t * t);
         } else {
           const t = (flightT - serveBounceT) / (1.0 - serveBounceT);
-          const reboundArc = Math.sin(t * (Math.PI / 2));
-          currentY = THREE.MathUtils.lerp(shot.bouncePos.y, shot.targetPos.y, reboundArc);
+          // Reibungs-Verzögerung nach dem Aufprall (verliert 35-40% Tempo)
+          const tDecel = Math.sin(t * (Math.PI / 2));
+          currentX = THREE.MathUtils.lerp(shot.bouncePos.x, shot.targetPos.x, tDecel);
+          currentZ = THREE.MathUtils.lerp(shot.bouncePos.z, shot.targetPos.z, tDecel);
+          
+          // 🚀 Echter physikalischer Aufstieg aus der Servicebox in die Treffpunkthöhe
+          const kickBonus = shot.spinType === 'kick' ? 0.32 : 0.12;
+          const bounceParabola = 4.0 * t * (1.0 - t);
+          currentY = Math.max(0.065, THREE.MathUtils.lerp(0.065, shot.targetPos.y, Math.sin(t * (Math.PI / 2))) + bounceParabola * kickBonus);
           if (!shot.hasBounced) {
             shot.hasBounced = true;
           }
         }
 
-        // Biomechanischer Vorschub im Treffpunkt & Handgelenks-Pronation
-        if (server === 1) {
-          if (flightT < 0.20) {
-            // Explosive Pronation im Treffpunkt
-            kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 3.25, dt * 24.0);
-            kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 36, dt * 24.0);
-            kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 9.4, dt * 24.0);
-            kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -32, dt * 26.0);
-            kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 72, dt * 26.0);
-          } else {
-            // Ausschwung & Recovery
-            kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -42, dt * 8.0);
-            kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 30, dt * 6.0);
-            kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.2, dt * 4.0);
-            kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 10, dt * 4.0);
-            kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 1.85, dt * 4.0);
-          }
+        // Explosiver Peitschenschlag direkt durch den Ball mit maximaler Pronation
+        if (flightT < 0.28) {
+          const strikeT = THREE.MathUtils.smoothstep(flightT / 0.28, 0, 1);
+          const targetTilt = THREE.MathUtils.lerp(52.0, -56.0, strikeT);
+          const targetRoll = THREE.MathUtils.lerp(32.0 * rollDir, 84.0 * rollDir, strikeT);
+
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, targetTilt, dt * 26.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, targetRoll, dt * 26.0);
+          kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 12.0, dt * 14.0);
+          kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 0.0, dt * 10.0);
         } else {
-          if (flightT < 0.20) {
-            kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 3.25, dt * 24.0);
-            kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 36, dt * 24.0);
-            kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 9.4, dt * 24.0);
-            kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -32, dt * 26.0);
-            kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -72, dt * 26.0);
-          } else {
-            kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -42, dt * 8.0);
-            kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -30, dt * 6.0);
-            kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.2, dt * 4.0);
-            kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 10, dt * 4.0);
-            kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 1.85, dt * 4.0);
-          }
+          // Harmonischer Ausschwung & Zurückgleiten in die Grundstellung
+          const recoveryT = THREE.MathUtils.smoothstep((flightT - 0.28) / 0.72, 0, 1);
+          const recTilt = THREE.MathUtils.lerp(-56.0, 0.0, recoveryT);
+          const recRoll = THREE.MathUtils.lerp(84.0 * rollDir, 0.0, recoveryT);
+
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, recTilt, dt * 8.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, recRoll, dt * 8.0);
+          kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 4.2 * recoveryT, dt * 6.0);
+          kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 10.0, dt * 6.0);
+          kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 1.85, dt * 6.0);
         }
 
-        const receiver = server === 1 ? 2 : 1;
-        if (receiver === 1) {
-          const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.85, -7.5, 7.5);
-          kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 8.5);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 5.8, dt * 7.0);
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 12, dt * 7.0);
+        // Receiver: Ultra-präzise Interception-IK zum Treffpunkt des Aufschlags
+        const targetX = shot.targetPos.x;
+        const targetY = shot.targetPos.y;
+        const targetZ = shot.targetPos.z;
+        const receiver: 1 | 2 = server === 1 ? 2 : 1;
+        const isReceiver1 = receiver === 1;
+        const isReceiverSouth = (receiver === 1 && p1IsSouthRef.current) || (receiver === 2 && !p1IsSouthRef.current);
+        const baseZ = isReceiverSouth ? -15.2 : 15.2;
+        const fwdSign = isReceiverSouth ? 1.0 : -1.0;
+
+        const isForehand = ((targetX - kinReceiver.dollyTrack) * fwdSign) >= 0;
+        const strikeOffset = isForehand ? (-0.80 * fwdSign) : (0.80 * fwdSign);
+
+        const railX = THREE.MathUtils.clamp(targetX + strikeOffset, -7.5, 7.5);
+        kinReceiver.dollyTrack = THREE.MathUtils.lerp(kinReceiver.dollyTrack, railX, dt * 8.5);
+
+        const deltaX = targetX - kinReceiver.dollyTrack;
+        const deltaZ = (targetZ - baseZ) * fwdSign;
+        const distH = Math.hypot(deltaX, deltaZ);
+        const idealColY = THREE.MathUtils.clamp(targetY * 0.5 + 1.1, 1.54, 3.2);
+        kinReceiver.columnElevation = THREE.MathUtils.lerp(kinReceiver.columnElevation, idealColY, dt * 7.5);
+
+        const deltaY = targetY - (kinReceiver.columnElevation + 0.95);
+        const total3DDist = Math.hypot(distH, deltaY);
+        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.40, 0.2, 11.2);
+        kinReceiver.teleExtension = THREE.MathUtils.lerp(kinReceiver.teleExtension, targetExt, dt * 9.0);
+
+        const targetTiltDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaY, distH));
+        kinReceiver.boomTilt = THREE.MathUtils.lerp(kinReceiver.boomTilt, targetTiltDeg, dt * 9.0);
+
+        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX * fwdSign, deltaZ));
+
+        if (flightT < 0.65) {
+          // Unit Turn / Ausholbewegung
+          const windupOffset = isForehand ? 20 : -20;
+          kinReceiver.basePan = THREE.MathUtils.lerp(kinReceiver.basePan, aimAngleDeg + windupOffset, dt * 9.0);
+          kinReceiver.headPan = THREE.MathUtils.lerp(kinReceiver.headPan, isForehand ? 16 : -16, dt * 9.0);
+          kinReceiver.headRoll = THREE.MathUtils.lerp(kinReceiver.headRoll, isForehand ? 24 : -24, dt * 9.0);
+          kinReceiver.headTilt = THREE.MathUtils.lerp(kinReceiver.headTilt, 10, dt * 9.0);
         } else {
-          const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.85, -7.5, 7.5);
-          kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 8.5);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 5.8, dt * 7.0);
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 12, dt * 7.0);
+          // Schwung nach vorne exakt zum Treffpunkt (Schläger steht absolut plan und zentriert auf dem Ball)
+          kinReceiver.basePan = THREE.MathUtils.lerp(kinReceiver.basePan, aimAngleDeg, dt * 18.0);
+          kinReceiver.headPan = THREE.MathUtils.lerp(kinReceiver.headPan, 0, dt * 18.0);
+          kinReceiver.headTilt = THREE.MathUtils.lerp(kinReceiver.headTilt, 0, dt * 18.0);
+          kinReceiver.headRoll = THREE.MathUtils.lerp(kinReceiver.headRoll, isForehand ? 10 : -10, dt * 18.0);
+        }
+
+        // 🎯 100% EXAKTE SWEET-SPOT KONVERGENZ BEIM RETURN
+        if (flightT > 0.86 && !shot.isFault) {
+          const rPos = (isReceiver1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
+          const blendT = THREE.MathUtils.smoothstep((flightT - 0.86) / 0.14, 0, 1);
+          currentX = THREE.MathUtils.lerp(currentX, rPos.x, blendT);
+          currentY = THREE.MathUtils.lerp(currentY, rPos.y, blendT);
+          currentZ = THREE.MathUtils.lerp(currentZ, rPos.z, blendT);
         }
       }
     } else if (shot.isLob) {
       // 🌈 HOHER TENNIS-LOB / DEFENSIVE KERZE (Bis zu 11.2 Meter hoch in den Himmel!)
-      currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x, p);
-      currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.targetPos.z, p);
-
       const bounceProg = shot.isDecisive ? 0.74 : 0.68;
       if (p < bounceProg) {
         const t = p / bounceProg;
+        currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.bouncePos.x, t);
+        currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.bouncePos.z, t);
         const arc = 4 * t * (1 - t);
         currentY = THREE.MathUtils.lerp(shot.startPos.y, shot.bouncePos.y, t) + arc * shot.netHeight;
       } else {
         const t = (p - bounceProg) / (1.0 - bounceProg);
-        const reboundArc = Math.sin(t * (Math.PI / 2));
-        currentY = THREE.MathUtils.lerp(shot.bouncePos.y, shot.targetPos.y, reboundArc);
+        // 🚀 ECHTER PHYSIKALISCHER HOCH-ABSPRUNG NACH DEFENSIVE-LOB
+        const tDecel = Math.sin(t * (Math.PI / 2));
+        currentX = THREE.MathUtils.lerp(shot.bouncePos.x, shot.targetPos.x, tDecel);
+        currentZ = THREE.MathUtils.lerp(shot.bouncePos.z, shot.targetPos.z, tDecel);
+        const bounceParabola = 4.0 * t * (1.0 - t);
+        const lobBonus = 0.45 + THREE.MathUtils.clamp(shot.netHeight * 0.12, 0.2, 0.8);
+        currentY = Math.max(0.065, THREE.MathUtils.lerp(0.065, shot.targetPos.y, Math.sin(t * (Math.PI / 2))) + bounceParabola * lobBonus);
         if (!shot.hasBounced) {
           shot.hasBounced = true;
         }
@@ -2603,69 +1985,63 @@ function CraneTennisScene({
         kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 58, dt * 14.0);
       }
     } else if (shot.isSmash) {
-      // 🚀 MONSTER-SMASH: STEILER ABWÄRTSEINSCHLAG IN DEN BODEN + REBOUND IN DEN HIMMEL / TRIBÜNE
-      currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x, p);
-      currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.targetPos.z, p);
+      // 🚀 REALER ATP MONSTER-SMASH: DIREKTER 248 KM/H EINSCHLAG IN DEN PLATZ & EXPLOSIVER TRIBÜNEN-REBOUND
+      const hitter = shot.shooter;
+      const kinHitter = hitter === 1 ? kin1 : kin2;
+      const rollDir = hitter === 1 ? 1 : -1;
+      const floorImpact = 0.30; // 0.30s steiler Abwärtsschuss in den Boden
 
-      const smashBounceProg = 0.48; // Schlägt rasend schnell bei 48% im Boden ein
-      if (p < smashBounceProg) {
-        const t = p / smashBounceProg;
-        currentY = THREE.MathUtils.lerp(shot.startPos.y, shot.bouncePos.y, t * t);
+      // Dolly fährt stabil unter den Treffpunkt
+      kinHitter.dollyTrack = THREE.MathUtils.lerp(kinHitter.dollyTrack, THREE.MathUtils.clamp(shot.startPos.x, -7.5, 7.5), dt * 14.0);
+
+      if (p <= floorImpact) {
+        // Phase 1 (0.00 -> 0.30): Explosiver Peitschenschlag direkt am Treffpunkt & 248 km/h steiler Schuss in den Boden
+        const t = p / floorImpact;
+        currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.bouncePos.x, t);
+        currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.bouncePos.z, t);
+        currentY = THREE.MathUtils.lerp(shot.startPos.y, 0.065, t * t);
+
+        // Handgelenk und Arm peitschen mit maximaler Pronation durch den Ball
+        const strikeT = THREE.MathUtils.smoothstep(t, 0, 1);
+        kinHitter.headTilt = THREE.MathUtils.lerp(48.0, -58.0, strikeT);
+        kinHitter.headRoll = THREE.MathUtils.lerp(28.0 * rollDir, 86.0 * rollDir, strikeT);
+        kinHitter.boomTilt = THREE.MathUtils.lerp(22.0, 10.0, strikeT);
+        kinHitter.columnElevation = THREE.MathUtils.lerp(2.60, 2.10, strikeT);
+        kinHitter.teleExtension = THREE.MathUtils.lerp(8.2, 6.8, strikeT);
       } else {
-        const t = (p - smashBounceProg) / (1.0 - smashBounceProg);
-        const kickArc = Math.sin(t * (Math.PI / 2));
-        currentY = THREE.MathUtils.lerp(shot.bouncePos.y, shot.targetPos.y, kickArc);
+        // Phase 2 (0.30 -> 1.00): Brutaler 5m Rebound über die Grundlinie in die Zuschauerränge & Ausschwung
+        const t = (p - floorImpact) / (1.0 - floorImpact);
+        const tDecel = Math.sin(t * (Math.PI / 2));
+        currentX = THREE.MathUtils.lerp(shot.bouncePos.x, shot.targetPos.x, tDecel);
+        currentZ = THREE.MathUtils.lerp(shot.bouncePos.z, shot.targetPos.z, tDecel);
+        
+        // Hohe Rebound-Parabel in die Zuschauerränge
+        const reboundApex = shot.isDecisive ? 5.2 : 2.4;
+        currentY = Math.max(0.065, THREE.MathUtils.lerp(0.065, shot.targetPos.y, tDecel) + Math.sin(t * Math.PI) * reboundApex);
+
         if (!shot.hasBounced) {
           shot.hasBounced = true;
-          setSmashBurst({ pos: shot.bouncePos.clone(), time: Date.now() });
         }
+
+        // Harmonischer Ausschwung & Zurückgleiten in die Grundstellung
+        const recoveryT = THREE.MathUtils.smoothstep(t, 0, 1);
+        kinHitter.headTilt = THREE.MathUtils.lerp(-58.0, 0.0, recoveryT);
+        kinHitter.headRoll = THREE.MathUtils.lerp(86.0 * rollDir, 0.0, recoveryT);
+        kinHitter.boomTilt = THREE.MathUtils.lerp(10.0, 12.0, recoveryT);
+        kinHitter.teleExtension = THREE.MathUtils.lerp(6.8, 4.5, recoveryT);
+        kinHitter.columnElevation = THREE.MathUtils.lerp(2.10, 1.85, recoveryT);
+        kinHitter.basePan = THREE.MathUtils.lerp(kinHitter.basePan, 0.0, dt * 8.0);
       }
 
-      // Schlagender Kran (Smash-Hammer Kinematik)
-      if (shot.shooter === 1) {
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 3.2, dt * 12.0);
-        if (p < 0.35) {
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 38, dt * 14.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 30, dt * 16.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 35, dt * 16.0);
-        } else {
-          kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, 6, dt * 26.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -45, dt * 28.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 75, dt * 28.0);
-        }
-      } else {
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 3.2, dt * 12.0);
-        if (p < 0.35) {
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 38, dt * 14.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 30, dt * 16.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -35, dt * 16.0);
-        } else {
-          kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, 6, dt * 26.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -45, dt * 28.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -75, dt * 28.0);
-        }
-      }
-
-      // Verteidiger-Kran an der Grundlinie (Versucht den Smash mit schnellem Dolly-Sprint und Hechtschlag abzuwehren!)
+      // Verteidiger-Kran an der Grundlinie (Blickt nach oben auf den herannahenden Smash)
       const defender = shot.shooter === 1 ? 2 : 1;
-      if (defender === 1) {
-        const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.70, -7.5, 7.5);
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 11.5);
-        if (p > 0.45) {
-          kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, 2.3, dt * 14.0);
-          kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, 6.8, dt * 14.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 35, dt * 18.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, 45, dt * 18.0);
-        }
-      } else {
-        const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.70, -7.5, 7.5);
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 11.5);
-        if (p > 0.45) {
-          kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, 2.3, dt * 14.0);
-          kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, 6.8, dt * 14.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 35, dt * 18.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, -45, dt * 18.0);
-        }
+      const kinDefender = defender === 1 ? kin1 : kin2;
+      const railX = THREE.MathUtils.clamp(shot.targetPos.x * 0.70, -7.5, 7.5);
+
+      kinDefender.dollyTrack = THREE.MathUtils.lerp(kinDefender.dollyTrack, railX, dt * 10.0);
+      if (p > floorImpact) {
+        kinDefender.columnElevation = THREE.MathUtils.lerp(kinDefender.columnElevation, 2.1, dt * 10.0);
+        kinDefender.headTilt = THREE.MathUtils.lerp(kinDefender.headTilt, 48, dt * 14.0);
       }
     } else if (shot.isVolley) {
       // 🎾 VOLLEY-FLUGBAHN: DIREKTABNAHME IN DER LUFT (OHNE BODENAUFPRALL)
@@ -2675,17 +2051,21 @@ function CraneTennisScene({
       const arc = 4 * p * (1 - p);
       currentY = THREE.MathUtils.lerp(shot.startPos.y, shot.targetPos.y, p) + arc * Math.max(0.35, shot.netHeight * 0.45);
 
-      // --- KINEMATIK KRAN 1 (Nord Z = -15.2m) ---
+      // --- KINEMATIK KRAN 1 ---
       if (shot.shooter === 2) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
         const targetZ = shot.targetPos.z;
 
+        const isP1South = p1IsSouthRef.current;
+        const baseZ1 = isP1South ? -15.2 : 15.2;
+        const fwdSign1 = isP1South ? 1.0 : -1.0;
+
         const railX = THREE.MathUtils.clamp(targetX * 0.70, -7.5, 7.5);
         kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 9.5);
 
         const deltaX = targetX - kin1.dollyTrack;
-        const deltaZ = targetZ - crane1BaseZ;
+        const deltaZ = (targetZ - baseZ1) * fwdSign1;
         const distH = Math.hypot(deltaX, deltaZ);
 
         const idealColY = shot.volleyKind === 'smash' ? 3.1 : shot.volleyKind === 'stop' ? 1.6 : THREE.MathUtils.clamp(targetY * 0.5 + 1.1, 1.54, 3.2);
@@ -2700,21 +2080,21 @@ function CraneTennisScene({
         const targetTiltDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaY, distH));
         kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, targetTiltDeg, dt * 11.0);
 
-        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX, deltaZ));
-        const isForehand = deltaX >= 0;
+        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX * fwdSign1, deltaZ));
+        const isForehand = (deltaX * fwdSign1) >= 0;
 
-        if (p < 0.65) {
-          const windupOffset = isForehand ? 18 : -20;
+        if (p < 0.60) {
+          const windupOffset = isForehand ? 16 : -18;
           kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg + windupOffset, dt * 12.0);
-          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, isForehand ? 15 : -18, dt * 12.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 25 : -30, dt * 12.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 12, dt * 12.0);
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, isForehand ? 12 : -15, dt * 12.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 20 : -24, dt * 12.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 10, dt * 12.0);
         } else {
-          const followOffset = isForehand ? -12 : 14;
-          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg + followOffset, dt * 22.0);
-          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, isForehand ? -25 : 28, dt * 22.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 65 : -70, dt * 22.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, shot.volleyKind === 'smash' ? -38 : -14, dt * 22.0);
+          // Volley-Punch: Schläger bleibt absolut plan und zentriert auf dem Ball
+          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg, dt * 22.0);
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 22.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 8 : -8, dt * 22.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, shot.volleyKind === 'smash' ? -12 : 0, dt * 22.0);
         }
       } else {
         kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, 0, dt * 4.5);
@@ -2723,17 +2103,21 @@ function CraneTennisScene({
         kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 4.5);
       }
 
-      // --- KINEMATIK KRAN 2 (Süd Z = +15.2m) ---
+      // --- KINEMATIK KRAN 2 ---
       if (shot.shooter === 1) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
         const targetZ = shot.targetPos.z;
 
+        const isP2South = !p1IsSouthRef.current;
+        const baseZ2 = isP2South ? -15.2 : 15.2;
+        const fwdSign2 = isP2South ? 1.0 : -1.0;
+
         const railX = THREE.MathUtils.clamp(targetX * 0.70, -7.5, 7.5);
         kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 9.5);
 
         const deltaX = targetX - kin2.dollyTrack;
-        const deltaZ = crane2BaseZ - targetZ;
+        const deltaZ = (targetZ - baseZ2) * fwdSign2;
         const distH = Math.hypot(deltaX, deltaZ);
 
         const idealColY = shot.volleyKind === 'smash' ? 3.1 : shot.volleyKind === 'stop' ? 1.6 : THREE.MathUtils.clamp(targetY * 0.5 + 1.1, 1.54, 3.2);
@@ -2748,21 +2132,21 @@ function CraneTennisScene({
         const targetTiltDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaY, distH));
         kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, targetTiltDeg, dt * 11.0);
 
-        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(-deltaX, deltaZ));
-        const isForehand = deltaX <= 0;
+        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX * fwdSign2, deltaZ));
+        const isForehand = (deltaX * fwdSign2) >= 0;
 
-        if (p < 0.65) {
-          const windupOffset = isForehand ? -18 : 20;
+        if (p < 0.60) {
+          const windupOffset = isForehand ? 16 : -18;
           kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg + windupOffset, dt * 12.0);
-          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, isForehand ? -15 : 18, dt * 12.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? -25 : 30, dt * 12.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 12, dt * 12.0);
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, isForehand ? 12 : -15, dt * 12.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? 20 : -24, dt * 12.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 10, dt * 12.0);
         } else {
-          const followOffset = isForehand ? 12 : -14;
-          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg + followOffset, dt * 22.0);
-          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, isForehand ? 25 : -28, dt * 22.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? -65 : 70, dt * 22.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, shot.volleyKind === 'smash' ? -38 : -14, dt * 22.0);
+          // Volley-Punch: Schläger bleibt absolut plan und zentriert auf dem Ball
+          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg, dt * 22.0);
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 22.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? 8 : -8, dt * 22.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, shot.volleyKind === 'smash' ? -12 : 0, dt * 22.0);
         }
       } else {
         kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, 0, dt * 4.5);
@@ -2771,29 +2155,48 @@ function CraneTennisScene({
         kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 4.5);
       }
     } else if (shot.isNetError) {
-      // 🕸️ BALL FLIEGT INS NETZ UND FÄLLT SENKRECHT ZU BODEN (Z = 0)
-      const netHitProg = 0.50;
-      if (p < netHitProg) {
+      // 🕸️ BALL FLIEGT INS NETZGEWEBE / AN DIE NETZKANTE, PRALLT AB UND FÄLLT AUF DER EIGENEN SEITE ZU BODEN
+      const netHitProg = 0.46;
+      const netX = (shot.startPos.x + shot.targetPos.x) * 0.5;
+      const shooterSideSign = Math.sign(shot.startPos.z) || (shot.shooter === 1 ? -1 : 1);
+      const impactZ = shooterSideSign * 0.05;
+      const impactY = THREE.MathUtils.clamp(shot.netHeight || 0.88, 0.45, 1.05);
+
+      if (p <= netHitProg) {
+        // 1. Anflug zum Netz / zur Netzkante
         const t = p / netHitProg;
-        currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x * 0.35, t);
-        currentZ = THREE.MathUtils.lerp(shot.startPos.z, 0.0, t);
-        const arc = 4 * t * (1 - t);
-        currentY = THREE.MathUtils.lerp(shot.startPos.y, shot.netHeight, t) + arc * 0.28;
+        currentX = THREE.MathUtils.lerp(shot.startPos.x, netX, t);
+        currentZ = THREE.MathUtils.lerp(shot.startPos.z, impactZ, t);
+        const arc = 4.0 * t * (1.0 - t);
+        currentY = THREE.MathUtils.lerp(shot.startPos.y, impactY, t) + arc * 0.15;
       } else {
+        // 2. Netzkontakt: Inelastische Dämpfung & Herabfallen strikt auf der EIGENEN Netzseite
         const t = (p - netHitProg) / (1.0 - netHitProg);
-        currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x * 0.35, 1.0);
-        currentZ = shot.shooter === 1 ? -0.12 : 0.12; // ruht direkt an der Netzbasis
-        currentY = THREE.MathUtils.lerp(shot.netHeight, 0.16, t * t);
-        if (!shot.hasBounced) {
-          shot.hasBounced = true;
-          setImpactBurst({ pos: new THREE.Vector3(currentX, shot.netHeight, 0), time: Date.now() });
+        // Netz federt zurück auf die Seite des Schlägers (bleibt strikt auf der eigenen Seite!)
+        const reboundZ = shooterSideSign * (0.05 + Math.sin(t * (Math.PI / 2)) * 0.30);
+        currentZ = reboundZ;
+        currentX = netX + Math.sin(t * 4.0) * 0.03;
+
+        if (t < 0.75) {
+          // Gravitativer Fall nach unten
+          const fallT = t / 0.75;
+          currentY = THREE.MathUtils.lerp(impactY, 0.065, fallT * fallT);
+        } else {
+          // Kraftloser Micro-Bounce & Ausrollen an der Netzbasis auf der eigenen Seite
+          const bounceT = (t - 0.75) / 0.25;
+          const microHop = Math.sin(bounceT * Math.PI) * 0.04 * (1.0 - bounceT);
+          currentY = 0.065 + microHop;
+          if (!shot.hasBounced) {
+            shot.hasBounced = true;
+          }
         }
       }
 
+      // Spieler schüttelt enttäuscht den Kopf über den Netzfehler
       if (shot.shooter === 1) {
-        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -22, dt * 8.0);
+        kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -18, dt * 6.0);
       } else {
-        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -22, dt * 8.0);
+        kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -18, dt * 6.0);
       }
     } else if (shot.isNetCord) {
       // 💫 NETZROLLER: Ball touchiert die Netzkante bei p=0.48 und tropft kurz hinters Netz
@@ -2809,69 +2212,94 @@ function CraneTennisScene({
         currentX = THREE.MathUtils.lerp(shot.targetPos.x * 0.35, shot.targetPos.x, t);
         currentZ = THREE.MathUtils.lerp(0.0, shot.targetPos.z, t);
         const dropArc = Math.sin(t * Math.PI) * 0.38;
-        currentY = THREE.MathUtils.lerp(1.05, 0.16, t) + dropArc;
+        currentY = THREE.MathUtils.lerp(1.05, 0.105, t) + dropArc;
         if (!shot.hasBounced) {
           shot.hasBounced = true;
-          setImpactBurst({ pos: new THREE.Vector3(currentX, 1.05, 0), time: Date.now() });
         }
       }
     } else {
-      currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.targetPos.x, p);
-      currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.targetPos.z, p);
-
       const bounceProg = 0.70;
       if (p < bounceProg) {
         const t = p / bounceProg;
+        currentX = THREE.MathUtils.lerp(shot.startPos.x, shot.bouncePos.x, t);
+        currentZ = THREE.MathUtils.lerp(shot.startPos.z, shot.bouncePos.z, t);
         const arc = 4 * t * (1 - t);
         currentY = THREE.MathUtils.lerp(shot.startPos.y, shot.bouncePos.y, t) + arc * shot.netHeight;
       } else {
         const t = (p - bounceProg) / (1.0 - bounceProg);
-        const reboundArc = Math.sin(t * (Math.PI / 2));
-        currentY = THREE.MathUtils.lerp(shot.bouncePos.y, shot.targetPos.y, reboundArc);
+        // 🚀 ECHTE PHYSIKALISCHE ABSPRUNG-DYNAMIK MIT REIBUNGS-VERZÖGERUNG
+        const tDecel = Math.sin(t * (Math.PI / 2));
+        currentX = THREE.MathUtils.lerp(shot.bouncePos.x, shot.targetPos.x, tDecel);
+        currentZ = THREE.MathUtils.lerp(shot.bouncePos.z, shot.targetPos.z, tDecel);
+
+        const excessApex = (shot.isLobSetup || shot.netHeight > 3.2)
+          ? (0.45 + THREE.MathUtils.clamp(shot.netHeight * 0.12, 0.2, 0.8))
+          : shot.spinType === 'topspin'
+            ? (0.28 + ((shot.rpm || 2500) / 3200) * 0.22)
+            : shot.spinType === 'slice'
+              ? -0.06
+              : shot.spinType === 'dropshot'
+                ? -0.15
+                : 0.12;
+
+        const riseT = shot.spinType === 'slice' 
+          ? Math.pow(t, 1.35) 
+          : Math.sin(t * (Math.PI / 2));
+        const bounceParabola = 4.0 * t * (1.0 - t);
+        currentY = Math.max(0.065, THREE.MathUtils.lerp(0.065, shot.targetPos.y, riseT) + bounceParabola * excessApex);
+
         if (!shot.hasBounced) {
           shot.hasBounced = true;
         }
       }
 
-      // --- KINEMATIK KRAN 1 (SÜD-GRUNDLINIE Z = -15.2m) ---
+      // --- KINEMATIK KRAN 1 ---
       if (shot.shooter === 2) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
         const targetZ = shot.targetPos.z;
 
-        const railX = THREE.MathUtils.clamp(targetX * 0.65, -7.5, 7.5);
-        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 7.5);
+        const isP1South = p1IsSouthRef.current;
+        const baseZ1 = isP1South ? -15.2 : 15.2;
+        const fwdSign1 = isP1South ? 1.0 : -1.0;
+
+        const isForehand = ((targetX - kin1.dollyTrack) * fwdSign1) >= 0;
+        const strikeOffset = isForehand ? (-0.80 * fwdSign1) : (0.80 * fwdSign1);
+
+        const railX = THREE.MathUtils.clamp(targetX + strikeOffset, -7.5, 7.5);
+        kin1.dollyTrack = THREE.MathUtils.lerp(kin1.dollyTrack, railX, dt * 9.0);
 
         const deltaX = targetX - kin1.dollyTrack;
-        const deltaZ = targetZ - crane1BaseZ;
+        const deltaZ = (targetZ - baseZ1) * fwdSign1;
         const distH = Math.hypot(deltaX, deltaZ);
 
         const idealColY = shot.isLobSetup ? 3.2 : THREE.MathUtils.clamp(targetY * 0.5 + 1.1, 1.54, 3.2);
-        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, idealColY, dt * 7.0);
+        kin1.columnElevation = THREE.MathUtils.lerp(kin1.columnElevation, idealColY, dt * 7.5);
 
-        const deltaY = targetY - kin1.columnElevation;
+        const deltaY = targetY - (kin1.columnElevation + 0.95);
         const total3DDist = Math.hypot(distH, deltaY);
 
-        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.34, 0.5, 11.2);
-        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, targetExt, dt * 8.5);
+        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.40, 0.2, 11.2);
+        kin1.teleExtension = THREE.MathUtils.lerp(kin1.teleExtension, targetExt, dt * 9.5);
 
         const targetTiltDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaY, distH));
-        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, targetTiltDeg, dt * 9.0);
+        kin1.boomTilt = THREE.MathUtils.lerp(kin1.boomTilt, targetTiltDeg, dt * 9.5);
 
-        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX, deltaZ));
-        const isForehand = deltaX >= 0;
-        
-        if (p < 0.75) {
-          const windupOffset = isForehand ? 26 : -28;
-          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg + windupOffset, dt * 10.0);
-          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, isForehand ? 22 : -25, dt * 10.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 35 : -45, dt * 10.0);
+        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX * fwdSign1, deltaZ));
+
+        if (p < 0.65) {
+          // 1. Ausholphase (Unit Turn / Backswing)
+          const windupOffset = isForehand ? 20 : -20;
+          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg + windupOffset, dt * 9.0);
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, isForehand ? 16 : -16, dt * 9.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 26 : -30, dt * 9.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 10, dt * 9.0);
         } else {
-          const followOffset = isForehand ? -18 : 20;
-          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg + followOffset, dt * 18.0);
-          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, isForehand ? -35 : 38, dt * 18.0);
-          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 75 : -80, dt * 18.0);
-          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, -25, dt * 18.0);
+          // 2. Schwungphase nach vorne zum Treffpunkt (Schläger steht am Treffpunkt exakt plan und mittig auf dem Ball)
+          kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, aimAngleDeg, dt * 18.0);
+          kin1.headPan = THREE.MathUtils.lerp(kin1.headPan, 0, dt * 18.0);
+          kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 18.0);
+          kin1.headRoll = THREE.MathUtils.lerp(kin1.headRoll, isForehand ? 8 : -8, dt * 18.0);
         }
       } else {
         kin1.basePan = THREE.MathUtils.lerp(kin1.basePan, 0, dt * 4.5);
@@ -2880,45 +2308,53 @@ function CraneTennisScene({
         kin1.headTilt = THREE.MathUtils.lerp(kin1.headTilt, 0, dt * 4.5);
       }
 
-      // --- KINEMATIK KRAN 2 (NORD-GRUNDLINIE Z = +15.2m) ---
+      // --- KINEMATIK KRAN 2 ---
       if (shot.shooter === 1) {
         const targetX = shot.targetPos.x;
         const targetY = shot.targetPos.y;
         const targetZ = shot.targetPos.z;
 
-        const railX = THREE.MathUtils.clamp(targetX * 0.65, -7.5, 7.5);
-        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 7.5);
+        const isP2South = !p1IsSouthRef.current;
+        const baseZ2 = isP2South ? -15.2 : 15.2;
+        const fwdSign2 = isP2South ? 1.0 : -1.0;
+
+        const isForehand = ((targetX - kin2.dollyTrack) * fwdSign2) >= 0;
+        const strikeOffset = isForehand ? (-0.80 * fwdSign2) : (0.80 * fwdSign2);
+
+        const railX = THREE.MathUtils.clamp(targetX + strikeOffset, -7.5, 7.5);
+        kin2.dollyTrack = THREE.MathUtils.lerp(kin2.dollyTrack, railX, dt * 9.0);
 
         const deltaX = targetX - kin2.dollyTrack;
-        const deltaZ = crane2BaseZ - targetZ;
+        const deltaZ = (targetZ - baseZ2) * fwdSign2;
         const distH = Math.hypot(deltaX, deltaZ);
 
         const idealColY = shot.isLobSetup ? 3.2 : THREE.MathUtils.clamp(targetY * 0.5 + 1.1, 1.54, 3.2);
-        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, idealColY, dt * 7.0);
+        kin2.columnElevation = THREE.MathUtils.lerp(kin2.columnElevation, idealColY, dt * 7.5);
 
-        const deltaY = targetY - kin2.columnElevation;
+        const deltaY = targetY - (kin2.columnElevation + 0.95);
         const total3DDist = Math.hypot(distH, deltaY);
 
-        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.34, 0.5, 11.2);
-        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, targetExt, dt * 8.5);
+        const targetExt = THREE.MathUtils.clamp(total3DDist - 3.40, 0.2, 11.2);
+        kin2.teleExtension = THREE.MathUtils.lerp(kin2.teleExtension, targetExt, dt * 9.5);
 
         const targetTiltDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaY, distH));
-        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, targetTiltDeg, dt * 9.0);
+        kin2.boomTilt = THREE.MathUtils.lerp(kin2.boomTilt, targetTiltDeg, dt * 9.5);
 
-        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(-deltaX, deltaZ));
-        const isForehand = deltaX <= 0;
+        const aimAngleDeg = THREE.MathUtils.radToDeg(Math.atan2(deltaX * fwdSign2, deltaZ));
         
-        if (p < 0.75) {
-          const windupOffset = isForehand ? -26 : 28;
-          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg + windupOffset, dt * 10.0);
-          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, isForehand ? -22 : 25, dt * 10.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? -35 : 45, dt * 10.0);
+        if (p < 0.65) {
+          // 1. Ausholphase (Unit Turn / Backswing)
+          const windupOffset = isForehand ? 20 : -20;
+          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg + windupOffset, dt * 9.0);
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, isForehand ? 16 : -16, dt * 9.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? 26 : -30, dt * 9.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 10, dt * 9.0);
         } else {
-          const followOffset = isForehand ? 18 : -20;
-          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg + followOffset, dt * 18.0);
-          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, isForehand ? 35 : -38, dt * 18.0);
-          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? -75 : 80, dt * 18.0);
-          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, -25, dt * 18.0);
+          // 2. Schwungphase nach vorne zum Treffpunkt (Schläger steht am Treffpunkt exakt plan und mittig auf dem Ball)
+          kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, aimAngleDeg, dt * 18.0);
+          kin2.headPan = THREE.MathUtils.lerp(kin2.headPan, 0, dt * 18.0);
+          kin2.headTilt = THREE.MathUtils.lerp(kin2.headTilt, 0, dt * 18.0);
+          kin2.headRoll = THREE.MathUtils.lerp(kin2.headRoll, isForehand ? 8 : -8, dt * 18.0);
         }
       } else {
         kin2.basePan = THREE.MathUtils.lerp(kin2.basePan, 0, dt * 4.5);
@@ -2928,20 +2364,60 @@ function CraneTennisScene({
       }
     }
 
+    // 🎯 100% EXAKTE SWEET-SPOT KONVERGENZ (BALL TRIFFT JEDEN SCHLÄGER AUF DEN MILLIMETER GENAU)
+    if (!shot.isServe && !shot.isSmash && !shot.isNetError && p > 0.86) {
+      const receiver = shot.shooter === 1 ? 2 : 1;
+      const rPos = (receiver === 1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
+      const blendT = THREE.MathUtils.smoothstep((p - 0.86) / 0.14, 0, 1);
+      currentX = THREE.MathUtils.lerp(currentX, rPos.x, blendT);
+      currentY = THREE.MathUtils.lerp(currentY, rPos.y, blendT);
+      currentZ = THREE.MathUtils.lerp(currentZ, rPos.z, blendT);
+    }
+
     const currentBallPos = new THREE.Vector3(currentX, currentY, currentZ);
     setBallVisualPos(currentBallPos);
+
+    if (dt > 0.0001) {
+      ballVelocityRef.current.copy(currentBallPos).sub(prevBallPosRef.current).divideScalar(dt);
+      prevBallPosRef.current.copy(currentBallPos);
+    }
 
     if (p >= 1.0) {
       const hitter = shot.shooter === 1 ? 2 : 1;
       const hitPos = hitter === 1 ? racket1WorldPos.current.clone() : racket2WorldPos.current.clone();
 
-      setImpactBurst({ pos: hitPos, time: Date.now() });
-
       if (shot.isDecisive && shot.pointWinner) {
         const winner = shot.pointWinner;
         celebrationWinnerRef.current = winner;
-        celebrationTimerRef.current = 2.4; // 🏆 Starte 2.4s emotionale Jubel- & Frust-Phase!
         
+        // 🎾 Realistische kontinuierliche Physik für den Ball (Punktgewinn / Aus / Netzfehler / Winner):
+        const currentBallVel = ballVelocityRef.current.clone();
+        if (currentBallVel.length() < 2.0) {
+          currentBallVel.set(
+            (shot.targetPos.x - shot.startPos.x) / Math.max(0.3, shot.duration),
+            -4.0,
+            (shot.targetPos.z - shot.startPos.z) / Math.max(0.3, shot.duration)
+          );
+        }
+
+        let initVel: THREE.Vector3;
+        if (shot.isNetError) {
+          // Ball ist am Netz abgeprallt und liegt/rollt an der Netzbasis strikt auf der EIGENEN Seite
+          const shooterSide = Math.sign(shot.startPos.z) || (shot.shooter === 1 ? -1 : 1);
+          initVel = new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.0, shooterSide * 0.25);
+        } else {
+          // Ball behält seine volle kinetische Geschwindigkeit und prallt physikalisch ab
+          initVel = calculateBallBounceReboundVelocity(currentBallVel, courtSurface, shot.spinType, shot.rpm || 1800);
+        }
+
+        ballCoastRef.current = {
+          active: true,
+          pos: currentBallPos.clone(),
+          vel: initVel,
+          spinType: shot.spinType,
+          rpm: shot.rpm || 1800
+        };
+
         setMatchScore(s => {
           let p1 = s.p1Points;
           let p2 = s.p2Points;
@@ -2949,52 +2425,172 @@ function CraneTennisScene({
           let g2 = s.p2Games;
           let s1 = s.p1Sets;
           let s2 = s.p2Sets;
+          const newSetHistory = s.setHistory ? [...s.setHistory] : [{ p1: 6, p2: 4 }, { p1: 4, p2: 6 }];
+          let currentSet = s.currentSet || 3;
+          let isTb = s.isTiebreak || false;
+          let tb1 = s.p1TiebreakPoints || 0;
+          let tb2 = s.p2TiebreakPoints || 0;
 
-          if (winner === 1) {
-            if (p1 === 40 && p2 < 40) {
-              p1 = 0; p2 = 0; g1++;
-            } else if (p1 === 40 && p2 === 40) {
-              p1 = 45;
-            } else if (p1 === 45) {
-              p1 = 0; p2 = 0; g1++;
-            } else if (p2 === 45) {
-              p2 = 40;
+          if (isTb) {
+            if (winner === 1) {
+              tb1++;
             } else {
-              const seq = [0, 15, 30, 40];
-              p1 = seq[seq.indexOf(p1) + 1] || 40;
+              tb2++;
+            }
+
+            if (tb1 >= 7 && tb1 - tb2 >= 2) {
+              s1++;
+              newSetHistory.push({ p1: 7, p2: 6, tiebreak: `7-6(${tb2})` });
+              currentSet++;
+              g1 = 0; g2 = 0; p1 = 0; p2 = 0; isTb = false; tb1 = 0; tb2 = 0;
+            } else if (tb2 >= 7 && tb2 - tb1 >= 2) {
+              s2++;
+              newSetHistory.push({ p1: 6, p2: 7, tiebreak: `6-7(${tb1})` });
+              currentSet++;
+              g1 = 0; g2 = 0; p1 = 0; p2 = 0; isTb = false; tb1 = 0; tb2 = 0;
             }
           } else {
-            if (p2 === 40 && p1 < 40) {
-              p1 = 0; p2 = 0; g2++;
-            } else if (p2 === 40 && p1 === 40) {
-              p2 = 45;
-            } else if (p2 === 45) {
-              p1 = 0; p2 = 0; g2++;
-            } else if (p1 === 45) {
-              p1 = 40;
+            if (winner === 1) {
+              if (p1 === 40 && p2 < 40) {
+                p1 = 0; p2 = 0; g1++;
+              } else if (p1 === 40 && p2 === 40) {
+                p1 = 45;
+              } else if (p1 === 45) {
+                p1 = 0; p2 = 0; g1++;
+              } else if (p2 === 45) {
+                p2 = 40;
+              } else {
+                const seq = [0, 15, 30, 40];
+                p1 = seq[seq.indexOf(p1) + 1] || 40;
+              }
             } else {
-              const seq = [0, 15, 30, 40];
-              p2 = seq[seq.indexOf(p2) + 1] || 40;
+              if (p2 === 40 && p1 < 40) {
+                p1 = 0; p2 = 0; g2++;
+              } else if (p2 === 40 && p1 === 40) {
+                p2 = 45;
+              } else if (p2 === 45) {
+                p1 = 0; p2 = 0; g2++;
+              } else if (p1 === 45) {
+                p1 = 40;
+              } else {
+                const seq = [0, 15, 30, 40];
+                p2 = seq[seq.indexOf(p2) + 1] || 40;
+              }
+            }
+
+            if (g1 === 6 && g2 === 6) {
+              isTb = true;
+              tb1 = 0;
+              tb2 = 0;
+            } else if (g1 >= 6 && g1 - g2 >= 2) {
+              s1++;
+              newSetHistory.push({ p1: g1, p2: g2 });
+              currentSet++;
+              g1 = 0;
+              g2 = 0;
+            } else if (g2 >= 6 && g2 - g1 >= 2) {
+              s2++;
+              newSetHistory.push({ p1: g1, p2: g2 });
+              currentSet++;
+              g1 = 0;
+              g2 = 0;
             }
           }
 
-          if (g1 >= 6 && g1 - g2 >= 2) {
-            s1++;
-            g1 = 0;
-            g2 = 0;
-          } else if (g2 >= 6 && g2 - g1 >= 2) {
-            s2++;
-            g1 = 0;
-            g2 = 0;
+          const isGameWon = (p1 === 0 && p2 === 0 && (g1 !== s.p1Games || g2 !== s.p2Games));
+          const isSetWon = (s1 !== s.p1Sets || s2 !== s.p2Sets);
+          const isGameOrSetWon = isGameWon || isSetWon;
+          const isSideChangeDue = (isGameWon && ((g1 + g2) % 2 === 1)) || isSetWon;
+          const isBreakPoint = (p1 === 45 || (p1 === 40 && p2 <= 30 && s.server === 2)) || (p2 === 45 || (p2 === 40 && p1 <= 30 && s.server === 1));
+
+          const isAce = shot.shotType === 'service_winner' || (shot.isServe && !shot.isFault && shot.speedKmh >= 220);
+
+          const { p1Emotion, p2Emotion, p1Timing, p2Timing, totalPauseDuration } = selectPostRallyEmotions({
+            winner,
+            shotType: shot.shotType,
+            speedKmH: shot.speedKmh || (shot.isSmash ? 248 : 135),
+            rallyCount: s.rallyCount,
+            isNetCord: !!shot.isNetCord,
+            isNetError: !!shot.isNetError,
+            isOutError: !!shot.isOutError,
+            isAce,
+            isSmash: !!(shot.isSmash || shot.shotType === 'smash'),
+            isGameOrSetWin: isGameOrSetWon,
+            isBreakPoint,
+            p1Psych: p1PsychRef.current,
+            p2Psych: p2PsychRef.current
+          });
+
+          p1ActiveEmotionRef.current = p1Emotion;
+          p2ActiveEmotionRef.current = p2Emotion;
+          p1TimingRef.current = p1Timing;
+          p2TimingRef.current = p2Timing;
+          p1PsychRef.current = updatePlayerPsychology(p1PsychRef.current, winner === 1, s.rallyCount, isAce, !!(shot.isSmash || shot.shotType === 'smash'), !!(shot.isNetError || shot.isOutError), isBreakPoint);
+          p2PsychRef.current = updatePlayerPsychology(p2PsychRef.current, winner === 2, s.rallyCount, isAce, !!(shot.isSmash || shot.shotType === 'smash'), !!(shot.isNetError || shot.isOutError), isBreakPoint);
+
+          if (isSideChangeDue) {
+            // 👑 Zuerst die volle Spiel-/Satzgewinn-Emotion (5.2s - 6.8s) mit Jubel & Trainerbox ausspielen!
+            const celebDur = 5.2 + Math.random() * 1.6;
+            celebrationTimerRef.current = celebDur;
+            celebrationTotalDurationRef.current = celebDur;
+            celebrationIsGameWinRef.current = true;
+            pendingSideChangeRef.current = true;
+            pendingShowcaseRef.current = false;
+          } else if (isGameOrSetWon) {
+            // 👑 Zuerst die volle Spielgewinn-Emotion (4.8s - 6.0s) ausspielen!
+            const celebDur = 4.8 + Math.random() * 1.2;
+            celebrationTimerRef.current = celebDur;
+            celebrationTotalDurationRef.current = celebDur;
+            celebrationIsGameWinRef.current = true;
+            pendingSideChangeRef.current = false;
+            pendingShowcaseRef.current = true;
+          } else {
+            celebrationTimerRef.current = totalPauseDuration;
+            celebrationTotalDurationRef.current = totalPauseDuration;
+            celebrationIsGameWinRef.current = false;
+            pendingSideChangeRef.current = false;
+            pendingShowcaseRef.current = false;
+            nextServeConfigRef.current = { server: winner, attempt: 1 };
           }
 
-          const call = getUmpireScoreCall(p1, p2, g1, g2);
-          const isGameOrSetWon = (p1 === 0 && p2 === 0 && (g1 !== s.p1Games || g2 !== s.p2Games || s1 !== s.p1Sets || s2 !== s.p2Sets));
+          // 🎬 AGENT 20: GENERATE DYNAMIC NON-REPETITIVE DIRECTOR PLAN FOR NEXT POINT
+          currentPointIndexRef.current += 1;
+          pointDirectorPlanRef.current = generatePointDirectorPlan(
+            currentPointIndexRef.current,
+            winner,
+            pointDirectorPlanRef.current
+          );
 
-          if (isGameOrSetWon) {
-            showcaseTimerRef.current = 4.8;
-            showcaseTypeRef.current = 'gamewin';
-            celebrationTimerRef.current = 0; // Direkt in die 11.3m Ausleger-Show übergehen!
+          // 🦅 HAWK-EYE ELC LINE OVERLAY TRIGGER BEI KNAPPEM AUS
+          if (shot.isOutError || (shot.isServe && shot.isFault)) {
+            if (onHawkEyeTrigger) {
+              const detail = outErrorDetailRef.current;
+              const cmOut = detail?.cmOut ?? (2.4 + Math.random() * 4.0);
+              const lineType = detail?.lineType ?? (shot.isServe ? 'serviceline' : 'baseline');
+              onHawkEyeTrigger({
+                isOpen: true,
+                distanceMm: Math.round(cmOut * 10),
+                lineType,
+                hitter: shot.shooter,
+                hitterName: shot.shooter === 1 ? 'Jannik Sinner 🇮🇹' : 'Carlos Alcaraz 🇪🇸',
+                speedKmh: shot.speedKmh || 155,
+                spinRpm: shot.rpm || (shot.shooter === 2 ? 3100 : 2250),
+                shotType: shot.shotType,
+                courtSurface
+              });
+            }
+          }
+
+          const winnerEmotion = winner === 1 ? p1Emotion : p2Emotion;
+          const meta = EMOTION_METADATA[winnerEmotion];
+          const emotionBadge = meta ? `${meta.icon} ${meta.label}` : '';
+          let msg = `🏆 Punkt für ${winner === 1 ? 'Jannik Sinner 🇮🇹' : 'Carlos Alcaraz 🇪🇸'}! (${shot.endReason}) • ${emotionBadge}`;
+          let umpireCall = getUmpireScoreCall(p1, p2, g1, g2, isTb, tb1, tb2);
+          if (isSideChangeDue) {
+            umpireCall = `Change of Ends! (${g1}:${g2})`;
+            msg = `🔄 SEITENWECHSEL / CHANGE OF ENDS (${g1}:${g2}) • Die Kräne wechseln die Seiten!`;
+          } else if (isGameOrSetWon) {
+            msg = `🎮 GAME-WECHSEL (${g1}:${g2}) • 11.3m Ausleger-Show! • 👑 ${meta?.label || 'TRIUMPH'}`;
           }
 
           return {
@@ -3005,30 +2601,89 @@ function CraneTennisScene({
             p2Games: g2,
             p1Sets: s1,
             p2Sets: s2,
+            setHistory: newSetHistory,
+            currentSet,
+            isTiebreak: isTb,
+            p1TiebreakPoints: tb1,
+            p2TiebreakPoints: tb2,
             server: winner,
+            serveAttempt: 1,
             rallyCount: 0,
-            isCheering: true,
-            cheerIntensity: isGameOrSetWon ? 2.0 : 1.5,
-            umpireCall: call,
-            lastMessage: isGameOrSetWon 
-              ? `🎮 GAME-WECHSEL (${g1}:${g2}) • 11.3m Ausleger-Show & Seitenwechsel!` 
-              : `🏆 Punkt für Kran ${winner}! (${shot.endReason})`
+            isCheering: false,
+            cheerIntensity: 0.0,
+            umpireCall,
+            lastMessage: msg
           };
         });
       } else if (shot.isServe && shot.isFault && shot.serveAttempt === 1) {
-        // ⚠️ 1. AUFSCHLAG WAR EIN FEHLER (FAULT) ➜ Umpire-Durchsage & Vorbereitung auf 2. Aufschlag!
+        // ⚠️ 1. AUFSCHLAG WAR EIN FEHLER (FAULT) ➜ Ball rollt und dotzt mit realer Energie weiter!
+        const currentBallVel = ballVelocityRef.current.clone();
+        const shooterSide = Math.sign(shot.startPos.z) || (shot.shooter === 1 ? -1 : 1);
+        if (currentBallVel.length() < 2.0) {
+          currentBallVel.set((shot.targetPos.x - shot.startPos.x) / Math.max(0.3, shot.duration), -4.0, -shooterSide * (shot.speedKmh * 0.28));
+        }
+
+        const isNetFault = shot.netHeight <= 1.0;
+        const initVel = isNetFault
+          ? new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.0, shooterSide * 0.25)
+          : calculateBallBounceReboundVelocity(currentBallVel, courtSurface, shot.spinType, shot.rpm || 2000);
+
+        ballCoastRef.current = {
+          active: true,
+          pos: currentBallPos.clone(),
+          vel: initVel,
+          spinType: shot.spinType,
+          rpm: shot.rpm || 2000
+        };
+
+        // 🦅 HAWK-EYE TRIGGER BEI 1. AUFSCHLAG IM AUS
+        if (!isNetFault && onHawkEyeTrigger) {
+          const detail = outErrorDetailRef.current;
+          const cmOut = detail?.cmOut ?? 2.8;
+          onHawkEyeTrigger({
+            isOpen: true,
+            distanceMm: Math.round(cmOut * 10),
+            lineType: 'serviceline',
+            hitter: shot.shooter,
+            hitterName: shot.shooter === 1 ? 'Jannik Sinner 🇮🇹' : 'Carlos Alcaraz 🇪🇸',
+            speedKmh: shot.speedKmh || 225,
+            spinRpm: shot.rpm || 2800,
+            shotType: shot.shotType,
+            courtSurface
+          });
+        }
+
+        p1ActiveEmotionRef.current = shot.shooter === 1 ? 'disappointed_error' : 'idle_ready';
+        p2ActiveEmotionRef.current = shot.shooter === 2 ? 'disappointed_error' : 'idle_ready';
+        p1TimingRef.current = { delay: 0.10, duration: 2.2 };
+        p2TimingRef.current = { delay: 0.40, duration: 1.8 };
+
+        const faultPause = 2.2 + Math.random() * 1.2; // 2.2s - 3.4s variable Pause vor 2. Aufschlag
+        celebrationTimerRef.current = faultPause;
+        celebrationTotalDurationRef.current = faultPause;
+        celebrationWinnerRef.current = (shot.shooter === 1 ? 2 : 1);
+        celebrationIsGameWinRef.current = false;
+        nextServeConfigRef.current = { server: shot.shooter, attempt: 2 };
+
+        // 🎬 AGENT 20: GENERATE DYNAMIC FAULT / 2ND SERVE DIRECTOR PLAN
+        currentPointIndexRef.current += 1;
+        pointDirectorPlanRef.current = generatePointDirectorPlan(
+          currentPointIndexRef.current,
+          shot.shooter,
+          pointDirectorPlanRef.current
+        );
+
         setMatchScore(s => ({
           ...s,
           umpireCall: `⚠️ FAULT! Zweiter Aufschlag...`,
           lastMessage: `⚠️ 1. Aufschlag im Netz / Aus (Fault)! Vorbereitung 2. Service...`
         }));
-        triggerGrandSlamServe(shot.shooter, false, 2);
       } else {
         setMatchScore(s => ({
           ...s,
           rallyCount: s.rallyCount + 1,
           isCheering: false,
-          cheerIntensity: Math.max(0, s.cheerIntensity - 0.05),
+          cheerIntensity: 0.0,
           lastMessage: `${shot.shotType} • ${shot.speedKmh} km/h`
         }));
 
@@ -3045,66 +2700,257 @@ function CraneTennisScene({
       }
     }
 
+    const isP1South = p1IsSouthRef.current;
+    const baseZ1 = isP1South ? -15.2 : 15.2;
+    const rotY1 = isP1South ? Math.PI : 0;
+    const baseZ2 = isP1South ? 15.2 : -15.2;
+    const rotY2 = isP1South ? 0 : Math.PI;
+
     if (dolly1GroupRef.current) {
-      dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, -15.2);
+      dolly1GroupRef.current.position.set(kin1.dollyTrack, 0, baseZ1);
+      dolly1GroupRef.current.rotation.set(0, rotY1, 0);
     }
     if (dolly2GroupRef.current) {
-      dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, 15.2);
+      dolly2GroupRef.current.position.set(kin2.dollyTrack, 0, baseZ2);
+      dolly2GroupRef.current.rotation.set(0, rotY2, 0);
     }
 
     if (crane1 && crane1.isLoaded) crane1.updateNodes({ ...kin1, dollyTrack: 0 });
     if (crane2 && crane2.isLoaded) crane2.updateNodes({ ...kin2, dollyTrack: 0 });
 
+    // 🎬 AGENT 20: DYNAMIC NON-REPETITIVE TV BROADCAST DIRECTOR CHOREOGRAPHY
+    if (cameraMode === 'broadcast') {
+      directorShotTimerRef.current += delta;
+
+      const decision = evaluateDynamicTennisDirectorDecision(pointDirectorPlanRef.current, {
+        shot: {
+          isServe: !!shot.isServe,
+          servePhase: shot.servePhase || 0,
+          isSmash: !!(shot.isSmash || shot.shotType === 'smash' || shot.volleyKind === 'smash'),
+          shotType: shot.shotType || '',
+          speedKmh: shot.speedKmh,
+          volleyKind: shot.volleyKind,
+          isLob: !!shot.isLob,
+          isNetError: !!shot.isNetError,
+          isOutError: !!shot.isOutError,
+          isNetCord: !!shot.isNetCord,
+          shooter: shot.shooter,
+          progress: shot.progress,
+          serveReadyFraction: shot.serveReadyFraction,
+          serveBounceCount: shot.serveBounceCount
+        },
+        matchScore: {
+          p1Points: matchScore.p1Points,
+          p2Points: matchScore.p2Points,
+          p1Games: matchScore.p1Games,
+          p2Games: matchScore.p2Games,
+          isTiebreak: !!matchScore.isTiebreak,
+          server: matchScore.server
+        },
+        celebrationTimer: celebrationTimerRef.current,
+        celebrationTotalDuration: celebrationTotalDurationRef.current,
+        celebrationWinner: celebrationWinnerRef.current || 1,
+        activeEmotionP1: p1ActiveEmotionRef.current,
+        activeEmotionP2: p2ActiveEmotionRef.current,
+        sideChangeTimer: sideChangeTimerRef.current,
+        sideChangeTotalDuration: sideChangeTotalDurationRef.current,
+        showcaseTimer: showcaseTimerRef.current,
+        rallyCount: matchScore.rallyCount,
+        directorShotTimer: directorShotTimerRef.current
+      });
+
+      const targetCam = decision.targetCam;
+      const cutReason = decision.reason;
+      const cutLabel = decision.label;
+
+      if (directorCurrentCamRef.current !== targetCam) {
+        directorCurrentCamRef.current = targetCam;
+        directorShotTimerRef.current = 0;
+        directorCutReasonRef.current = cutReason;
+
+        if (onDirectorInfoChange) {
+          onDirectorInfoChange({
+            cam: targetCam,
+            label: cutLabel,
+            reason: cutReason
+          });
+        }
+      }
+    }
+
+    const effectiveCam = cameraMode === 'broadcast'
+      ? directorCurrentCamRef.current
+      : cameraMode;
+
     if (orbitControlsRef.current && cameraMode !== 'free') {
       const controls = orbitControlsRef.current;
-      if (cameraMode === 'broadcast') {
-        controls.target.lerp(new THREE.Vector3(0, 1.2, 0), 0.08);
-        camera.position.lerp(new THREE.Vector3(-24, 16.0, 0), 0.08);
-      } else if (cameraMode === 'ball') {
-        const camTarget = currentBallPos.clone();
-        controls.target.lerp(camTarget, 0.18);
-        const camOffset = new THREE.Vector3(-8, 5, shot.shooter === 1 ? -9 : 9);
-        camera.position.lerp(currentBallPos.clone().add(camOffset), 0.14);
-      } else if (cameraMode === 'crane1') {
-        controls.target.lerp(new THREE.Vector3(0, 2.2, 8), 0.12);
-        camera.position.lerp(racket1WorldPos.current.clone().add(new THREE.Vector3(0, 0.8, -1.8)), 0.16);
-      } else if (cameraMode === 'crane2') {
-        controls.target.lerp(new THREE.Vector3(0, 2.2, -8), 0.12);
-        camera.position.lerp(racket2WorldPos.current.clone().add(new THREE.Vector3(0, 0.8, 1.8)), 0.16);
-      } else if (cameraMode === 'smash') {
-        // 🎾 ECHTE SCHLÄGER-KAMERA (FIRST-PERSON RACKET POV - NUR IN DIESEM VIEW!)
-        // Die Kamera ist direkt auf dem Tennisschläger des aktiven Krans montiert
-        const activeHitter = shot.shooter;
-        const rPos = (activeHitter === 1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
-        const rQuat = (activeHitter === 1 ? racket1WorldQuat.current : racket2WorldQuat.current).clone();
+      const isHardCut = lastRenderedCamRef.current !== effectiveCam;
 
-        // Vorwärtsvektor & Aufwärtsvektor des Schlägers
-        const forwardDir = new THREE.Vector3(0, 0, activeHitter === 1 ? 1 : -1).applyQuaternion(rQuat).normalize();
-        const upDir = new THREE.Vector3(0, 1, 0).applyQuaternion(rQuat).normalize();
-
-        // Kamera sitzt 55cm hinter dem Sweet Spot und 10cm darüber
-        // Man blickt direkt durch die gespannten Carbon-Saiten (Sweet Spot) nach vorne auf Ball & Gegner!
-        const camPos = rPos.clone()
-          .sub(forwardDir.clone().multiplyScalar(0.55))
-          .add(upDir.clone().multiplyScalar(0.10));
-
-        // Zielpunkt: Blick durch die Saiten nach vorne in Schlagrichtung / auf den Ball
-        const aimTarget = camPos.clone().add(forwardDir.clone().multiplyScalar(10.0));
-        if (currentBallPos) {
-          aimTarget.lerp(currentBallPos, 0.45);
+      if (effectiveCam === 'broadcast') {
+        // 📺 WIMBLEDON BBC HIGH-CENTRE GANTRY (Center Court TV-Hauptkamera)
+        _camDesiredTarget.set(0, 1.15, 0);
+        _camDesiredPos.set(-25.5, 17.2, 0);
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        }
+      } else if (effectiveCam === 'coach') {
+        // 👥 WIMBLEDON PLAYER / COACH BOX CAM (Darren Cahill & Ferrero VIP Tribüne)
+        const isSinnerBox = (celebrationWinnerRef.current || shot.shooter) === 1;
+        const boxSideZ = isSinnerBox ? -10.5 : 10.5;
+        _camDesiredTarget.set(-11.5, 2.2, boxSideZ);
+        _camDesiredPos.set(-15.8, 4.4, boxSideZ + (isSinnerBox ? 2.5 : -2.5));
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        }
+      } else if (effectiveCam === 'spectator') {
+        // 🏟️ WIMBLEDON ROYAL BOX & TRIBUNEN-PANORAMA
+        _camDesiredTarget.set(0, 1.5, 0);
+        _camDesiredPos.set(-21.0, 10.5, 18.0);
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        }
+      } else if (effectiveCam === 'ball') {
+        // 🎾 DYNAMISCHE 3D BALL-TRACKING KAMERA & PRE-SERVE DRIBBLE-DETAIL
+        const isPreServeDribble = shot.isServe && shot.progress < (shot.serveReadyFraction ?? 0.44);
+        if (isPreServeDribble) {
+          // Makro-Close-Up auf das Ball-Aufprellen am Boden an der Grundlinie
+          const bX = currentBallPos.x;
+          const bZ = currentBallPos.z;
+          _camDesiredTarget.set(bX, 0.45, bZ);
+          _camDesiredPos.set(bX - 1.15, 0.70, bZ + (shot.shooter === 1 ? 1.5 : -1.5));
+        } else {
+          _camDesiredTarget.copy(currentBallPos);
+          _camDesiredPos.copy(currentBallPos).add(new THREE.Vector3(-4.5, 2.8, 5.0));
         }
 
-        camera.position.lerp(camPos, 0.35);
-        controls.target.lerp(aimTarget, 0.35);
-      } else if (cameraMode === 'umpire') {
-        controls.target.lerp(new THREE.Vector3(0, 1.0, 0), 0.1);
-        camera.position.lerp(new THREE.Vector3(7.2, 3.4, 0), 0.1);
-      } else if (cameraMode === 'spectator') {
-        controls.target.lerp(new THREE.Vector3(0, 1.2, 0), 0.08);
-        camera.position.lerp(new THREE.Vector3(-18.5, 5.5, 0), 0.08);
-      } else if (cameraMode === 'coach') {
-        controls.target.lerp(new THREE.Vector3(0, 1.5, 0), 0.1);
-        camera.position.lerp(new THREE.Vector3(-8.2, 2.2, -3.2), 0.1);
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.lerp(_camDesiredTarget, 0.22);
+          camera.position.lerp(_camDesiredPos, 0.20);
+        }
+      } else if (effectiveCam === 'crane1') {
+        // 🇮🇹 WIMBLEDON NORTH BASELINE HERO JIB (Sinner / Baseline Setup)
+        const isPreServePrep = shot.isServe && shot.progress < (shot.serveReadyFraction ?? 0.44);
+        if (isPreServePrep) {
+          _camDesiredTarget.set(racket1WorldPos.current.x * 0.5, 1.80, racket1WorldPos.current.z);
+          _camDesiredPos.set(racket1WorldPos.current.x * 0.5 - 2.8, 2.20, racket1WorldPos.current.z + (shot.shooter === 1 ? 4.8 : -4.8));
+        } else {
+          _camDesiredTarget.copy(racket1WorldPos.current).add(new THREE.Vector3(0, 0.2, 0));
+          _camDesiredPos.copy(racket1WorldPos.current).add(new THREE.Vector3(-2.2, 0.85, -3.4));
+        }
+
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.lerp(_camDesiredTarget, 0.16);
+          camera.position.lerp(_camDesiredPos, 0.16);
+        }
+      } else if (effectiveCam === 'crane2') {
+        // 🇪🇸 WIMBLEDON SOUTH BASELINE HERO JIB (Alcaraz / Baseline Setup)
+        const isPreServePrep = shot.isServe && shot.progress < (shot.serveReadyFraction ?? 0.44);
+        if (isPreServePrep) {
+          _camDesiredTarget.set(racket2WorldPos.current.x * 0.5, 1.80, racket2WorldPos.current.z);
+          _camDesiredPos.set(racket2WorldPos.current.x * 0.5 - 2.8, 2.20, racket2WorldPos.current.z + (shot.shooter === 2 ? -4.8 : 4.8));
+        } else {
+          _camDesiredTarget.copy(racket2WorldPos.current).add(new THREE.Vector3(0, 0.2, 0));
+          _camDesiredPos.copy(racket2WorldPos.current).add(new THREE.Vector3(-2.2, 0.85, 3.4));
+        }
+
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.lerp(_camDesiredTarget, 0.16);
+          camera.position.lerp(_camDesiredPos, 0.16);
+        }
+      } else if (effectiveCam === 'portrait') {
+        // 👤 PROTAGONISTEN-PORTRAIT (DER SCHLÄGER GILT ALS GESICHT & KOPF DES PROTAGONISTEN)
+        const isCelebration = celebrationTimerRef.current > 0;
+        const activePlayer = isCelebration ? (celebrationWinnerRef.current || shot.shooter) : shot.shooter;
+        const pPos = activePlayer === 1 ? racket1WorldPos.current : racket2WorldPos.current;
+        
+        // Ausrichtung: Blickt von der Feldseite frontal in das Schlägergesicht
+        const isPlayerSouth = activePlayer === 1 ? p1IsSouthRef.current : !p1IsSouthRef.current;
+        const frontZSign = isPlayerSouth ? 1 : -1; // Vom Netz in Richtung Schlägerblatt blickend
+
+        const currentEmotion = isCelebration 
+          ? (activePlayer === 1 ? p1ActiveEmotionRef.current : p2ActiveEmotionRef.current)
+          : 'serve_ritual';
+
+        const isHeroEmotion = currentEmotion === 'ear_cup_celebration' || currentEmotion === 'steely_chest_thump' || currentEmotion === 'celebrating_winner' || currentEmotion === 'finger_wag_winner';
+        const isFrustration = currentEmotion === 'disappointed_error' || currentEmotion === 'rage_racket_slam_fake' || currentEmotion === 'blown_tire_exhaustion';
+
+        // 🎯 TARGET: Der Schlägerkopf / Sweet Spot ist das Gesicht des Protagonisten!
+        _camDesiredTarget.copy(pPos);
+
+        // 🎬 POSITION: Kinoreife Portraiteinstellung frontal auf das Schlägergesicht mit Bespannung & Mimik
+        if (isHeroEmotion) {
+          // Hero-Untersicht: Schaut von leicht schräg unten ehrfürchtig auf das jubelnde Schlägergesicht
+          _camDesiredPos.set(
+            pPos.x - 0.70,
+            Math.max(1.10, pPos.y - 0.20),
+            pPos.z + frontZSign * 2.10
+          );
+        } else if (isFrustration) {
+          // Frust-Aufsicht: Schaut von leicht oben auf das gesenkte, kopfschüttelnde Schlägergesicht
+          _camDesiredPos.set(
+            pPos.x - 0.65,
+            pPos.y + 0.30,
+            pPos.z + frontZSign * 2.25
+          );
+        } else {
+          // Intimes Augenhöhe-Portrait auf das Schlägergesicht vor dem Aufschlag
+          _camDesiredPos.set(
+            pPos.x - 0.68,
+            pPos.y + 0.05,
+            pPos.z + frontZSign * 2.15
+          );
+        }
+
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.lerp(_camDesiredTarget, 0.18);
+          camera.position.lerp(_camDesiredPos, 0.18);
+        }
+      } else if (effectiveCam === 'umpire') {
+        // 🪑 WIMBLEDON CHAIR UMPIRE CAM (Elevated Net & Service Box View)
+        _camDesiredTarget.set(0, 1.0, 0);
+        _camDesiredPos.set(7.6, 3.6, 0);
+        if (isHardCut) {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        } else {
+          controls.target.copy(_camDesiredTarget);
+          camera.position.copy(_camDesiredPos);
+        }
+      }
+
+      if (isHardCut) {
+        controls.update();
+        lastRenderedCamRef.current = effectiveCam;
+      }
+
+      // Strict Floor Invariant: Camera Y >= 0.85m, Target Y >= 0.40m
+      camera.position.y = Math.max(0.85, camera.position.y);
+      if (controls.target.y < 0.40) {
+        controls.target.y = 0.40;
       }
       controls.update();
     }
@@ -3112,48 +2958,86 @@ function CraneTennisScene({
 
   return (
     <>
+      {/* ☀️ ATMOSPHÄRISCHER WIMBLEDON-HIMMEL MIT SANFTEN WOLKEN & WEICHEM SONNENLICHT */}
+      {courtSurface !== 'cyber' && (
+        <AtmosphericSkyDome
+          zenithColor={courtSurface === 'grass' ? '#1d4ed8' : '#2563eb'}
+          horizonColor={courtSurface === 'grass' ? '#93c5fd' : '#bfdbfe'}
+          groundColor="#475569"
+          sunPosition={[28, 32, 18]}
+          sunColor="#fff7ed"
+          sunSize={1.1}
+          sunIntensity={0.95}
+          cloudCoverage={0.34}
+          cloudDensity={0.76}
+          cloudSpeed={0.003}
+        />
+      )}
+
+      {/* ☀️ HAUPTSONNE (VERSETZT AUF [28, 32, 18] MIT WEICHEM SCHATTEN-RADIUS & DIFFUSER AUSLEUCHTUNG) */}
       <directionalLight
-        position={[19.5, 22.5, -33.8]}
-        intensity={4.2}
-        color="#fffbe8"
+        position={[28, 32, 18]}
+        intensity={2.1}
+        color="#fffbeb"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-28}
-        shadow-camera-right={28}
-        shadow-camera-top={28}
-        shadow-camera-bottom={-28}
-        shadow-bias={-0.0001}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={30}
+        shadow-camera-bottom={-30}
+        shadow-bias={-0.0002}
+        shadow-radius={4.0}
       />
-      <ambientLight intensity={0.65} color="#e0f2fe" />
-      <directionalLight position={[-20, 16, 20]} intensity={1.5} color="#fde68a" />
-      <directionalLight position={[20, 14, 20]} intensity={1.2} color="#38bdf8" />
+
+      {/* 🌤️ WEICHES HIMMEL- & KORONA-DIFFUSIONS-LICHT (HEMISPHERE LIGHT DURCH WOLKEN) */}
+      <hemisphereLight
+        color="#e0f2fe"
+        groundColor={courtSurface === 'clay' ? '#7c2d12' : courtSurface === 'grass' ? '#14532d' : '#1e293b'}
+        intensity={0.95}
+      />
+
+      {/* ☁️ SANFTE FILL-LICHTER (DIFFUSES STREULICHT) */}
+      <ambientLight intensity={0.35} color="#f8fafc" />
+      <directionalLight position={[-24, 18, -16]} intensity={0.65} color="#bae6fd" />
+      <directionalLight position={[-12, 14, 22]} intensity={0.45} color="#fde68a" />
 
       <Environment preset={courtSurface === 'grass' ? 'park' : courtSurface === 'hardcourt' ? 'city' : 'sunset'} />
 
       <TennisCourtArena surface={courtSurface} />
 
-      {/* 🛤️ DOLLY SCHIENEN / RAILS UNTER DEN KRÄNEN */}
-      <CraneDollyRailTrack zPos={-15.2} teamColor="#38bdf8" />
-      <CraneDollyRailTrack zPos={15.2} teamColor="#facc15" />
-
       {/* 🪑 Official Chair Umpire & Staff (Togglable) */}
       {showCourtsideStaff && (
         <>
           <TennisUmpire ballPos={ballVisualPos} />
-          <TennisCourtsideStaff ballPos={ballVisualPos} isCheering={matchScore.isCheering} />
+          <TennisCourtsideStaff />
         </>
       )}
 
       {/* 👥 Sitzendes Publikum auf echten Stadionsitzen (Togglable) */}
       <TennisStadiumSpectators 
-        ballPos={ballVisualPos} 
-        isCheering={matchScore.isCheering} 
-        cheerIntensity={matchScore.cheerIntensity}
         showSpectators={showSpectators}
         showGrandstands={showGrandstands}
       />
 
-      <ConfettiCelebration active={matchScore.isCheering} />
+      {/* 🏟️ 3D STADIUM LED SCOREBOARDS (NUR VORNE & HINTEN AN DEN GRUNDLINIEN - AGENT 17) */}
+      {showScoreboard3D && (
+        <>
+          {/* 1. Süd-Tafel (Hinten / hinter Kran 1 Sinner) */}
+          <TennisStadiumScoreboard 
+            matchScore={matchScore} 
+            position={[0, 4.8, -20.5]} 
+            rotation={[0, 0, 0]} 
+            scale={1.0} 
+          />
+          {/* 2. Nord-Tafel (Vorne / hinter Kran 2 Alcaraz) */}
+          <TennisStadiumScoreboard 
+            matchScore={matchScore} 
+            position={[0, 4.8, 20.5]} 
+            rotation={[0, Math.PI, 0]} 
+            scale={1.0} 
+          />
+        </>
+      )}
 
       {/* 🇮🇹 KRAN 1 (SÜD / JANNIK SINNER) - HIERARCHISCH INTEGRIERT (ZERO GAP) */}
       <MountedCranePlayer
@@ -3181,52 +3065,40 @@ function CraneTennisScene({
         dollyGroupRef={dolly2GroupRef}
       />
 
-      {/* 🎾 TENNISBALL MIT DYNAMISCHEM SMASH- & LOB-GLOW */}
+      {/* 🎾 TENNISBALL MIT PROPORTIONALEM FAKTOR 3.0 (20.1 CM DURCHMESSER) & OPTIK-FILZ & AURA */}
       <group position={[ballVisualPos.x, ballVisualPos.y, ballVisualPos.z]}>
+        {/* Haupt-Filzkern (Faktor 3.0: r = 0.1005 m / d = 20.1 cm) */}
         <mesh castShadow receiveShadow>
-          <sphereGeometry args={[shotRef.current.isSmash ? 0.15 : shotRef.current.isLob ? 0.14 : 0.13, 32, 32]} />
+          <sphereGeometry args={[shotRef.current.isSmash ? 0.108 : shotRef.current.isLob ? 0.105 : 0.1005, 32, 32]} />
           <meshStandardMaterial
-            color={shotRef.current.isSmash ? "#fbbf24" : shotRef.current.isLob ? "#38bdf8" : "#d9f99d"}
-            emissive={shotRef.current.isSmash ? "#f97316" : shotRef.current.isLob ? "#0284c7" : "#bef264"}
-            emissiveIntensity={shotRef.current.isSmash ? 1.5 : shotRef.current.isLob ? 1.2 : 0.5}
-            roughness={0.6}
+            color={shotRef.current.isSmash ? "#fef08a" : shotRef.current.isLob ? "#7dd3fc" : "#ccff00"}
+            emissive={shotRef.current.isSmash ? "#f59e0b" : shotRef.current.isLob ? "#0284c7" : "#84cc16"}
+            emissiveIntensity={shotRef.current.isSmash ? 1.4 : shotRef.current.isLob ? 1.0 : 0.35}
+            roughness={0.82}
+            metalness={0.05}
           />
         </mesh>
+        {/* Typische weiße Tennisball-Naht (Curved Seam, 3x Skalierung) */}
+        <mesh rotation={[0.4, 0.6, 0]}>
+          <torusGeometry args={[0.1014, 0.0048, 12, 32]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.9} metalness={0.05} />
+        </mesh>
+        {/* Kinetische Leucht-Aura für perfekte TV-Sichtbarkeit aus jeder Broadcast-Distanz */}
         <mesh>
-          <sphereGeometry args={[shotRef.current.isSmash ? 0.24 : shotRef.current.isLob ? 0.22 : 0.19, 16, 16]} />
+          <sphereGeometry args={[shotRef.current.isSmash ? 0.165 : shotRef.current.isLob ? 0.144 : 0.126, 16, 16]} />
           <meshBasicMaterial
             color={shotRef.current.isSmash ? "#ea580c" : shotRef.current.isLob ? "#38bdf8" : "#bef264"}
             transparent
-            opacity={shotRef.current.isSmash ? 0.45 : shotRef.current.isLob ? 0.35 : 0.25}
+            opacity={shotRef.current.isSmash ? 0.45 : shotRef.current.isLob ? 0.35 : 0.20}
           />
         </mesh>
+        {/* Smash / Power Lichtquelle */}
+        <pointLight
+          color={shotRef.current.isSmash ? "#f59e0b" : "#bef264"}
+          intensity={shotRef.current.isSmash ? 2.2 : 0.8}
+          distance={3.6}
+        />
       </group>
-
-      {/* 💥 IMPACT BURST BEI SCHLÄGERKONTAKT */}
-      {impactBurst && Date.now() - impactBurst.time < 300 && (
-        <group position={[impactBurst.pos.x, impactBurst.pos.y, impactBurst.pos.z]}>
-          <mesh>
-            <ringGeometry args={[0.15, 0.65, 24]} />
-            <meshBasicMaterial color="#fef08a" transparent opacity={0.85} side={THREE.DoubleSide} />
-          </mesh>
-          <pointLight color="#fde047" intensity={6} distance={3.5} />
-        </group>
-      )}
-
-      {/* 🔥 SMASH SHOCKWAVE BURST BEI BODENAUFPRALL */}
-      {smashBurst && Date.now() - smashBurst.time < 450 && (
-        <group position={[smashBurst.pos.x, 0.05, smashBurst.pos.z]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[0.25, 1.8, 32]} />
-            <meshBasicMaterial color="#f97316" transparent opacity={0.85} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.2, 3.2, 32]} />
-            <meshBasicMaterial color="#fde047" transparent opacity={0.45} side={THREE.DoubleSide} />
-          </mesh>
-          <pointLight color="#f97316" intensity={12} distance={8} />
-        </group>
-      )}
 
       <OrbitControls
         ref={orbitControlsRef}
@@ -3248,7 +3120,18 @@ export default function CraneTennis() {
   const [showSpectators, setShowSpectators] = useState(false);
   const [showCourtsideStaff, setShowCourtsideStaff] = useState(false);
   const [showGrandstands, setShowGrandstands] = useState(false);
+  const [showUmpireCall, setShowUmpireCall] = useState(true);
+  const [showScoreboard3D, setShowScoreboard3D] = useState(true);
   const [isControlsOpen, setIsControlsOpen] = useState(false);
+  const [showH2HStats, setShowH2HStats] = useState(false);
+  const [directorLiveInfo, setDirectorLiveInfo] = useState<{ cam: TennisCameraMode; label: string; reason: string }>({
+    cam: 'broadcast',
+    label: '📺 Broadcast Main',
+    reason: 'TV-Hauptkamera (Center Court)'
+  });
+  const orbitControlsRef = useRef<any>(null);
+
+  // Stroke / Shot triggers
   const [manualVolleyTrigger, setManualVolleyTrigger] = useState(0);
   const [manualSmashTrigger, setManualSmashTrigger] = useState(0);
   const [manualTopspinLobTrigger, setManualTopspinLobTrigger] = useState(0);
@@ -3260,64 +3143,23 @@ export default function CraneTennis() {
   const [manualSliceTrigger, setManualSliceTrigger] = useState(0);
   const [manualNetErrorTrigger, setManualNetErrorTrigger] = useState(0);
   const [manualOutErrorTrigger, setManualOutErrorTrigger] = useState(0);
-  const [manualResetTrigger, setManualResetTrigger] = useState(0);
-  const [showH2HStats, setShowH2HStats] = useState(false);
-  const orbitControlsRef = useRef<any>(null);
 
-  const [matchScore, setMatchScore] = useState<MatchScore>({
-    p1Points: 15,
-    p2Points: 30,
-    p1Games: 4,
-    p2Games: 3,
-    p1Sets: 1,
-    p2Sets: 0,
-    server: 1,
-    lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
-    umpireCall: '15 - 30 (4:3)',
-    rallyCount: 4,
-    isCheering: false,
-    cheerIntensity: 0.0
-  });
+  // 🦅 Hawk-Eye Line Replay Data State
+  const [hawkEyeData, setHawkEyeData] = useState<HawkEyeData | null>(null);
+  const hawkEyeTimerRef = useRef<number | null>(null);
 
-  const getPointsLabel = (pts: number) => {
-    if (pts === 0) return '0';
-    if (pts === 15) return '15';
-    if (pts === 30) return '30';
-    if (pts === 40) return '40';
-    if (pts === 45) return 'ADV';
-    return '0';
+  const handleHawkEyeTrigger = (data: HawkEyeData) => {
+    if (hawkEyeTimerRef.current) {
+      window.clearTimeout(hawkEyeTimerRef.current);
+    }
+    setHawkEyeData(data);
+    hawkEyeTimerRef.current = window.setTimeout(() => {
+      setHawkEyeData(prev => prev ? { ...prev, isOpen: false } : null);
+    }, 3200);
   };
 
-  const handleRestartMatch = () => {
-    setManualResetTrigger(n => n + 1);
-    setMatchScore({
-      p1Points: 0,
-      p2Points: 0,
-      p1Games: 0,
-      p2Games: 0,
-      p1Sets: 0,
-      p2Sets: 0,
-      server: 1,
-      lastMessage: '🏆 ARENA INTRO: 11.3m Ausleger-Show • Matchstart!',
-      umpireCall: 'Love-All (0:0)',
-      rallyCount: 0,
-      isCheering: false,
-      cheerIntensity: 0.0
-    });
-  };
-
-  const isNetErrorActive = matchScore.lastMessage.includes('NETZFEHLER') || (matchScore.lastMessage.includes('NETZ') && !matchScore.lastMessage.includes('VOLLEY') && !matchScore.lastMessage.includes('NETZANGRIFF') && !matchScore.lastMessage.includes('NETZROLLER'));
-  const isOutActive = matchScore.lastMessage.includes('OUT') || matchScore.lastMessage.includes('AUS');
-  const isNetCordActive = matchScore.lastMessage.includes('NETZROLLER');
-  const isSmashActive = !isNetErrorActive && !isOutActive && (matchScore.lastMessage.includes('SMASH') || matchScore.lastMessage.includes('SCHMETTERBALL'));
-  const isLobActive = !isNetErrorActive && !isOutActive && !isSmashActive && (matchScore.lastMessage.includes('LOB') || matchScore.lastMessage.includes('KERZE'));
-  const isDropActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && (matchScore.lastMessage.includes('STOPPBALL') || matchScore.lastMessage.includes('DROP'));
-  const isSliceActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && matchScore.lastMessage.includes('SLICE');
-  const isServiceWinnerActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && matchScore.lastMessage.includes('SERVICE WINNER');
-  const isAceActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && !isServiceWinnerActive && (matchScore.lastMessage.includes('ASS') || matchScore.lastMessage.includes('ACE'));
-  const isVolleyActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && !isServiceWinnerActive && !isAceActive && (matchScore.lastMessage.includes('VOLLEY') || matchScore.lastMessage.includes('NETZANGRIFF'));
-  const isTopspinActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && (matchScore.lastMessage.includes('TOPSPIN') || matchScore.lastMessage.includes('3.200 RPM'));
-  const isLaserActive = !isNetErrorActive && !isOutActive && !isSmashActive && !isLobActive && !isDropActive && !isSliceActive && !isTopspinActive && (matchScore.lastMessage.includes('LASER') || matchScore.lastMessage.includes('FLAT'));
+  // 🎾 Hook für Match-Scoring, Sätze & State Machine (SoC)
+  const { matchScore, setMatchScore, manualResetTrigger, restartMatch } = useTennisMatchEngine();
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0, zIndex: 10 }}>
@@ -3338,6 +3180,7 @@ export default function CraneTennis() {
           showSpectators={showSpectators}
           showCourtsideStaff={showCourtsideStaff}
           showGrandstands={showGrandstands}
+          showScoreboard3D={showScoreboard3D}
           manualVolleyTrigger={manualVolleyTrigger}
           manualSmashTrigger={manualSmashTrigger}
           manualTopspinLobTrigger={manualTopspinLobTrigger}
@@ -3350,1275 +3193,110 @@ export default function CraneTennis() {
           manualNetErrorTrigger={manualNetErrorTrigger}
           manualOutErrorTrigger={manualOutErrorTrigger}
           manualResetTrigger={manualResetTrigger}
+          onDirectorInfoChange={setDirectorLiveInfo}
+          onHawkEyeTrigger={handleHawkEyeTrigger}
         />
       </Canvas>
 
-      {/* --- 📺 OFFICIAL ATP GRAND SLAM TV BROADCAST SCOREBOARD HUD (BOTTOM LEFT) --- */}
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        left: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: '8px',
-        zIndex: 40,
-        fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
-      }}>
-        {/* QUICK ACTIONS ROW: FREEZE, RESTART, STATS */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* ⏸️ FREEZE / STOP BUTTON */}
-          <button
-            onClick={() => setIsAIvsAI(!isAIvsAI)}
-            title={isAIvsAI ? "Match anhalten / einfrieren (Pause)" : "Match fortsetzen (Play)"}
-            style={{
-              background: isAIvsAI 
-                ? 'linear-gradient(135deg, rgba(234,179,8,0.35), rgba(202,138,4,0.25))' 
-                : 'linear-gradient(135deg, rgba(34,197,94,0.45), rgba(22,163,74,0.35))',
-              border: `1px solid ${isAIvsAI ? 'rgba(234,179,8,0.7)' : '#4ade80'}`,
-              color: isAIvsAI ? '#fef08a' : '#bbf7d0',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              boxShadow: isAIvsAI ? '0 2px 10px rgba(234, 179, 8, 0.3)' : '0 0 16px rgba(74, 222, 128, 0.6)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <span>{isAIvsAI ? '⏸️' : '▶️'}</span>
-            <span>{isAIvsAI ? 'Stop / Freeze' : 'Fortsetzen'}</span>
-          </button>
-
-          {/* 🔄 RESTART MATCH BUTTON */}
-          <button
-            onClick={handleRestartMatch}
-            title="Match komplett neu starten (11.3m Ausleger-Show)"
-            style={{
-              background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(249,115,22,0.25))',
-              border: '1px solid rgba(239,68,68,0.6)',
-              color: '#fee2e2',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              boxShadow: '0 2px 10px rgba(239, 68, 68, 0.3)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <span>🔄</span>
-            <span>Restart Match</span>
-          </button>
-
-          {/* 📊 H2H STATS BUTTON */}
-          <button
-            onClick={() => setShowH2HStats(true)}
-            style={{
-              background: 'linear-gradient(135deg, rgba(56,189,248,0.3), rgba(2,132,199,0.2))',
-              border: '1px solid rgba(56,189,248,0.6)',
-              color: '#e0f2fe',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              boxShadow: '0 2px 10px rgba(56, 189, 248, 0.3)',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <span>📊</span>
-            <span>ATP H2H</span>
-          </button>
-        </div>
-
-        {/* 📺 AUTHENTIC TV BROADCAST SCOREBOARD CARD */}
-        <div style={{
-          background: 'linear-gradient(180deg, rgba(11, 18, 33, 0.96) 0%, rgba(6, 10, 20, 0.98) 100%)',
-          border: '1px solid rgba(255, 255, 255, 0.18)',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(250, 204, 21, 0.2)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          minWidth: '380px'
-        }}>
-          {/* TOURNAMENT & ROUND TITLE BAR */}
-          <div style={{
-            background: 'linear-gradient(90deg, #0f2b48 0%, #1e1b4b 50%, #311042 100%)',
-            padding: '5px 12px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
-            fontSize: '10px',
-            fontWeight: 900,
-            letterSpacing: '0.8px',
-            color: '#facc15',
-            textTransform: 'uppercase'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>🏆</span>
-              <span>ATP FINALS • CHAMPIONSHIP MATCH</span>
-            </div>
-            <div style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 700, letterSpacing: '0.4px' }}>
-              SET {matchScore.p1Sets + matchScore.p2Sets + 1} • FINAL
-            </div>
-          </div>
-
-          {/* PLAYER TABLE HEADER */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 40px 40px 54px',
-            background: 'rgba(0, 0, 0, 0.4)',
-            padding: '3px 12px',
-            fontSize: '9px',
-            fontWeight: 800,
-            color: '#64748b',
-            letterSpacing: '0.6px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
-          }}>
-            <div>PLAYER</div>
-            <div style={{ textAlign: 'center' }}>SETS</div>
-            <div style={{ textAlign: 'center' }}>GAMES</div>
-            <div style={{ textAlign: 'center', color: '#facc15' }}>POINTS</div>
-          </div>
-
-          {/* PLAYER ROW 1: JANNIK SINNER */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 40px 40px 54px',
-            alignItems: 'center',
-            padding: '7px 12px',
-            background: matchScore.server === 1 ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '15px' }}>🇮🇹</span>
-              <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 800 }}>[1]</span>
-              <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 900, letterSpacing: '0.3px' }}>
-                J. SINNER
-              </span>
-              {matchScore.server === 1 && (
-                <span 
-                  title="Aufschläger (Service)"
-                  style={{
-                    display: 'inline-block',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#facc15',
-                    boxShadow: '0 0 10px #facc15, 0 0 4px #fff'
-                  }} 
-                />
-              )}
-            </div>
-
-            {/* Sets */}
-            <div style={{ textAlign: 'center', color: '#e2e8f0', fontSize: '13px', fontWeight: 900, fontFamily: 'monospace' }}>
-              {matchScore.p1Sets}
-            </div>
-
-            {/* Games */}
-            <div style={{ textAlign: 'center', color: '#38bdf8', fontSize: '14px', fontWeight: 900, fontFamily: 'monospace' }}>
-              {matchScore.p1Games}
-            </div>
-
-            {/* Points Box */}
-            <div style={{
-              textAlign: 'center',
-              background: matchScore.p1Points > matchScore.p2Points 
-                ? 'linear-gradient(135deg, #0284c7, #0369a1)' 
-                : 'rgba(255, 255, 255, 0.08)',
-              color: matchScore.p1Points > matchScore.p2Points ? '#fff' : '#f8fafc',
-              padding: '3px 0',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: 900,
-              fontFamily: 'monospace',
-              border: matchScore.p1Points > matchScore.p2Points ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-              boxShadow: matchScore.p1Points > matchScore.p2Points ? '0 0 10px rgba(56, 189, 248, 0.5)' : 'none'
-            }}>
-              {getPointsLabel(matchScore.p1Points)}
-            </div>
-          </div>
-
-          {/* PLAYER ROW 2: CARLOS ALCARAZ */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 40px 40px 54px',
-            alignItems: 'center',
-            padding: '7px 12px',
-            background: matchScore.server === 2 ? 'rgba(250, 204, 21, 0.08)' : 'transparent',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '15px' }}>🇪🇸</span>
-              <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 800 }}>[2]</span>
-              <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 900, letterSpacing: '0.3px' }}>
-                C. ALCARAZ
-              </span>
-              {matchScore.server === 2 && (
-                <span 
-                  title="Aufschläger (Service)"
-                  style={{
-                    display: 'inline-block',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#facc15',
-                    boxShadow: '0 0 10px #facc15, 0 0 4px #fff'
-                  }} 
-                />
-              )}
-            </div>
-
-            {/* Sets */}
-            <div style={{ textAlign: 'center', color: '#e2e8f0', fontSize: '13px', fontWeight: 900, fontFamily: 'monospace' }}>
-              {matchScore.p2Sets}
-            </div>
-
-            {/* Games */}
-            <div style={{ textAlign: 'center', color: '#facc15', fontSize: '14px', fontWeight: 900, fontFamily: 'monospace' }}>
-              {matchScore.p2Games}
-            </div>
-
-            {/* Points Box */}
-            <div style={{
-              textAlign: 'center',
-              background: matchScore.p2Points > matchScore.p1Points 
-                ? 'linear-gradient(135deg, #d97706, #b45309)' 
-                : 'rgba(255, 255, 255, 0.08)',
-              color: matchScore.p2Points > matchScore.p1Points ? '#fff' : '#f8fafc',
-              padding: '3px 0',
-              borderRadius: '4px',
-              fontSize: '14px',
-              fontWeight: 900,
-              fontFamily: 'monospace',
-              border: matchScore.p2Points > matchScore.p1Points ? '1px solid #facc15' : '1px solid rgba(255,255,255,0.1)',
-              boxShadow: matchScore.p2Points > matchScore.p1Points ? '0 0 10px rgba(250, 204, 21, 0.5)' : 'none'
-            }}>
-              {getPointsLabel(matchScore.p2Points)}
-            </div>
-          </div>
-
-          {/* BOTTOM BROADCAST TICKER & EVENT BADGES */}
-          <div style={{
-            background: 'rgba(0, 0, 0, 0.65)',
-            padding: '6px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: '#38bdf8', fontSize: '9px', fontWeight: 900 }}>🪑 UMPIRE:</span>
-                <span style={{ color: '#f8fafc', fontSize: '11px', fontWeight: 900, fontFamily: 'monospace' }}>
-                  {matchScore.umpireCall}
-                </span>
-              </div>
-
-              {/* DYNAMIC TV BADGES */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {isNetErrorActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(220, 38, 38, 0.9)'
-                  }}>
-                    🕸️ NETZFEHLER
-                  </span>
-                )}
-                {isOutActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #ea580c, #c2410c)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(234, 88, 12, 0.9)'
-                  }}>
-                    ⚠️ OUT (BALL IM AUS)
-                  </span>
-                )}
-                {isNetCordActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(139, 92, 246, 0.9)'
-                  }}>
-                    💫 NETZROLLER
-                  </span>
-                )}
-                {isSmashActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #ef4444, #f97316)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(239, 68, 68, 0.8)'
-                  }}>
-                    🔥 248 km/h SMASH
-                  </span>
-                )}
-                {isLobActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #0284c7, #8b5cf6)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(56, 189, 248, 0.8)'
-                  }}>
-                    🌈 10.5m LOB
-                  </span>
-                )}
-                {isDropActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #ec4899, #f43f5e)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(236, 72, 153, 0.8)'
-                  }}>
-                    💫 STOPPBALL
-                  </span>
-                )}
-                {isSliceActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(16, 185, 129, 0.8)'
-                  }}>
-                    🌀 SLICE
-                  </span>
-                )}
-                {isTopspinActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(245, 158, 11, 0.8)'
-                  }}>
-                    🌪️ TOPSPIN
-                  </span>
-                )}
-                {isLaserActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #06b6d4, #0284c7)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(6, 182, 212, 0.8)'
-                  }}>
-                    ⚡ 132 km/h LASER
-                  </span>
-                )}
-                {isServiceWinnerActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #eab308, #ca8a04)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(234, 179, 8, 0.8)'
-                  }}>
-                    🎯 SERVICE WINNER
-                  </span>
-                )}
-                {isAceActive && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(99, 102, 241, 0.8)'
-                  }}>
-                    ⚡ DIREKTES ASS
-                  </span>
-                )}
-                {isVolleyActive && (
-                  <span style={{
-                    background: '#f43f5e',
-                    color: '#fff',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 10px rgba(244, 63, 94, 0.6)'
-                  }}>
-                    ⚡ NETZ-VOLLEY
-                  </span>
-                )}
-                {!isAIvsAI && (
-                  <span style={{
-                    background: 'linear-gradient(135deg, #eab308, #ca8a04)',
-                    color: '#000',
-                    fontSize: '9px',
-                    fontWeight: 900,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px',
-                    boxShadow: '0 0 12px rgba(234, 179, 8, 0.9)'
-                  }}>
-                    ⏸️ EINGEFROREN
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* LIVE ACTION STATUS TICKER */}
-            <div style={{
-              fontSize: '10px',
-              color: matchScore.isCheering ? '#f43f5e' : isNetErrorActive ? '#ef4444' : isOutActive ? '#fb923c' : isNetCordActive ? '#c084fc' : isSmashActive ? '#facc15' : isLobActive ? '#38bdf8' : isDropActive ? '#f472b6' : isSliceActive ? '#34d399' : isServiceWinnerActive ? '#fde047' : '#4ade80',
-              fontWeight: 700,
-              letterSpacing: '0.2px'
-            }}>
-              {matchScore.isCheering ? `👏 JUBEL! ${matchScore.lastMessage}` : matchScore.lastMessage}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* --- CONTROL DRAWER (RIGHT SIDE) - COLLAPSIBLE --- */}
-      {!isControlsOpen ? (
-        <button
-          onClick={() => setIsControlsOpen(true)}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'rgba(11, 16, 24, 0.92)',
-            border: '1px solid rgba(250, 204, 21, 0.5)',
-            borderRadius: '10px',
-            padding: '8px 14px',
-            color: '#facc15',
-            fontSize: '12px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
-            zIndex: 50,
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <span style={{ fontSize: '10px', opacity: 0.8, color: '#38bdf8' }}>◀</span>
-          <span>🎾</span>
-          <span>Steuerung & Schläge</span>
-        </button>
-      ) : (
+      {/* 🔴 LIVE TV BROADCAST REGIE ON-AIR TALLY HUD (AGENT 20: CAMERA DIRECTOR) */}
+      {cameraMode === 'broadcast' && (
         <div style={{
           position: 'absolute',
           top: '20px',
-          right: '20px',
-          background: 'rgba(11, 16, 24, 0.94)',
-          color: '#fff',
-          padding: '16px',
-          borderRadius: '12px',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          width: '320px',
-          maxHeight: 'calc(100vh - 40px)',
-          overflowY: 'auto',
-          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
-          zIndex: 50
+          left: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          background: 'rgba(11, 16, 28, 0.90)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(239, 68, 68, 0.55)',
+          borderRadius: '10px',
+          padding: '8px 14px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(239, 68, 68, 0.25)',
+          zIndex: 40,
+          pointerEvents: 'none',
+          fontFamily: 'Inter, system-ui, sans-serif'
         }}>
-          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: '8px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🎾</span> <span>Kran-Tennis Arena</span>
-              </h3>
-              <div style={{ fontSize: '10px', color: '#94a3b8' }}>Dolly auf Schienen, Smashes, Lobs & Volleys</div>
+          <div style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            background: '#ef4444',
+            boxShadow: '0 0 10px #ef4444',
+            flexShrink: 0
+          }} />
+          <div>
+            <div style={{ fontSize: '9px', fontWeight: 900, color: '#ef4444', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+              🔴 LIVE TV-REGIE • ON-AIR
             </div>
-            <button
-              onClick={() => setIsControlsOpen(false)}
-              title="Steuerung einklappen"
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '6px',
-                color: '#cbd5e1',
-                padding: '4px 8px',
-                fontSize: '10px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <span>Einklappen</span>
-              <span style={{ fontSize: '9px', color: '#facc15' }}>◀</span>
-            </button>
-          </div>
-
-        {/* 1. Court Surface Selector */}
-        <div style={{ marginBottom: '14px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#facc15', marginBottom: '6px' }}>
-            🏟️ Tennisplatz-Belag:
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-            {[
-              { id: 'clay' as const, label: '🧱 Sandplatz', desc: 'Roland Garros', col: '#ea580c' },
-              { id: 'grass' as const, label: '🌿 Rasen', desc: 'Wimbledon', col: '#16a34a' },
-              { id: 'hardcourt' as const, label: '🎾 Hardcourt', desc: 'US Open Blue', col: '#2563eb' },
-              { id: 'cyber' as const, label: '⚡ Cyber Neon', desc: 'Night Stadium', col: '#38bdf8' }
-            ].map(item => (
-              <button
-                key={item.id}
-                onClick={() => setCourtSurface(item.id)}
-                style={{
-                  padding: '6px 8px',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  borderRadius: '6px',
-                  border: `1px solid ${courtSurface === item.id ? item.col : 'rgba(255,255,255,0.1)'}`,
-                  background: courtSurface === item.id ? `${item.col}30` : 'rgba(255,255,255,0.05)',
-                  color: courtSurface === item.id ? '#fff' : '#94a3b8',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div>{item.label}</div>
-                <div style={{ fontSize: '8px', color: '#64748b' }}>{item.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 2. Broadcast Camera Selector */}
-        <div style={{ marginBottom: '14px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', marginBottom: '6px' }}>
-            🎥 Kamera-Perspektiven:
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-            {[
-              { id: 'broadcast' as const, label: '📺 TV Broadcast' },
-              { id: 'smash' as const, label: '🎾 Schläger-Cam (POV)' },
-              { id: 'spectator' as const, label: '👥 Tribüne (Fan)' },
-              { id: 'umpire' as const, label: '🪑 Schiedsrichter' },
-              { id: 'coach' as const, label: '📋 Trainer-Bank' },
-              { id: 'ball' as const, label: '🎾 Ball-Kamera' },
-              { id: 'crane1' as const, label: '🏗️ Kran 1 POV' },
-              { id: 'free' as const, label: '🔓 Freier Orbit' }
-            ].map(item => (
-              <button
-                key={item.id}
-                onClick={() => setCameraMode(item.id)}
-                style={{
-                  padding: '6px',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  borderRadius: '6px',
-                  border: `1px solid ${cameraMode === item.id ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`,
-                  background: cameraMode === item.id ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)',
-                  color: cameraMode === item.id ? '#38bdf8' : '#94a3b8',
-                  cursor: 'pointer'
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 3. 🔥 SMASHES, LOB, STOPPBALL & SCHLÄGE */}
-        <div style={{
-          marginBottom: '14px',
-          background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(56,189,248,0.15))',
-          padding: '10px',
-          borderRadius: '8px',
-          border: '1px solid rgba(56,189,248,0.35)'
-        }}>
-          <div style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>🔥 Schlag- & Taktik-Arsenal:</span>
-            <span style={{ fontSize: '9px', background: '#0284c7', color: '#fff', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>ATP Pro</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button
-              onClick={() => setManualDropTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(236,72,153,0.7)',
-                background: 'linear-gradient(135deg, rgba(236,72,153,0.35), rgba(244,63,94,0.2))',
-                color: '#fce7f3',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>💫 Disguised Stoppball (Drop Shot)</span>
-              <span style={{ fontSize: '9px', color: '#fbcfe8' }}>2.600 RPM</span>
-            </button>
-
-            <button
-              onClick={() => setManualLaserTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(56,189,248,0.7)',
-                background: 'linear-gradient(135deg, rgba(2,132,199,0.4), rgba(56,189,248,0.25))',
-                color: '#e0f2fe',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>⚡ 132 km/h Sinner Rückhand-Laser</span>
-              <span style={{ fontSize: '9px', color: '#bae6fd' }}>Down-the-Line</span>
-            </button>
-
-            <button
-              onClick={() => setManualTopspinTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(245,158,11,0.7)',
-                background: 'linear-gradient(135deg, rgba(245,158,11,0.35), rgba(217,119,6,0.2))',
-                color: '#fef3c7',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🌪️ 3.200 RPM Alcaraz Heavy-Topspin</span>
-              <span style={{ fontSize: '9px', color: '#fde68a' }}>Inside-Out</span>
-            </button>
-
-            <button
-              onClick={() => setManualSliceTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(16,185,129,0.7)',
-                background: 'linear-gradient(135deg, rgba(16,185,129,0.35), rgba(5,150,105,0.2))',
-                color: '#d1fae5',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🌀 3.100 RPM Alcaraz Backhand-Slice</span>
-              <span style={{ fontSize: '9px', color: '#a7f3d0' }}>Rhythmuswechsel</span>
-            </button>
-
-            <button
-              onClick={() => setManualTopspinLobTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(56,189,248,0.7)',
-                background: 'linear-gradient(135deg, rgba(2,132,199,0.4), rgba(139,92,246,0.3))',
-                color: '#e0f2fe',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🌈 10.5m Topspin-Lob Winner</span>
-              <span style={{ fontSize: '9px', color: '#bae6fd' }}>Über den Kran</span>
-            </button>
-
-            <button
-              onClick={() => setManualSkyLobTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(245,158,11,0.7)',
-                background: 'linear-gradient(135deg, rgba(245,158,11,0.35), rgba(234,179,8,0.2))',
-                color: '#fef3c7',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🛡️ 11.2m Hohe Not-Kerze</span>
-              <span style={{ fontSize: '9px', color: '#fde68a' }}>Sky-Lob / Flutlicht</span>
-            </button>
-
-            <button
-              onClick={() => setManualSmashTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(239,68,68,0.7)',
-                background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(249,115,22,0.2))',
-                color: '#fee2e2',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🔥 248 km/h Monster-Smash</span>
-              <span style={{ fontSize: '9px', color: '#fca5a5' }}>Sofortiger Winner</span>
-            </button>
-
-            <button
-              onClick={() => setManualVolleyTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(56,189,248,0.6)',
-                background: 'linear-gradient(135deg, rgba(56,189,248,0.3), rgba(14,165,233,0.15))',
-                color: '#e0f2fe',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>⚡ Blitz-Netzvolley Angriff</span>
-              <span style={{ fontSize: '9px', color: '#bae6fd' }}>Direkt am Netz</span>
-            </button>
-
-            <button
-              onClick={() => setManualNetErrorTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(239,68,68,0.7)',
-                background: 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(185,28,28,0.25))',
-                color: '#fee2e2',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🕸️ Net Error (Ball im Netz)</span>
-              <span style={{ fontSize: '9px', color: '#fca5a5' }}>Netzkante</span>
-            </button>
-
-            <button
-              onClick={() => setManualOutErrorTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(234,88,12,0.7)',
-                background: 'linear-gradient(135deg, rgba(234,88,12,0.35), rgba(194,65,12,0.25))',
-                color: '#ffedd5',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>⚠️ Out Error (Ball im Aus)</span>
-              <span style={{ fontSize: '9px', color: '#fdba74' }}>Grundlinie/Korridor</span>
-            </button>
-
-            <button
-              onClick={() => setManualServiceWinnerTrigger(n => n + 1)}
-              style={{
-                padding: '7px 10px',
-                fontSize: '10px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(234,179,8,0.7)',
-                background: 'linear-gradient(135deg, rgba(234,179,8,0.35), rgba(202,138,4,0.2))',
-                color: '#fef08a',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🎯 228 km/h Service Winner</span>
-              <span style={{ fontSize: '9px', color: '#fde047' }}>Return-Fehler</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 4. 👥 STADION-ELEMENTE & PUBLIKUM TOGGLES (EIN- / AUSBLENDEN) */}
-        <div style={{ marginBottom: '14px', background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#facc15', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-            <span>👥 Stadion & Publikum:</span>
-            <span style={{ fontSize: '9px', color: '#94a3b8' }}>Sichtbarkeit steuern</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button
-              onClick={() => setShowSpectators(!showSpectators)}
-              style={{
-                padding: '6px 10px',
-                fontSize: '10px',
-                fontWeight: 700,
-                borderRadius: '6px',
-                border: `1px solid ${showSpectators ? '#4ade80' : 'rgba(255,255,255,0.2)'}`,
-                background: showSpectators ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.05)',
-                color: showSpectators ? '#4ade80' : '#94a3b8',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>👥 Publikum auf Tribünen</span>
-              <span style={{ fontFamily: 'monospace', fontWeight: 900 }}>{showSpectators ? '✅ SICHTBAR' : '❌ AUSGEBLENDET'}</span>
-            </button>
-
-            <button
-              onClick={() => setShowCourtsideStaff(!showCourtsideStaff)}
-              style={{
-                padding: '6px 10px',
-                fontSize: '10px',
-                fontWeight: 700,
-                borderRadius: '6px',
-                border: `1px solid ${showCourtsideStaff ? '#38bdf8' : 'rgba(255,255,255,0.2)'}`,
-                background: showCourtsideStaff ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)',
-                color: showCourtsideStaff ? '#38bdf8' : '#94a3b8',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🪑 Schiedsrichter & Ballkinder</span>
-              <span style={{ fontFamily: 'monospace', fontWeight: 900 }}>{showCourtsideStaff ? '✅ SICHTBAR' : '❌ AUSGEBLENDET'}</span>
-            </button>
-
-            <button
-              onClick={() => setShowGrandstands(!showGrandstands)}
-              style={{
-                padding: '6px 10px',
-                fontSize: '10px',
-                fontWeight: 700,
-                borderRadius: '6px',
-                border: `1px solid ${showGrandstands ? '#f59e0b' : 'rgba(255,255,255,0.2)'}`,
-                background: showGrandstands ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.05)',
-                color: showGrandstands ? '#f59e0b' : '#94a3b8',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>🏟️ Beton-Tribünen & LED-Banden</span>
-              <span style={{ fontFamily: 'monospace', fontWeight: 900 }}>{showGrandstands ? '✅ SICHTBAR' : '❌ AUSGEBLENDET'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 5. Action Button: Crowd Cheer */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
-          <button
-            onClick={() => {
-              setMatchScore(s => ({
-                ...s,
-                isCheering: true,
-                cheerIntensity: 2.0,
-                lastMessage: '🎉 RIESEN-JUBEL & LA OLA WELLE IM STADION!'
-              }));
-              setTimeout(() => {
-                setMatchScore(s => ({ ...s, isCheering: false, cheerIntensity: 0 }));
-              }, 4000);
-            }}
-            style={{
-              padding: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              borderRadius: '6px',
-              border: '1px solid rgba(244, 63, 94, 0.6)',
-              background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.35), rgba(250, 204, 21, 0.35))',
-              color: '#fff',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <span>🎉</span> <span>La Ola Welle & Jubel</span>
-          </button>
-        </div>
-
-        {/* 6. Match Simulation Speed & Play Mode */}
-        <div style={{
-          background: 'rgba(255,255,255,0.04)',
-          borderRadius: '8px',
-          padding: '10px',
-          marginBottom: '10px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#cbd5e1', marginBottom: '6px' }}>
-            <span>Match-Geschwindigkeit:</span>
-            <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#facc15' }}>{gameSpeed.toFixed(1)}x</span>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', marginBottom: '8px' }}>
-            {[0.5, 1.0, 1.2, 1.5, 2.0].map(spd => (
-              <button
-                key={`spd-${spd}`}
-                onClick={() => setGameSpeed(spd)}
-                style={{
-                  padding: '4px',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  borderRadius: '4px',
-                  border: `1px solid ${gameSpeed === spd ? '#facc15' : 'rgba(255,255,255,0.1)'}`,
-                  background: gameSpeed === spd ? 'rgba(250,204,21,0.3)' : 'rgba(255,255,255,0.05)',
-                  color: gameSpeed === spd ? '#fde047' : '#94a3b8',
-                  cursor: 'pointer'
-                }}
-              >
-                {spd}x
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#cbd5e1' }}>Autonomes Match:</span>
-            <button
-              onClick={() => setIsAIvsAI(!isAIvsAI)}
-              style={{
-                padding: '3px 8px',
-                fontSize: '10px',
-                fontWeight: 700,
-                borderRadius: '4px',
-                border: `1px solid ${isAIvsAI ? '#4ade80' : 'rgba(255,255,255,0.2)'}`,
-                background: isAIvsAI ? 'rgba(74, 222, 128, 0.25)' : 'rgba(255,255,255,0.08)',
-                color: isAIvsAI ? '#4ade80' : '#94a3b8',
-                cursor: 'pointer'
-              }}
-            >
-              {isAIvsAI ? '🤖 SPIELT' : 'PAUSIERT'}
-            </button>
-          </div>
-        </div>
-
-        {/* 7. Match Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              onClick={() => setIsAIvsAI(!isAIvsAI)}
-              style={{
-                flex: 1,
-                padding: '8px',
-                fontSize: '11px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: `1px solid ${isAIvsAI ? 'rgba(234,179,8,0.6)' : 'rgba(74,222,128,0.6)'}`,
-                background: isAIvsAI ? 'linear-gradient(135deg, rgba(234,179,8,0.25), rgba(202,138,4,0.15))' : 'linear-gradient(135deg, rgba(74,222,128,0.25), rgba(34,197,94,0.15))',
-                color: isAIvsAI ? '#fef08a' : '#86efac',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>{isAIvsAI ? '⏸️' : '▶️'}</span>
-              <span>{isAIvsAI ? 'Stop (Einfrieren)' : 'Play (Fortsetzen)'}</span>
-            </button>
-
-            <button
-              onClick={handleRestartMatch}
-              style={{
-                flex: 1,
-                padding: '8px',
-                fontSize: '11px',
-                fontWeight: 800,
-                borderRadius: '6px',
-                border: '1px solid rgba(239,68,68,0.5)',
-                background: 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(220,38,38,0.15))',
-                color: '#fca5a5',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>🔄</span> <span>Restart Match</span>
-            </button>
-          </div>
-
-          <button
-            onClick={() => setShowH2HStats(true)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              fontSize: '11px',
-              fontWeight: 800,
-              borderRadius: '6px',
-              border: '1px solid rgba(56,189,248,0.5)',
-              background: 'linear-gradient(135deg, rgba(2,132,199,0.3), rgba(250,204,21,0.2))',
-              color: '#fde047',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <span>📊</span> <span>ATP #1 vs #2 H2H & Match-Statistiken</span>
-          </button>
-        </div>
-      </div>
-      )}
-
-      {/* --- 📊 ATP HEAD-TO-HEAD & MATCH STATS MODAL --- */}
-      {showH2HStats && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '580px',
-          maxWidth: '92vw',
-          background: 'rgba(11, 16, 28, 0.96)',
-          color: '#fff',
-          padding: '24px',
-          borderRadius: '16px',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(56, 189, 248, 0.4)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)',
-          zIndex: 100
-        }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
-            <div>
-              <div style={{ fontSize: '11px', color: '#facc15', fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase' }}>
-                🏆 ATP GRAND SLAM / MASTERS FINALE
-              </div>
-              <div style={{ fontSize: '17px', fontWeight: 900, color: '#fff' }}>
-                Head-to-Head & Offizielle ATP Statistiken
-              </div>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: '#f1f5f9' }}>
+              {directorLiveInfo.label} <span style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 600 }}>({directorLiveInfo.reason})</span>
             </div>
-            <button
-              onClick={() => setShowH2HStats(false)}
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                color: '#fff',
-                width: '30px',
-                height: '30px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                fontWeight: 900,
-                fontSize: '14px'
-              }}
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Players Comparison Card */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '16px', alignItems: 'center', marginBottom: '18px', background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            {/* Player 1 Sinner */}
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '18px' }}>🇮🇹</span>
-                <span style={{ color: '#38bdf8', fontWeight: 900, fontSize: '15px' }}>Jannik SINNER</span>
-              </div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>ATP Weltrangliste #1 (11.830 Pkt)</div>
-              <div style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 800 }}>"The Fox" • Baseline Firepower</div>
-            </div>
-
-            <div style={{ textAlign: 'center', padding: '0 8px' }}>
-              <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 800 }}>H2H TOTAL</div>
-              <div style={{ fontSize: '20px', fontWeight: 900, color: '#facc15', fontFamily: 'monospace' }}>7 – 10</div>
-              <div style={{ fontSize: '9px', color: '#64748b' }}>Grand Slam: 2–4</div>
-            </div>
-
-            {/* Player 2 Alcaraz */}
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', marginBottom: '4px' }}>
-                <span style={{ color: '#facc15', fontWeight: 900, fontSize: '15px' }}>Carlos ALCARAZ</span>
-                <span style={{ fontSize: '18px' }}>🇪🇸</span>
-              </div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>ATP Weltrangliste #2 (9.850 Pkt)</div>
-              <div style={{ fontSize: '10px', color: '#facc15', fontWeight: 800 }}>"Carlitos" • All-Court Dynamo</div>
-            </div>
-          </div>
-
-          {/* Statistical Breakdown Table */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', fontSize: '11px', marginBottom: '14px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(56,189,248,0.08)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>124 – 132 km/h (77 mph 👑)</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Rückhand-Geschwindigkeit</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>115 – 122 km/h</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(250,204,21,0.08)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>2.287 RPM (Flat Bullet)</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Vorhand-Topspin Spinrate</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>3.200 RPM (Heavy Topspin 👑)</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>234 km/h (Flat Bomb)</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Max. Aufschlag-Tempo</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>228 km/h (Heavy Kick)</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>64 % (88 % gewonnene Service-Games)</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>1. Aufschlag im Feld</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>66 % (86 % gewonnene Service-Games)</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(250,204,21,0.08)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>58 % (Selektiver Einsatz)</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Stoppball / Drop Shot Quote</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>74 % (Signature Weapon 👑)</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(56,189,248,0.08)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>Dominant auf Hardcourt & Rasen</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Belags-Dominanz</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>Dominant auf Sand & All-Court</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(239,68,68,0.12)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>24 UEs / Match (14 Out 👑 • 10 Netz)</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Unforced Errors (Out vs Netz)</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>31 UEs / Match (18 Out 👑 • 13 Netz)</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', padding: '6px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
-              <span style={{ color: '#38bdf8', fontWeight: 900 }}>58% Out • 37% Netz • 5% Netzroller</span>
-              <span style={{ color: '#94a3b8', fontWeight: 700 }}>Fehler-Verteilung</span>
-              <span style={{ color: '#facc15', fontWeight: 900, textAlign: 'right' }}>58% Out • 37% Netz • 5% Netzroller</span>
-            </div>
-          </div>
-
-          {/* Tactical Frequency Matrix (Wer, Wann, Wie oft) */}
-          <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '10px 12px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontSize: '11px', fontWeight: 900, color: '#facc15', marginBottom: '6px', textAlign: 'center' }}>
-              🎯 Taktische Schlag- & Häufigkeits-Matrix (Wer, Wann, Wie oft)
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', fontSize: '10px' }}>
-              <div style={{ color: '#bae6fd', lineHeight: 1.5 }}>
-                <div>• <b>52% Vorhand</b> / <b>48% Rückhand</b></div>
-                <div>• <b>92% Flat Laser</b> (128–134 km/h)</div>
-                <div>• <b>34% Down-the-Line</b> Rückhand</div>
-                <div>• <b>4% Stoppball</b> (nur bei extremer Tiefe)</div>
-                <div>• <b>12% Netzangriff</b> (Grundlinien-Fokus)</div>
-                <div>• <b>85% Smash</b> bei hohen Lobs</div>
-                <div>• <b>Out-Quote:</b> 14% (Knapp hinter Grundlinie)</div>
-                <div>• <b>Netzfehler:</b> 10% an der Netzkante</div>
-              </div>
-              <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
-              <div style={{ color: '#fde68a', textAlign: 'right', lineHeight: 1.5 }}>
-                <div><b>65% Vorhand</b> / <b>35% Rückhand</b> •</div>
-                <div><b>80% Heavy Topspin</b> (3.200 RPM) •</div>
-                <div><b>38% Backhand-Slice</b> (Rhythmusbruch) •</div>
-                <div><b>20% Disguised Stoppball</b> (Signature) •</div>
-                <div><b>28% Netzangriff & Volleys</b> •</div>
-                <div><b>92% Monster-Smash</b> (248 km/h) •</div>
-                <div><b>Out-Quote:</b> 18% (Inside-Out & Power) •</div>
-                <div><b>Netzfehler:</b> 13% bei extremen Winkeln •</div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center' }}>
-            <button
-              onClick={() => setShowH2HStats(false)}
-              style={{
-                padding: '8px 24px',
-                background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 900,
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              🎾 ZURÜCK ZUM LIVE MATCH
-            </button>
           </div>
         </div>
       )}
+
+      {/* 🦅 HAWK-EYE ELECTRONIC LINE CALLING (ELC) OVERLAY */}
+      <TennisHawkEyeOverlay
+        data={hawkEyeData}
+        onClose={() => setHawkEyeData(null)}
+      />
+
+      {/* 📺 Official ATP Grand Slam TV Broadcast Scoreboard HUD & H2H Modal */}
+      <TennisScoreboardHUD
+        matchScore={matchScore}
+        isAIvsAI={isAIvsAI}
+        onToggleFreeze={() => setIsAIvsAI(!isAIvsAI)}
+        onRestartMatch={restartMatch}
+        showH2HStats={showH2HStats}
+        setShowH2HStats={setShowH2HStats}
+      />
+
+      {/* 🪑 Schiedsrichter Durchsage-Fenster */}
+      <TennisUmpireCallWindow
+        show={showUmpireCall}
+        onClose={() => setShowUmpireCall(false)}
+        isControlsOpen={isControlsOpen}
+        matchScore={matchScore}
+      />
+
+      {/* 🎾 Collapsible Tennis Control Drawer */}
+      <TennisControlDrawer
+        isControlsOpen={isControlsOpen}
+        setIsControlsOpen={setIsControlsOpen}
+        isAIvsAI={isAIvsAI}
+        setIsAIvsAI={setIsAIvsAI}
+        handleRestartMatch={restartMatch}
+        setShowH2HStats={setShowH2HStats}
+        courtSurface={courtSurface}
+        setCourtSurface={setCourtSurface}
+        cameraMode={cameraMode}
+        setCameraMode={setCameraMode}
+        gameSpeed={gameSpeed}
+        setGameSpeed={setGameSpeed}
+        showSpectators={showSpectators}
+        setShowSpectators={setShowSpectators}
+        showCourtsideStaff={showCourtsideStaff}
+        setShowCourtsideStaff={setShowCourtsideStaff}
+        showGrandstands={showGrandstands}
+        setShowGrandstands={setShowGrandstands}
+        showUmpireCall={showUmpireCall}
+        setShowUmpireCall={setShowUmpireCall}
+        showScoreboard3D={showScoreboard3D}
+        setShowScoreboard3D={setShowScoreboard3D}
+        setManualDropTrigger={setManualDropTrigger}
+        setManualLaserTrigger={setManualLaserTrigger}
+        setManualTopspinTrigger={setManualTopspinTrigger}
+        setManualSliceTrigger={setManualSliceTrigger}
+        setManualTopspinLobTrigger={setManualTopspinLobTrigger}
+        setManualSkyLobTrigger={setManualSkyLobTrigger}
+        setManualSmashTrigger={setManualSmashTrigger}
+        setManualVolleyTrigger={setManualVolleyTrigger}
+        setManualNetErrorTrigger={setManualNetErrorTrigger}
+        setManualOutErrorTrigger={setManualOutErrorTrigger}
+        setManualServiceWinnerTrigger={setManualServiceWinnerTrigger}
+      />
     </div>
   );
 }

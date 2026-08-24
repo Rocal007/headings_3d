@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
-import { enforceCraneFloorLimits } from '../utils/craneKinematics';
+import { enforceCraneFloorLimits, type CraneKinematics } from '../utils/craneKinematics';
+
+export type CraneKinematicsInput = Partial<CraneKinematics> & {
+  columnHeight?: number;
+  columnLift?: number;
+};
 
 export class Supertechno50FBXModel {
   group: THREE.Group;
@@ -165,12 +170,12 @@ export class Supertechno50FBXModel {
     });
   }
 
-  updateNodes(kinematics: any) {
+  updateNodes(kinematics: CraneKinematicsInput) {
     if (!this.isLoaded) return;
 
     // Apply strict ground floor boundary limits (Y >= 0)
-    const safeKin = { ...kinematics };
-    enforceCraneFloorLimits(safeKin);
+    const safeKin: CraneKinematicsInput = { ...kinematics };
+    enforceCraneFloorLimits(safeKin as CraneKinematics);
 
     // Dolly Fahrt (vorwärts / rückwärts entlang der Z-Achse)
     if (this.nodes.root) {
@@ -188,7 +193,7 @@ export class Supertechno50FBXModel {
     // 1. Kran-Basissäule (Pan / Azimut) - Bleibt fest auf dem Fahrgestell verankert (kein Loch/Lücke)!
     if (this.nodes.columns && this.initialPos.columns) {
       this.nodes.columns.position.y = this.initialPos.columns.y;
-      this.nodes.columns.rotation.y = THREE.MathUtils.degToRad(-safeKin.basePan || 0);
+      this.nodes.columns.rotation.y = THREE.MathUtils.degToRad(-(safeKin.basePan ?? 0));
     }
 
     // 2. Teleskopische Hubsäulen-Stufen (Stages 1, 2, 3)

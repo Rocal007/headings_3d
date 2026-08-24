@@ -70,17 +70,20 @@ function TechnocraneStudioScene({
     }
   });
 
+// ⚡ ZERO-GC SCRATCH OBJECTS FOR REALTIME FRAME LOOPS
+const _studioHeadWorldPos = new THREE.Vector3();
+const _studioHeadWorldQuat = new THREE.Quaternion();
+
   // Attach RemoteCameraHead to the crane's dynamic boom tip
   useFrame(() => {
     if (!headGroupRef.current || !craneModel || !craneModel.isLoaded || !craneModel.nodes.beams) return;
     const beamNode = craneModel.nodes.beams;
-    const worldPos = new THREE.Vector3();
-    const worldQuat = new THREE.Quaternion();
-    beamNode.getWorldPosition(worldPos);
-    beamNode.getWorldQuaternion(worldQuat);
 
-    headGroupRef.current.position.copy(worldPos);
-    headGroupRef.current.quaternion.copy(worldQuat);
+    beamNode.getWorldPosition(_studioHeadWorldPos);
+    beamNode.getWorldQuaternion(_studioHeadWorldQuat);
+
+    headGroupRef.current.position.copy(_studioHeadWorldPos);
+    headGroupRef.current.quaternion.copy(_studioHeadWorldQuat);
   });
 
   // Calculate tip world position for Cine Camera & follow view

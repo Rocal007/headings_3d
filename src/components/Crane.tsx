@@ -123,17 +123,20 @@ function CraneFestoonCable({
     roughness: 0.45
   }), []);
 
+// ⚡ ZERO-GC SCRATCH OBJECTS FOR REALTIME FRAME LOOPS
+const _festoonBeamWorldPos = new THREE.Vector3();
+const _festoonBeamWorldQuat = new THREE.Quaternion();
+
   // Update Group Position & Rotation to track crane.nodes.beams in real-time
   useFrame(() => {
     if (!groupRef.current || !crane || !crane.isLoaded || !crane.nodes.beams) return;
     const beamNode = crane.nodes.beams;
-    const worldPos = new THREE.Vector3();
-    const worldQuat = new THREE.Quaternion();
-    beamNode.getWorldPosition(worldPos);
-    beamNode.getWorldQuaternion(worldQuat);
 
-    groupRef.current.position.copy(worldPos);
-    groupRef.current.quaternion.copy(worldQuat);
+    beamNode.getWorldPosition(_festoonBeamWorldPos);
+    beamNode.getWorldQuaternion(_festoonBeamWorldQuat);
+
+    groupRef.current.position.copy(_festoonBeamWorldPos);
+    groupRef.current.quaternion.copy(_festoonBeamWorldQuat);
   });
 
   // Calculate local gravity vector inside the tilted boom coordinate space
@@ -1761,9 +1764,20 @@ function CraneScene({
     const tipY = 0.05;
     const tipX = -0.01;
 
+// ⚡ ZERO-GC SCRATCH OBJECTS FOR CAMERA & TRACKING LOOPS
+const _mastWorld = new THREE.Vector3();
+const _localHeadPos = new THREE.Vector3();
+const _localCablePos = new THREE.Vector3();
+const _localCwPos = new THREE.Vector3();
+const _targetPos = new THREE.Vector3();
+const _desiredCamPos = new THREE.Vector3();
+const _camOffset = new THREE.Vector3();
+const _axisX = new THREE.Vector3(1, 0, 0);
+const _axisY = new THREE.Vector3(0, 1, 0);
+
     const colH = kin.columnElevation || 1.54;
     const dollyZ = -(kin.dollyTrack || 0);
-    const mastWorld = new THREE.Vector3(0, colH, dollyZ);
+    _mastWorld.set(0, colH, dollyZ);
 
     // Total reach calculation for nose height
     const totalBoomFront = 3.24 + tExt * (14.64 - 3.24);
@@ -1771,50 +1785,47 @@ function CraneScene({
 
     // Local Head world position (always hanging down under crane nose)
     const headYOff = -0.55;
-    const localHeadPos = new THREE.Vector3(tipX, tipY + headYOff, tipZ);
-    localHeadPos.applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltRad);
-    localHeadPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-    localHeadPos.add(mastWorld);
+    _localHeadPos.set(tipX, tipY + headYOff, tipZ);
+    _localHeadPos.applyAxisAngle(_axisX, tiltRad);
+    _localHeadPos.applyAxisAngle(_axisY, panRad);
+    _localHeadPos.add(_mastWorld);
 
     // Local Cable middle world position (centered along the festoon rail starting at z = -1.18m)
-    const localCablePos = new THREE.Vector3(-0.34, -0.18, (-1.18 + tipZ) * 0.5);
-    localCablePos.applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltRad);
-    localCablePos.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-    localCablePos.add(mastWorld);
+    _localCablePos.set(-0.34, -0.18, (-1.18 + tipZ) * 0.5);
+    _localCablePos.applyAxisAngle(_axisX, tiltRad);
+    _localCablePos.applyAxisAngle(_axisY, panRad);
+    _localCablePos.add(_mastWorld);
 
     // Local Counterweight Sled world position (travels from -0.80m in front of pivot to +3.28m at rear)
     const sledZ = THREE.MathUtils.lerp(-0.80, 3.28, tExt);
-    const localCwPos = new THREE.Vector3(0, 0.15, sledZ);
-    localCwPos.applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltRad);
-    localCwPos.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-    localCwPos.add(mastWorld);
+    _localCwPos.set(0, 0.15, sledZ);
+    _localCwPos.applyAxisAngle(_axisX, tiltRad);
+    _localCwPos.applyAxisAngle(_axisY, panRad);
+    _localCwPos.add(_mastWorld);
 
     // Update Camera Target & Trajectory
     if (orbitControlsRef.current) {
       const controls = orbitControlsRef.current;
-      let targetPos = new THREE.Vector3();
-      let desiredCamPos: THREE.Vector3 | null = null;
       let isCinematic = cameraViewMode === 'cinematic' || (cableSettings.autoDemo && cameraViewMode !== 'pov' && cameraViewMode !== 'profile' && cameraViewMode !== 'top' && cameraViewMode !== 'free');
 
       if (cameraViewMode === 'free') {
         // 100% Free Manual User Orbit - OrbitControls has direct interactive control
-        desiredCamPos = null;
       } else if (isCinematic) {
         // Continuous Hollywood 360° Round-Trip Choreography
         const roundTrip = computeCinematicRoundTrip(
           demoPhase.current,
-          mastWorld,
-          localHeadPos,
-          localCwPos,
-          localCablePos,
+          _mastWorld,
+          _localHeadPos,
+          _localCwPos,
+          _localCablePos,
           tipZ,
           noseY,
           colH,
           panRad
         );
 
-        desiredCamPos = roundTrip.camPos;
-        targetPos = roundTrip.targetPos;
+        _desiredCamPos.copy(roundTrip.camPos);
+        _targetPos.copy(roundTrip.targetPos);
 
         if (onStageChange && hudThrottleTimer.current >= 0.04) {
           onStageChange(roundTrip.stage);
@@ -1823,41 +1834,41 @@ function CraneScene({
         switch (cameraViewMode) {
           case 'profile':
             // Side-Elevation Perspective (Floor Safe Y >= 4.5m)
-            targetPos.set(0, Math.max(2.5, colH + 2.0), dollyZ - 3.5);
-            desiredCamPos = new THREE.Vector3(-26.0, Math.max(4.5, colH + 4.0), dollyZ - 3.5);
+            _targetPos.set(0, Math.max(2.5, colH + 2.0), dollyZ - 3.5);
+            _desiredCamPos.set(-26.0, Math.max(4.5, colH + 4.0), dollyZ - 3.5);
             break;
 
           case 'top':
             // Top-Down Blueprint Perspective (Looking straight down from high ceiling)
-            targetPos.set(0, 0.8, dollyZ + 0.15);
-            desiredCamPos = new THREE.Vector3(0.001, 18.5, dollyZ + 0.15);
+            _targetPos.set(0, 0.8, dollyZ + 0.15);
+            _desiredCamPos.set(0.001, 18.5, dollyZ + 0.15);
             break;
 
           case 'head':
             // Macro Close-Up on 3-Axis Gyro Head & Optimo Lens (Floor Safe Y >= 1.2m)
-            targetPos.set(localHeadPos.x, Math.max(0.6, localHeadPos.y), localHeadPos.z);
-            const headCamOffset = new THREE.Vector3(-1.6, 0.55, 2.5);
-            headCamOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-            desiredCamPos = localHeadPos.clone().add(headCamOffset);
-            desiredCamPos.y = Math.max(1.2, desiredCamPos.y);
+            _targetPos.set(_localHeadPos.x, Math.max(0.6, _localHeadPos.y), _localHeadPos.z);
+            _camOffset.set(-1.6, 0.55, 2.5);
+            _camOffset.applyAxisAngle(_axisY, panRad);
+            _desiredCamPos.copy(_localHeadPos).add(_camOffset);
+            _desiredCamPos.y = Math.max(1.2, _desiredCamPos.y);
             break;
 
           case 'weight':
             // Close-Up on Dynamic U-Saddle Counterweight & Sled (Floor Safe Y >= 1.2m)
-            targetPos.set(localCwPos.x, Math.max(0.6, localCwPos.y), localCwPos.z);
-            const cwCamOffset = new THREE.Vector3(-2.4, 0.45, 0.8);
-            cwCamOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-            desiredCamPos = localCwPos.clone().add(cwCamOffset);
-            desiredCamPos.y = Math.max(1.2, desiredCamPos.y);
+            _targetPos.set(_localCwPos.x, Math.max(0.6, _localCwPos.y), _localCwPos.z);
+            _camOffset.set(-2.4, 0.45, 0.8);
+            _camOffset.applyAxisAngle(_axisY, panRad);
+            _desiredCamPos.copy(_localCwPos).add(_camOffset);
+            _desiredCamPos.y = Math.max(1.2, _desiredCamPos.y);
             break;
 
           case 'cable':
             // Tracking the Festoon Cable Slope & Sliding Carriages (Floor Safe Y >= 1.2m)
-            targetPos.set(localCablePos.x, Math.max(0.6, localCablePos.y), localCablePos.z);
-            const cableCamOffset = new THREE.Vector3(-3.2, 0.8, 1.8);
-            cableCamOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-            desiredCamPos = localCablePos.clone().add(cableCamOffset);
-            desiredCamPos.y = Math.max(1.2, desiredCamPos.y);
+            _targetPos.set(_localCablePos.x, Math.max(0.6, _localCablePos.y), _localCablePos.z);
+            _camOffset.set(-3.2, 0.8, 1.8);
+            _camOffset.applyAxisAngle(_axisY, panRad);
+            _desiredCamPos.copy(_localCablePos).add(_camOffset);
+            _desiredCamPos.y = Math.max(1.2, _desiredCamPos.y);
             break;
 
           case 'operator':
@@ -1865,64 +1876,61 @@ function CraneScene({
             const opOrbitRadius = 4.2;
             const opX = -opOrbitRadius * Math.sin(panRad);
             const opZ = dollyZ + opOrbitRadius * Math.cos(panRad);
-            targetPos.set(opX, 1.35, opZ);
-            const opCamOffset = new THREE.Vector3(-2.6, 0.7, 2.2);
-            opCamOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-            desiredCamPos = new THREE.Vector3(opX, 1.35, opZ).add(opCamOffset);
-            desiredCamPos.y = Math.max(1.1, desiredCamPos.y);
+            _targetPos.set(opX, 1.35, opZ);
+            _camOffset.set(-2.6, 0.7, 2.2);
+            _camOffset.applyAxisAngle(_axisY, panRad);
+            _desiredCamPos.set(opX, 1.35, opZ).add(_camOffset);
+            _desiredCamPos.y = Math.max(1.1, _desiredCamPos.y);
             break;
 
           case 'desk':
             // 🎛️ Close-Up Zoom onto the Floor Control Desk and DoP/Head Operator
-            targetPos.set(3.2, 1.25, dollyZ + 0.8);
-            desiredCamPos = new THREE.Vector3(5.8, 1.85, dollyZ + 2.4);
-            desiredCamPos.y = Math.max(1.1, desiredCamPos.y);
+            _targetPos.set(3.2, 1.25, dollyZ + 0.8);
+            _desiredCamPos.set(5.8, 1.85, dollyZ + 2.4);
+            _desiredCamPos.y = Math.max(1.1, _desiredCamPos.y);
             break;
 
           case 'pov':
             // Look directly through the Angenieux Optimo Zoom Optical Axis
-            const lensTip = new THREE.Vector3(tipX, tipY - 0.785, tipZ + 0.30);
-            lensTip.applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltRad);
-            lensTip.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-            lensTip.add(mastWorld);
-            lensTip.y = Math.max(0.75, lensTip.y);
+            _desiredCamPos.set(tipX, tipY - 0.785, tipZ + 0.30);
+            _desiredCamPos.applyAxisAngle(_axisX, tiltRad);
+            _desiredCamPos.applyAxisAngle(_axisY, panRad);
+            _desiredCamPos.add(_mastWorld);
+            _desiredCamPos.y = Math.max(0.75, _desiredCamPos.y);
 
-            const opticalLookAt = new THREE.Vector3(tipX, tipY - 0.785, tipZ + 25.0);
-            opticalLookAt.applyAxisAngle(new THREE.Vector3(1, 0, 0), tiltRad);
-            opticalLookAt.applyAxisAngle(new THREE.Vector3(0, 1, 0), panRad);
-            opticalLookAt.add(mastWorld);
-            opticalLookAt.y = Math.max(0.5, opticalLookAt.y);
-
-            desiredCamPos = lensTip;
-            targetPos = opticalLookAt;
+            _targetPos.set(tipX, tipY - 0.785, tipZ + 25.0);
+            _targetPos.applyAxisAngle(_axisX, tiltRad);
+            _targetPos.applyAxisAngle(_axisY, panRad);
+            _targetPos.add(_mastWorld);
+            _targetPos.y = Math.max(0.5, _targetPos.y);
             break;
 
           case 'dolly':
             // Low-Angle Ground Perspective (Safely above ground level)
-            targetPos.set(0, Math.max(0.6, colH * 0.4), dollyZ + tipZ * 0.2);
-            desiredCamPos = new THREE.Vector3(-4.5, 1.35, dollyZ + 4.2);
+            _targetPos.set(0, Math.max(0.6, colH * 0.4), dollyZ + tipZ * 0.2);
+            _desiredCamPos.set(-4.5, 1.35, dollyZ + 4.2);
             break;
 
           case 'full':
           default:
             // Studio Rig Overview
-            targetPos.set(0, 5.5, dollyZ - 2.0);
-            desiredCamPos = new THREE.Vector3(16, 11.5, dollyZ + 17);
+            _targetPos.set(0, 5.5, dollyZ - 2.0);
+            _desiredCamPos.set(16, 11.5, dollyZ + 17);
             break;
         }
       }
 
-      if (desiredCamPos) {
+      if (cameraViewMode !== 'free') {
         // Delta-compensated smooth interpolation
         const targetLerp = 1 - Math.exp(-4.5 * delta);
         const camLerp = 1 - Math.exp(-3.5 * delta);
 
         // Floor safety limits for target and position
-        targetPos.y = Math.max(0.50, targetPos.y);
-        controls.target.lerp(targetPos, targetLerp);
+        _targetPos.y = Math.max(0.50, _targetPos.y);
+        controls.target.lerp(_targetPos, targetLerp);
 
-        desiredCamPos.y = Math.max(0.95, desiredCamPos.y);
-        camera.position.lerp(desiredCamPos, camLerp);
+        _desiredCamPos.y = Math.max(0.95, _desiredCamPos.y);
+        camera.position.lerp(_desiredCamPos, camLerp);
       }
 
       controls.update();
@@ -1939,8 +1947,8 @@ function CraneScene({
     if (hudThrottleTimer.current >= 0.04) {
       hudThrottleTimer.current = 0;
       setKinState({ ...kin });
-      setLiveHeadPosState(localHeadPos);
-      setLiveCwPosState(localCwPos);
+      setLiveHeadPosState(_localHeadPos);
+      setLiveCwPosState(_localCwPos);
     }
   });
 
@@ -2113,7 +2121,7 @@ function CraneScene({
 // --- MAIN CRANE COMPONENT ---
 export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneStudio?: () => void } = {}) {
   const orbitControlsRef = useRef<any>(null);
-  const [cameraViewMode, setCameraViewMode] = useState<CameraViewMode>('cinematic');
+  const [cameraViewMode, setCameraViewMode] = useState<CameraViewMode>('free');
   const [stageInfo, setStageInfo] = useState<RoundTripStageInfo>({
     idx: 1,
     name: 'Hero Establishing Orbit',
@@ -2142,7 +2150,7 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
     demoSpeed: 1.0,
     autoDirector: false,
     directorInterval: 18,
-    showBlueprint: true,
+    showBlueprint: false,
     blueprintMode: 'all' as 'all' | 'profile' | 'top',
     panRangeMode: '180' as '180' | '360',
     operatorMode: 'hidden' as CraneOperatorMode

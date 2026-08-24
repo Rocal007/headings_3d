@@ -5,12 +5,20 @@ import { Supertechno50FBXModel } from '../model/Supertechno50FBXModel';
 
 interface CraneCounterweightProps {
   crane: Supertechno50FBXModel | null;
-  kinematics: {
-    teleExtension: number;
-    boomTilt: number;
-    basePan: number;
-    dollyTrack: number;
+  kinematics?: {
+    teleExtension?: number;
+    boomTilt?: number;
+    basePan?: number;
+    dollyTrack?: number;
+    [key: string]: any;
   };
+  kinematicsRef?: React.MutableRefObject<{
+    teleExtension?: number;
+    boomTilt?: number;
+    basePan?: number;
+    dollyTrack?: number;
+    [key: string]: any;
+  }>;
   visible?: boolean;
 }
 
@@ -300,6 +308,7 @@ function CounterweightSideModule({
 export default function CraneCounterweight({
   crane,
   kinematics,
+  kinematicsRef,
   visible = true
 }: CraneCounterweightProps) {
   const groupRef = useRef<THREE.Group>(null);
@@ -410,23 +419,28 @@ export default function CraneCounterweight({
     roughness: 0.5
   }), [chalkRightTex]);
 
+// ⚡ ZERO-GC SCRATCH OBJECTS FOR REALTIME FRAME LOOPS
+const _cwBeamWorldPos = new THREE.Vector3();
+const _cwBeamWorldQuat = new THREE.Quaternion();
+
   // Synchronize Group Position & Rotation to crane.nodes.beams in real-time
   useFrame(() => {
     if (!groupRef.current || !crane || !crane.isLoaded || !crane.nodes.beams) return;
     const beamNode = crane.nodes.beams;
-    const worldPos = new THREE.Vector3();
-    const worldQuat = new THREE.Quaternion();
-    beamNode.getWorldPosition(worldPos);
-    beamNode.getWorldQuaternion(worldQuat);
+    beamNode.updateWorldMatrix(true, false);
 
-    groupRef.current.position.copy(worldPos);
-    groupRef.current.quaternion.copy(worldQuat);
+    beamNode.getWorldPosition(_cwBeamWorldPos);
+    beamNode.getWorldQuaternion(_cwBeamWorldQuat);
+
+    groupRef.current.position.copy(_cwBeamWorldPos);
+    groupRef.current.quaternion.copy(_cwBeamWorldQuat);
 
     // Dynamic Sled Motion across the pivot:
     // When boom is retracted (ext = 0m): U-Sled moves FORWARD OVER THE PIVOT to z = -0.80m
     // When boom is fully extended (ext = 11.4m): U-Sled moves to rear end stop at z = +3.28m
     if (sledGroupRef.current) {
-      const ext = Math.max(0, Math.min(11.4, kinematics.teleExtension || 0));
+      const extVal = kinematicsRef?.current?.teleExtension ?? kinematics?.teleExtension ?? 0;
+      const ext = Math.max(0, Math.min(11.4, extVal));
       const t = ext / 11.4;
       const zPos = THREE.MathUtils.lerp(-0.80, 3.28, t);
       sledGroupRef.current.position.z = zPos;
@@ -658,7 +672,7 @@ export default function CraneCounterweight({
             <meshStandardMaterial color="#dc2626" roughness={0.3} />
           </mesh>
           {/* Amber Telescopic Rocker Switch */}
-          <mesh position={[0.035, 0.052, -0.01]} rotation={[0, 0, ((kinematics.teleExtension / 11.3) - 0.5) * 0.6]}>
+          <mesh position={[0.035, 0.052, -0.01]} rotation={[0, 0, ((((kinematicsRef?.current?.teleExtension ?? kinematics?.teleExtension ?? 0) / 11.3) - 0.5) * 0.6)]}>
             <boxGeometry args={[0.018, 0.012, 0.022]} />
             <meshStandardMaterial color="#f59e0b" roughness={0.4} metalness={0.5} />
           </mesh>

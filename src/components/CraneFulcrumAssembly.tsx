@@ -182,14 +182,16 @@ export default function CraneFulcrumAssembly({
     metalness: 0.94
   });
 
+// ⚡ ZERO-GC SCRATCH OBJECTS FOR REALTIME FRAME LOOPS
+const _fulcrumBeamWorldPos = new THREE.Vector3();
+
   useFrame(() => {
     if (!fulcrumGroupRef.current || !crane || !crane.isLoaded) return;
 
     const beamsNode = crane.nodes.beams;
     if (beamsNode) {
-      const worldPos = new THREE.Vector3();
-      beamsNode.getWorldPosition(worldPos);
-      fulcrumGroupRef.current.position.copy(worldPos);
+      beamsNode.getWorldPosition(_fulcrumBeamWorldPos);
+      fulcrumGroupRef.current.position.copy(_fulcrumBeamWorldPos);
 
       // Saddle fork stays attached to column mast, rotating only with Base Pan (Yaw)
       if (saddleRef.current) {
