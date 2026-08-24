@@ -122,6 +122,253 @@ function createDeskOperatorShirtTexture(): THREE.CanvasTexture {
 }
 
 /**
+ * 🎛️ Procedural canvas texture generator for the authentic TECHNOHEAD Control Console top faceplate
+ */
+export function createTechnoheadTopTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d')!;
+
+  // 1. Deep Matte Dark Anodized Aluminum Base (#14161a)
+  ctx.fillStyle = '#14161a';
+  ctx.fillRect(0, 0, 2048, 1024);
+
+  // Micro surface grain / brushed aluminum texture
+  for (let i = 0; i < 35000; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.03)';
+    ctx.fillRect(Math.random() * 2048, Math.random() * 1024, 2 + Math.random() * 4, 1);
+  }
+
+  // 2. Subtle Precision Chamfer / Border Guide Lines
+  ctx.strokeStyle = '#282d35';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(28, 28, 1992, 968);
+  ctx.strokeStyle = '#181b20';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(36, 36, 1976, 952);
+
+  // Function to draw realistic silver countersunk hex socket screws
+  const drawHexScrew = (x: number, y: number, r: number = 15) => {
+    ctx.save();
+    ctx.translate(x, y);
+    // Outer silver chamfer ring
+    const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r);
+    grad.addColorStop(0, '#f8fafc');
+    grad.addColorStop(0.55, '#94a3b8');
+    grad.addColorStop(1, '#334155');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner hex socket
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 3;
+      const hx = Math.cos(a) * (r * 0.52);
+      const hy = Math.sin(a) * (r * 0.52);
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  // Perimeter Screws (as seen on real TECHNOHEAD unit)
+  // Top edge
+  drawHexScrew(70, 60);
+  drawHexScrew(440, 60);
+  drawHexScrew(960, 60);
+  drawHexScrew(1480, 60);
+  drawHexScrew(1978, 60);
+
+  // Bottom edge
+  drawHexScrew(70, 964);
+  drawHexScrew(440, 964);
+  drawHexScrew(960, 964);
+  drawHexScrew(1690, 964);
+  drawHexScrew(1978, 964);
+
+  // Left & Right edges
+  drawHexScrew(56, 360);
+  drawHexScrew(56, 680);
+  drawHexScrew(1992, 360);
+  drawHexScrew(1992, 680);
+
+  // 3. Top-Left: Focus / FIZ Wheel Cutout Frame & Screws
+  const fwX = 350;
+  const fwY = 240;
+  ctx.fillStyle = '#090a0d';
+  ctx.beginPath();
+  ctx.roundRect(fwX - 110, fwY - 80, 220, 160, 14);
+  ctx.fill();
+  ctx.strokeStyle = '#333842';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  // Fixing screws for focus bezel
+  drawHexScrew(fwX - 95, fwY - 65, 8);
+  drawHexScrew(fwX + 95, fwY - 65, 8);
+  drawHexScrew(fwX - 95, fwY + 65, 8);
+  drawHexScrew(fwX + 95, fwY + 65, 8);
+
+  // 4. Mid-Left: ROLL Knob Graphic & Calibration Arc
+  const rollX = 630;
+  const rollY = 260;
+  ctx.save();
+  ctx.translate(rollX, rollY);
+  
+  // White curved arrows and "ROLL" text
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 78, -Math.PI * 0.75, -Math.PI * 0.25);
+  ctx.stroke();
+
+  // Left arrowhead
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.moveTo(-55, -55);
+  ctx.lineTo(-40, -64);
+  ctx.lineTo(-46, -48);
+  ctx.fill();
+
+  // Right arrowhead
+  ctx.beginPath();
+  ctx.moveTo(55, -55);
+  ctx.lineTo(46, -48);
+  ctx.lineTo(40, -64);
+  ctx.fill();
+
+  // "ROLL" typography
+  ctx.font = '800 24px "Arial Black", Impact, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ROLL', 0, -96);
+
+  // Calibration tick marks
+  for (let a = -Math.PI * 0.8; a <= -Math.PI * 0.2; a += Math.PI * 0.1) {
+    const x1 = Math.cos(a) * 62;
+    const y1 = Math.sin(a) * 62;
+    const x2 = Math.cos(a) * 68;
+    const y2 = Math.sin(a) * 68;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 5. Lower-Left: W/T Rocker Switch Bezel & Screws
+  const rkX = 630;
+  const rkY = 510;
+  ctx.save();
+  ctx.translate(rkX, rkY);
+  ctx.fillStyle = '#090a0d';
+  ctx.beginPath();
+  ctx.roundRect(-46, -96, 92, 192, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#2d333b';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  drawHexScrew(0, -80, 9);
+  drawHexScrew(0, 80, 9);
+  ctx.restore();
+
+  // 6. Upper-Right: Joystick Base Plate & Screws
+  const joyX = 1320;
+  const joyY = 260;
+  ctx.save();
+  ctx.translate(joyX, joyY);
+  ctx.fillStyle = '#0a0c10';
+  ctx.beginPath();
+  ctx.roundRect(-125, -125, 250, 250, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#2d333b';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // 4 Corner screws
+  drawHexScrew(-100, -100, 11);
+  drawHexScrew(100, -100, 11);
+  drawHexScrew(-100, 100, 11);
+  drawHexScrew(100, 100, 11);
+  ctx.restore();
+
+  // 7. Top-Right: Status LED Bezel
+  const ledX = 1600;
+  const ledY = 200;
+  ctx.save();
+  ctx.translate(ledX, ledY);
+  drawHexScrew(0, 0, 16);
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 8. 🌟 PROMINENT "TECHNOHEAD" LOGO (BOTTOM RIGHT QUADRANT)
+  ctx.save();
+  ctx.translate(1480, 520);
+  ctx.fillStyle = '#ffffff';
+  // Slanted / Italic Heavy Sans-Serif Typography matching the real TECHNOHEAD laser-engraving
+  ctx.font = 'italic 900 68px "Arial Black", "Helvetica Neue", Impact, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TECHNOHEAD', 0, 0);
+
+  // Subtle metallic reflection / glow on logo
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillText('TECHNOHEAD', 1, -1);
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * 🎛️ Procedural canvas texture generator for the Rocker Switch paddle (W / T)
+ */
+export function createRockerPaddleTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#111317';
+  ctx.fillRect(0, 0, 256, 512);
+
+  // Subtle curved lighting gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, '#272a30');
+  grad.addColorStop(0.5, '#0f1115');
+  grad.addColorStop(1, '#272a30');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 512);
+
+  // White "W" (Wide) on Upper Flange
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 68px "Arial Black", Impact, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('W', 128, 120);
+
+  // White "T" (Tele) on Lower Flange
+  ctx.fillText('T', 128, 392);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
  * Procedural mesh netting texture for the trucker cap rear dome
  */
 function createTruckerMeshTexture(): THREE.CanvasTexture {
@@ -1868,13 +2115,16 @@ function FloorControlDeskAndOperatorRig({
   const rightHipRef = useRef<THREE.Group>(null);
   const rightKneeRef = useRef<THREE.Group>(null);
 
-  const panMasterWheelRef = useRef<THREE.Group>(null);
-  const tiltMasterWheelRef = useRef<THREE.Group>(null);
-  const rollMasterWheelRef = useRef<THREE.Group>(null);
+  const joystickRef = useRef<THREE.Group>(null);
+  const rockerSwitchRef = useRef<THREE.Group>(null);
+  const focusWheelRef = useRef<THREE.Group>(null);
+  const rollKnobRef = useRef<THREE.Group>(null);
 
   const shirtTexture = useMemo(() => getOperatorTexture('desk_shirt', createDeskOperatorShirtTexture), []);
   const passTexture = useMemo(() => getOperatorTexture('crew_pass', createLanyardBadgeTexture), []);
   const radioScreenTexture = useMemo(() => getOperatorTexture('radio_screen', createRadioScreenTexture), []);
+  const technoheadTopTexture = useMemo(() => getOperatorTexture('technohead_top', createTechnoheadTopTexture), []);
+  const rockerPaddleTexture = useMemo(() => getOperatorTexture('rocker_paddle', createRockerPaddleTexture), []);
 
   // 📺 Dynamic Real-Time Canvas Textures for Desk Displays (1024x640 Telemetry + 1024x576 Cine Master Monitor)
   const { telemetryTexture, telemetryCanvas } = useMemo(() => {
@@ -1922,9 +2172,15 @@ function FloorControlDeskAndOperatorRig({
   const matPants = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.85, metalness: 0.05 }), []);
   const matBelt = useMemo(() => new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.4, roughness: 0.5 }), []);
   const matBoots = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.45, metalness: 0.25 }), []);
-  const matFlightcase = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.6, metalness: 0.3 }), []);
+  const matTechnoheadChassis = useMemo(() => new THREE.MeshStandardMaterial({ color: '#14161a', roughness: 0.42, metalness: 0.65 }), []);
+  const matTechnoheadTop = useMemo(() => new THREE.MeshStandardMaterial({ map: technoheadTopTexture, roughness: 0.38, metalness: 0.52 }), [technoheadTopTexture]);
+  const matRockerPaddle = useMemo(() => new THREE.MeshStandardMaterial({ map: rockerPaddleTexture, roughness: 0.48, metalness: 0.2 }), [rockerPaddleTexture]);
+  const matKnurledAlu = useMemo(() => new THREE.MeshStandardMaterial({ color: '#e2e8f0', metalness: 0.92, roughness: 0.18 }), []);
+  const matWhiteRing = useMemo(() => new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.25, metalness: 0.05 }), []);
+  const matRubberGaiter = useMemo(() => new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.85, metalness: 0.1 }), []);
+  const matChromeBolt = useMemo(() => new THREE.MeshStandardMaterial({ color: '#cbd5e1', metalness: 0.95, roughness: 0.12 }), []);
+  const matLedGreen = useMemo(() => new THREE.MeshStandardMaterial({ color: '#22c55e', emissive: '#16a34a', emissiveIntensity: 1.8, roughness: 0.2 }), []);
   const matAluTrim = useMemo(() => new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.35, metalness: 0.85 }), []);
-  const matWheelGold = useMemo(() => new THREE.MeshStandardMaterial({ color: '#facc15', metalness: 0.85, roughness: 0.2 }), []);
   const matMonitorScreen = useMemo(() => new THREE.MeshBasicMaterial({ map: cineMonitorTexture }), [cineMonitorTexture]);
   const matTelemetryScreen = useMemo(() => new THREE.MeshBasicMaterial({ map: telemetryTexture }), [telemetryTexture]);
   const matGlove = useMemo(() => new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.6, metalness: 0.2 }), []);
@@ -2004,104 +2260,343 @@ function FloorControlDeskAndOperatorRig({
         spineRef.current.position.y = breathe;
       }
       if (headRef.current) {
-        headRef.current.rotation.x = 0.15; // Looks down at the monitor screen
-        headRef.current.rotation.y = 0.05;
+        headRef.current.rotation.x = 0.16; // Looks down at the monitor screen and TECHNOHEAD controls
+        headRef.current.rotation.y = 0.04;
       }
-      // Articulated hand guidance on the master wheels
+      // 🦾 Hands accurately resting on the TECHNOHEAD joystick and focus/rocker controls
       if (leftShoulderRef.current && leftElbowRef.current && leftHandRef.current) {
-        leftShoulderRef.current.rotation.set(-0.65, -0.15, -0.1);
-        leftElbowRef.current.rotation.set(-0.70, 0, 0);
-        leftHandRef.current.rotation.set(0.1, 0, (headPan * Math.PI / 180) * 1.5);
+        leftShoulderRef.current.rotation.set(-0.68, -0.16, -0.08);
+        leftElbowRef.current.rotation.set(-0.65, 0, 0);
+        leftHandRef.current.rotation.set(0.14, 0, (headRoll * Math.PI / 180) * 0.4);
       }
       if (rightShoulderRef.current && rightElbowRef.current && rightHandRef.current) {
-        rightShoulderRef.current.rotation.set(-0.70, 0.15, 0.1);
-        rightElbowRef.current.rotation.set(-0.65, 0, 0);
-        rightHandRef.current.rotation.set(0.1, 0, (headTilt * Math.PI / 180) * 1.5);
+        rightShoulderRef.current.rotation.set(-0.72, 0.18, 0.08);
+        rightElbowRef.current.rotation.set(-0.62, 0, 0);
+        rightHandRef.current.rotation.set(0.12, 0, (headTilt * Math.PI / 180) * 0.4);
       }
-      if (panMasterWheelRef.current) {
-        panMasterWheelRef.current.rotation.z = (headPan * Math.PI / 180) * 2.0;
+      // Interactive Real-Time TECHNOHEAD Controls
+      if (joystickRef.current) {
+        const joyTilt = THREE.MathUtils.clamp((headTilt * Math.PI / 180) * 0.4, -0.42, 0.42);
+        const joyPan = THREE.MathUtils.clamp((-headPan * Math.PI / 180) * 0.4, -0.42, 0.42);
+        joystickRef.current.rotation.set(joyTilt, 0, joyPan);
       }
-      if (tiltMasterWheelRef.current) {
-        tiltMasterWheelRef.current.rotation.z = (headTilt * Math.PI / 180) * 2.0;
+      if (rockerSwitchRef.current) {
+        const rockerTilt = THREE.MathUtils.mapLinear(teleExtension || 0, 0, 11.3, -0.22, 0.22);
+        rockerSwitchRef.current.rotation.x = rockerTilt;
       }
-      if (rollMasterWheelRef.current) {
-        rollMasterWheelRef.current.rotation.z = (headRoll * Math.PI / 180) * 2.0;
+      if (focusWheelRef.current) {
+        focusWheelRef.current.rotation.x = (headRoll * Math.PI / 180) * 1.5;
+      }
+      if (rollKnobRef.current) {
+        rollKnobRef.current.rotation.y = (headRoll * Math.PI / 180) * 2.0;
       }
     }
   });
 
   return (
     <group ref={rootRef}>
-      {/* 1. FLIGHTCASE CONTROL DESK & STAND (Pult neben dem Kran) */}
+      {/* 1. AUTHENTIC TECHNOHEAD CONTROL CONSOLE & PEDESTAL STAND */}
       <group position={[0, 0, 0.65]} rotation={[0, Math.PI, 0]}>
-        {/* Heavy C-Stand / Studio Base */}
+        {/* Heavy Studio Pedestal Column & Base */}
         <mesh castShadow receiveShadow position={[0, 0.45, 0]}>
-          <cylinderGeometry args={[0.04, 0.05, 0.9, 16]} />
+          <cylinderGeometry args={[0.045, 0.05, 0.90, 24]} />
+          <primitive object={matTechnoheadChassis} attach="material" />
+        </mesh>
+        {/* Machined Locking Collar Clamp */}
+        <mesh castShadow position={[0, 0.78, 0]}>
+          <cylinderGeometry args={[0.062, 0.062, 0.045, 24]} />
           <primitive object={matAluTrim} attach="material" />
         </mesh>
-        <mesh castShadow receiveShadow position={[0, 0.03, 0]}>
-          <cylinderGeometry args={[0.35, 0.35, 0.06, 24]} />
-          <primitive object={matFlightcase} attach="material" />
+        <mesh castShadow position={[0.065, 0.78, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.008, 0.008, 0.06, 12]} />
+          <primitive object={matAluTrim} attach="material" />
+        </mesh>
+        {/* Heavy Circular Studio Floor Base */}
+        <mesh castShadow receiveShadow position={[0, 0.025, 0]}>
+          <cylinderGeometry args={[0.38, 0.40, 0.05, 32]} />
+          <primitive object={matTechnoheadChassis} attach="material" />
+        </mesh>
+        <mesh position={[0, 0.052, 0]}>
+          <cylinderGeometry args={[0.18, 0.24, 0.03, 24]} />
+          <primitive object={matTechnoheadChassis} attach="material" />
         </mesh>
 
-        {/* Main Flightcase Console Box */}
-        <group position={[0, 0.96, 0]} rotation={[0.2, 0, 0]}>
+        {/* Main TECHNOHEAD CNC Console Box (Angled for ergonomics) */}
+        <group position={[0, 0.96, 0]} rotation={[0.22, 0, 0]}>
+          {/* Main Anodized Chassis Box */}
           <mesh castShadow receiveShadow>
-            <boxGeometry args={[0.95, 0.18, 0.65]} />
-            <primitive object={matFlightcase} attach="material" />
-          </mesh>
-          {/* Aluminum Case Edges */}
-          <mesh position={[0, 0, 0]}>
-            <boxGeometry args={[0.96, 0.02, 0.66]} />
-            <primitive object={matAluTrim} attach="material" />
+            <boxGeometry args={[0.84, 0.12, 0.44]} />
+            <primitive object={matTechnoheadChassis} attach="material" />
           </mesh>
 
-          {/* 17" Master Cine Viewfinder Monitor */}
-          <group position={[-0.15, 0.28, -0.16]} rotation={[-0.45, 0, 0]}>
-            <mesh castShadow>
-              <boxGeometry args={[0.48, 0.32, 0.03]} />
-              <primitive object={matFlightcase} attach="material" />
+          {/* Top Faceplate with Laser-Engraved TECHNOHEAD Graphic */}
+          <mesh position={[0, 0.0605, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.836, 0.436]} />
+            <primitive object={matTechnoheadTop} attach="material" />
+          </mesh>
+
+          {/* Front Face Chamfer Trim & Hex Socket Screws */}
+          <mesh position={[0, 0, 0.221]}>
+            <planeGeometry args={[0.836, 0.116]} />
+            <primitive object={matTechnoheadChassis} attach="material" />
+          </mesh>
+          {/* 4 Silver Hex Screws on Front Panel */}
+          <mesh position={[-0.38, 0.035, 0.222]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+          <mesh position={[-0.38, -0.035, 0.222]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+          <mesh position={[0.38, 0.035, 0.222]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+          <mesh position={[0.38, -0.035, 0.222]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+
+          {/* 4 Silver Hex Screws on Left & Right Side Panels */}
+          <mesh position={[-0.421, 0.03, 0.10]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+          <mesh position={[-0.421, -0.03, 0.10]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+          <mesh position={[0.421, 0.03, 0.10]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+          <mesh position={[0.421, -0.03, 0.10]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.003, 12]} />
+            <primitive object={matChromeBolt} attach="material" />
+          </mesh>
+
+          {/* --- 🎛️ TOP PANEL CONTROLS --- */}
+
+          {/* 1. TOP-LEFT: FOCUS / FIZ CYLINDER WHEEL */}
+          <group position={[-0.27, 0.062, -0.11]}>
+            {/* Bezel Cutout Recess */}
+            <mesh position={[0, -0.015, 0]}>
+              <boxGeometry args={[0.095, 0.04, 0.075]} />
+              <meshBasicMaterial color="#050608" />
             </mesh>
-            <mesh position={[0, 0, 0.016]}>
-              <planeGeometry args={[0.45, 0.28]} />
-              <primitive object={matMonitorScreen} attach="material" />
-            </mesh>
-            {/* Real-Time ARRI Monitor Ambient Glow */}
-            <pointLight position={[0, 0, 0.15]} intensity={1.2} distance={1.6} color="#38bdf8" />
+            {/* Dual-Tone Focus Wheel */}
+            <group ref={focusWheelRef} rotation={[0, 0, Math.PI / 2]}>
+              {/* Left: Smooth White Index Drum */}
+              <mesh castShadow position={[0, 0.016, 0]}>
+                <cylinderGeometry args={[0.032, 0.032, 0.032, 24]} />
+                <primitive object={matWhiteRing} attach="material" />
+              </mesh>
+              {/* Right: Black Knurled Grip Ring */}
+              <mesh castShadow position={[0, -0.016, 0]}>
+                <cylinderGeometry args={[0.033, 0.033, 0.030, 24]} />
+                <primitive object={matTechnoheadChassis} attach="material" />
+              </mesh>
+            </group>
           </group>
 
-          {/* 7" Supertechno 50 Live Kinematics Telemetry Monitor */}
-          <group position={[0.28, 0.22, -0.14]} rotation={[-0.45, -0.2, 0]}>
-            <mesh castShadow>
-              <boxGeometry args={[0.24, 0.16, 0.02]} />
-              <primitive object={matFlightcase} attach="material" />
+          {/* 2. MID-LEFT: SILVER KNURLED ROLL KNOB */}
+          <group position={[-0.155, 0.062, -0.10]}>
+            {/* Silver Hex Collar Nut */}
+            <mesh position={[0, 0.005, 0]}>
+              <cylinderGeometry args={[0.016, 0.016, 0.008, 6]} />
+              <primitive object={matKnurledAlu} attach="material" />
             </mesh>
-            <mesh position={[0, 0, 0.012]}>
-              <planeGeometry args={[0.22, 0.14]} />
-              <primitive object={matTelemetryScreen} attach="material" />
-            </mesh>
-            {/* Real-Time Telemetry Screen Ambient Glow */}
-            <pointLight position={[0, 0, 0.12]} intensity={0.9} distance={1.3} color="#00f0ff" />
+            {/* Knurled Aluminum Dial */}
+            <group ref={rollKnobRef} position={[0, 0.020, 0]}>
+              <mesh castShadow>
+                <cylinderGeometry args={[0.018, 0.018, 0.024, 24]} />
+                <primitive object={matKnurledAlu} attach="material" />
+              </mesh>
+              {/* Top Indicator Dot */}
+              <mesh position={[0, 0.0125, -0.012]}>
+                <sphereGeometry args={[0.0025, 8, 8]} />
+                <meshBasicMaterial color="#0f172a" />
+              </mesh>
+            </group>
           </group>
 
-          {/* 3x Remote Head Master Wheels (Pan, Tilt, Roll) */}
-          <group ref={panMasterWheelRef} position={[-0.26, 0.10, 0.14]} rotation={[Math.PI / 3, 0, 0]}>
-            <mesh castShadow>
-              <torusGeometry args={[0.075, 0.012, 12, 24]} />
-              <primitive object={matWheelGold} attach="material" />
+          {/* 3. LOWER-LEFT: W/T (WIDE / TELE) ROCKER SWITCH */}
+          <group position={[-0.155, 0.062, 0.025]}>
+            {/* Rectangular Bezel */}
+            <mesh position={[0, 0.002, 0]}>
+              <boxGeometry args={[0.042, 0.006, 0.088]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
             </mesh>
+            {/* Moving Rocker Switch Paddle */}
+            <group ref={rockerSwitchRef} position={[0, 0.016, 0]}>
+              <mesh castShadow>
+                <boxGeometry args={[0.028, 0.022, 0.065]} />
+                <primitive object={matRockerPaddle} attach="material" />
+              </mesh>
+            </group>
           </group>
-          <group ref={tiltMasterWheelRef} position={[0.0, 0.10, 0.14]} rotation={[Math.PI / 3, 0, 0]}>
-            <mesh castShadow>
-              <torusGeometry args={[0.075, 0.012, 12, 24]} />
-              <primitive object={matWheelGold} attach="material" />
+
+          {/* 4. UPPER-RIGHT: PRECISION 2-AXIS JOYSTICK */}
+          <group position={[0.13, 0.062, -0.10]}>
+            {/* Square Base Flange */}
+            <mesh position={[0, 0.003, 0]}>
+              <boxGeometry args={[0.105, 0.008, 0.105]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
             </mesh>
+            {/* 4 Silver Corner Screws */}
+            <mesh position={[-0.042, 0.008, -0.042]}>
+              <cylinderGeometry args={[0.0035, 0.0035, 0.003, 8]} />
+              <primitive object={matChromeBolt} attach="material" />
+            </mesh>
+            <mesh position={[0.042, 0.008, -0.042]}>
+              <cylinderGeometry args={[0.0035, 0.0035, 0.003, 8]} />
+              <primitive object={matChromeBolt} attach="material" />
+            </mesh>
+            <mesh position={[-0.042, 0.008, 0.042]}>
+              <cylinderGeometry args={[0.0035, 0.0035, 0.003, 8]} />
+              <primitive object={matChromeBolt} attach="material" />
+            </mesh>
+            <mesh position={[0.042, 0.008, 0.042]}>
+              <cylinderGeometry args={[0.0035, 0.0035, 0.003, 8]} />
+              <primitive object={matChromeBolt} attach="material" />
+            </mesh>
+
+            {/* Rubber Corrugated Boot / Gaiter Bellows */}
+            <mesh position={[0, 0.018, 0]}>
+              <cylinderGeometry args={[0.024, 0.042, 0.028, 16]} />
+              <primitive object={matRubberGaiter} attach="material" />
+            </mesh>
+            <mesh position={[0, 0.028, 0]}>
+              <torusGeometry args={[0.025, 0.006, 8, 16]} />
+              <primitive object={matRubberGaiter} attach="material" />
+            </mesh>
+
+            {/* Articulated 2-Axis Joystick Stick */}
+            <group ref={joystickRef} position={[0, 0.024, 0]}>
+              {/* Steel Shaft */}
+              <mesh castShadow position={[0, 0.045, 0]}>
+                <cylinderGeometry args={[0.005, 0.005, 0.07, 12]} />
+                <primitive object={matKnurledAlu} attach="material" />
+              </mesh>
+              {/* Tapered Knurled Grip Head */}
+              <mesh castShadow position={[0, 0.092, 0]}>
+                <cylinderGeometry args={[0.014, 0.010, 0.045, 16]} />
+                <primitive object={matTechnoheadChassis} attach="material" />
+              </mesh>
+              {/* Smooth Rounded Crown Tip */}
+              <mesh position={[0, 0.116, 0]}>
+                <sphereGeometry args={[0.012, 16, 16]} />
+                <primitive object={matTechnoheadChassis} attach="material" />
+              </mesh>
+            </group>
           </group>
-          <group ref={rollMasterWheelRef} position={[0.26, 0.10, 0.14]} rotation={[Math.PI / 3, 0, 0]}>
-            <mesh castShadow>
-              <torusGeometry args={[0.075, 0.012, 12, 24]} />
-              <primitive object={matWheelGold} attach="material" />
+
+          {/* 5. TOP-RIGHT: STATUS LED INDICATOR */}
+          <group position={[0.245, 0.062, -0.13]}>
+            {/* Chrome Bezel Ring */}
+            <mesh position={[0, 0.004, 0]}>
+              <cylinderGeometry args={[0.008, 0.008, 0.006, 16]} />
+              <primitive object={matChromeBolt} attach="material" />
             </mesh>
+            {/* Green Glowing Lens */}
+            <mesh position={[0, 0.008, 0]}>
+              <sphereGeometry args={[0.0045, 12, 12]} />
+              <primitive object={matLedGreen} attach="material" />
+            </mesh>
+            <pointLight position={[0, 0.03, 0]} intensity={0.6} distance={0.4} color="#22c55e" />
+          </group>
+
+          {/* --- 🔌 REAR ACCESSORY CROSSBAR & INDUSTRIAL CONNECTOR HARNESS --- */}
+          <group position={[0, 0.04, -0.26]}>
+            {/* Central Support Riser Clamp */}
+            <mesh castShadow position={[0, 0.03, 0]}>
+              <boxGeometry args={[0.045, 0.08, 0.04]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
+            </mesh>
+            {/* Horizontal Cylindrical Support Bar */}
+            <mesh castShadow position={[0, 0.07, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.012, 0.012, 0.76, 20]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
+            </mesh>
+            {/* 3x Black Rotary Potentiometer Knobs on Crossbar */}
+            <mesh position={[-0.18, 0.09, 0]}>
+              <cylinderGeometry args={[0.010, 0.010, 0.022, 16]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
+            </mesh>
+            <mesh position={[-0.10, 0.09, 0]}>
+              <cylinderGeometry args={[0.010, 0.010, 0.022, 16]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
+            </mesh>
+            <mesh position={[-0.02, 0.09, 0]}>
+              <cylinderGeometry args={[0.010, 0.010, 0.022, 16]} />
+              <primitive object={matTechnoheadChassis} attach="material" />
+            </mesh>
+
+            {/* Industrial Multi-Pin Metal Connector (LEMO / Fischer style) */}
+            <group position={[0.18, 0.07, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <mesh castShadow>
+                <cylinderGeometry args={[0.014, 0.014, 0.055, 16]} />
+                <primitive object={matKnurledAlu} attach="material" />
+              </mesh>
+              <mesh position={[0, 0.035, 0]}>
+                <cylinderGeometry args={[0.010, 0.012, 0.025, 16]} />
+                <primitive object={matRubberGaiter} attach="material" />
+              </mesh>
+            </group>
+
+            {/* Colored Breakout Wiring Harness (Blue, Green, Black) */}
+            <mesh position={[0.19, 0.06, -0.06]} rotation={[0.4, 0, 0]}>
+              <cylinderGeometry args={[0.003, 0.003, 0.12, 8]} />
+              <meshStandardMaterial color="#0284c7" roughness={0.4} />
+            </mesh>
+            <mesh position={[0.21, 0.05, -0.07]} rotation={[0.4, 0.2, 0]}>
+              <cylinderGeometry args={[0.003, 0.003, 0.14, 8]} />
+              <meshStandardMaterial color="#16a34a" roughness={0.4} />
+            </mesh>
+            <mesh position={[0.17, 0.04, -0.08]} rotation={[0.5, -0.1, 0]}>
+              <cylinderGeometry args={[0.005, 0.005, 0.16, 8]} />
+              <meshStandardMaterial color="#09090b" roughness={0.6} />
+            </mesh>
+
+            {/* Dual Articulated Monitor Arms holding the Displays */}
+            {/* 17" Master Cine Viewfinder Monitor */}
+            <group position={[-0.14, 0.32, 0.02]} rotation={[-0.45, 0, 0]}>
+              {/* Support Arm Bracket */}
+              <mesh position={[0, -0.16, -0.02]}>
+                <cylinderGeometry args={[0.008, 0.008, 0.30, 12]} />
+                <primitive object={matAluTrim} attach="material" />
+              </mesh>
+              <mesh castShadow>
+                <boxGeometry args={[0.48, 0.32, 0.03]} />
+                <primitive object={matTechnoheadChassis} attach="material" />
+              </mesh>
+              <mesh position={[0, 0, 0.016]}>
+                <planeGeometry args={[0.45, 0.28]} />
+                <primitive object={matMonitorScreen} attach="material" />
+              </mesh>
+              {/* Real-Time ARRI Monitor Ambient Glow */}
+              <pointLight position={[0, 0, 0.15]} intensity={1.2} distance={1.6} color="#38bdf8" />
+            </group>
+
+            {/* 7" Supertechno 50 Live Kinematics Telemetry Monitor */}
+            <group position={[0.26, 0.26, 0.04]} rotation={[-0.45, -0.22, 0]}>
+              {/* Support Arm Bracket */}
+              <mesh position={[0, -0.14, -0.02]}>
+                <cylinderGeometry args={[0.007, 0.007, 0.24, 12]} />
+                <primitive object={matAluTrim} attach="material" />
+              </mesh>
+              <mesh castShadow>
+                <boxGeometry args={[0.24, 0.16, 0.02]} />
+                <primitive object={matTechnoheadChassis} attach="material" />
+              </mesh>
+              <mesh position={[0, 0, 0.012]}>
+                <planeGeometry args={[0.22, 0.14]} />
+                <primitive object={matTelemetryScreen} attach="material" />
+              </mesh>
+              {/* Real-Time Telemetry Screen Ambient Glow */}
+              <pointLight position={[0, 0, 0.12]} intensity={0.9} distance={1.3} color="#00f0ff" />
+            </group>
           </group>
         </group>
 

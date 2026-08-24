@@ -8,6 +8,7 @@ import Crane from './components/Crane';
 import SlopeCable from './components/SlopeCable';
 import CraneTennis from './components/CraneTennis';
 import TechnocraneStudio from './components/TechnocraneStudio';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,23 +20,25 @@ function App() {
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // 1. Scene Setup
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    
-    // Check if renderer already exists to avoid recreating on hot reload
-    const renderer = new THREE.WebGLRenderer({ 
-      canvas: canvasRef.current, 
-      antialias: true,
-      alpha: true // Allow background to show through
-    });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    let cleanup = () => {};
 
-    // 2. Licht und Environment für den metallischen Look
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    pmremGenerator.compileEquirectangularShader();
-    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    try {
+      // 1. Scene Setup
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      
+      const renderer = new THREE.WebGLRenderer({ 
+        canvas: canvasRef.current, 
+        antialias: true,
+        alpha: true // Allow background to show through
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      // 2. Licht und Environment für den metallischen Look
+      const pmremGenerator = new THREE.PMREMGenerator(renderer);
+      pmremGenerator.compileEquirectangularShader();
+      scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -472,29 +475,35 @@ function App() {
       renderer.render(scene, camera);
     }
 
-    animate();
+      cleanup = () => {
+        window.removeEventListener('wheel', handleWheel);
+        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('resize', handleResize);
+        cancelAnimationFrame(animationFrameId);
+        geometries.forEach(g => g.dispose());
+        materials.forEach(m => m.dispose());
+        textures.forEach(t => t.dispose());
+        cloudGeo.dispose();
+        cloudMat.dispose();
+        if (cloudMat.map) cloudMat.map.dispose();
+        pmremGenerator.dispose();
+        renderer.dispose();
+      };
 
-    // Cleanup on unmount
+      animate();
+    } catch (e) {
+      console.error("WebGL init error", e);
+    }
+
     return () => {
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
-      geometries.forEach(g => g.dispose());
-      materials.forEach(m => m.dispose());
-      textures.forEach(t => t.dispose());
-      cloudGeo.dispose();
-      cloudMat.dispose();
-      if (cloudMat.map) cloudMat.map.dispose();
-      pmremGenerator.dispose();
-      renderer.dispose();
+      cleanup();
     };
   }, [viewMode]); // re-run effect only when view changes
 
   if (viewMode === 'truck') {
     return (
-      <>
+      <ErrorBoundary fallbackTitle="MAN TGL 12.250 LKW 3D Simulation">
         <button 
           onClick={() => setViewMode('text')}
           style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
@@ -502,13 +511,13 @@ function App() {
           Show 3D Text
         </button>
         <Truck />
-      </>
+      </ErrorBoundary>
     );
   }
 
   if (viewMode === 'crane') {
     return (
-      <>
+      <ErrorBoundary fallbackTitle="Supertechno 50 3D Crane Simulation">
         <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, display: 'flex', gap: '10px' }}>
           <button 
             onClick={() => setViewMode('text')}
@@ -524,13 +533,13 @@ function App() {
           </button>
         </div>
         <Crane onOpenTechnocraneStudio={() => setViewMode('technocrane')} />
-      </>
+      </ErrorBoundary>
     );
   }
 
   if (viewMode === 'cable') {
     return (
-      <>
+      <ErrorBoundary fallbackTitle="Schleppkabel Simulation">
         <button 
           onClick={() => setViewMode('text')}
           style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#facc15', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 14px rgba(0,0,0,0.4)' }}
@@ -538,13 +547,13 @@ function App() {
           ← Zurück zum 3D Text
         </button>
         <SlopeCable />
-      </>
+      </ErrorBoundary>
     );
   }
 
   if (viewMode === 'tennis') {
     return (
-      <>
+      <ErrorBoundary fallbackTitle="Kran-Tennis Match Arena">
         <button 
           onClick={() => setViewMode('text')}
           style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#38bdf8', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 14px rgba(0,0,0,0.4)' }}
@@ -552,13 +561,13 @@ function App() {
           ← Zurück zum 3D Text
         </button>
         <CraneTennis />
-      </>
+      </ErrorBoundary>
     );
   }
 
   if (viewMode === 'technocrane') {
     return (
-      <>
+      <ErrorBoundary fallbackTitle="Technocrane VP & MoCo Studio">
         <button 
           onClick={() => setViewMode('text')}
           style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#facc15', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 14px rgba(0,0,0,0.4)' }}
@@ -566,7 +575,7 @@ function App() {
           ← Zurück zum 3D Text
         </button>
         <TechnocraneStudio />
-      </>
+      </ErrorBoundary>
     );
   }
 
