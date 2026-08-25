@@ -14,7 +14,7 @@ export const RED_BULL_RING_CIRCUIT: CircuitDefinition = {
   lapRecord: { time: '1:05.619', driver: 'Carlos Sainz', year: 2020 },
   elevationGainM: 65.0,
   description: 'Die alpine Berg-und-Talbahn in der Steiermark mit dramatischem Höhenprofil und rasanten Bremszonen.',
-  trackWidth: 20.0,
+  trackWidth: 28.0,
   scale: 4.8,
   controlPoints: [
     // 1. Start/Ziel-Gerade

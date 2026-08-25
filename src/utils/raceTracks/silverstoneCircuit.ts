@@ -14,7 +14,7 @@ export const SILVERSTONE_CIRCUIT: CircuitDefinition = {
   lapRecord: { time: '1:27.097', driver: 'Max Verstappen', year: 2020 },
   elevationGainM: 11.3,
   description: 'Das "Home of British Motor Racing" mit legendären High-Speed-Kurven wie Copse, Maggotts & Becketts.',
-  trackWidth: 20.0,
+  trackWidth: 28.0,
   scale: 5.0,
   controlPoints: [
     // 1. Hamilton Straight & Start/Finish (Top Horizontal, von links nach rechts)

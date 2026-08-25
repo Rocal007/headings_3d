@@ -46,8 +46,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   const segments = Math.max(750, Math.round(splineLength * 0.55));
   const trackWidth = circuit.trackWidth;
   const halfW = trackWidth * 0.5;
-  const maxKerbWidth = 0.95; // Realistische FIA Kerb-Breite (0.95m)
-  const runOffWidth = 6.5;
+  const maxKerbWidth = 1.05; // FIA Randstein-Breite (1.05m)
 
   // Vertex Buffer Daten für alle Baugruppen
   const trackPos: number[] = [];
@@ -61,14 +60,6 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   const kerbRPos: number[] = [];
   const kerbRUvs: number[] = [];
   const kerbRIndices: number[] = [];
-
-  const runOffLPos: number[] = [];
-  const runOffLUvs: number[] = [];
-  const runOffLIndices: number[] = [];
-
-  const runOffRPos: number[] = [];
-  const runOffRUvs: number[] = [];
-  const runOffRIndices: number[] = [];
 
   const embankmentPos: number[] = [];
   const embankmentUvs: number[] = [];
@@ -185,49 +176,21 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
       kerbRIndices.push(b + 1, b + 3, b + 2);
     }
 
-    // 3. Auslaufzone links (Gravel / Tarmac)
-    const roLx = klx - normX * runOffWidth;
-    const roLy = ly - 0.01;
-    const roLz = klz - normZ * runOffWidth;
+    // 3. 3D-Böschungsunterbau (Embankment) schließt direkt an Fahrbahnkante/Kerb an und taucht 0.60m tief in den Boden ein
+    const embLx = klx - normX * 3.5;
+    const embLy = kly - 0.60;
+    const embLz = klz - normZ * 3.5;
 
-    runOffLPos.push(roLx, roLy, roLz);
-    runOffLUvs.push(0, u * 80);
-    runOffLPos.push(klx, kly, klz);
-    runOffLUvs.push(1, u * 80);
-
-    // 4. Auslaufzone rechts (Gravel / Tarmac)
-    const roRx = krx + normX * runOffWidth;
-    const roRy = ry - 0.01;
-    const roRz = krz + normZ * runOffWidth;
-
-    runOffRPos.push(krx, kry, krz);
-    runOffRUvs.push(0, u * 80);
-    runOffRPos.push(roRx, roRy, roRz);
-    runOffRUvs.push(1, u * 80);
-
-    if (i < segments) {
-      const b = i * 2;
-      runOffLIndices.push(b, b + 1, b + 2);
-      runOffLIndices.push(b + 1, b + 3, b + 2);
-      runOffRIndices.push(b, b + 1, b + 2);
-      runOffRIndices.push(b + 1, b + 3, b + 2);
-    }
-
-    // 5. 3D-Böschungsunterbau (Embankment) taucht 0.60m tief in den Boden ein
-    const embLx = roLx - normX * 3.5;
-    const embLy = roLy - 0.60;
-    const embLz = roLz - normZ * 3.5;
-
-    const embRx = roRx + normX * 3.5;
-    const embRy = roRy - 0.60;
-    const embRz = roRz + normZ * 3.5;
+    const embRx = krx + normX * 3.5;
+    const embRy = kry - 0.60;
+    const embRz = krz + normZ * 3.5;
 
     embankmentPos.push(embLx, embLy, embLz);
     embankmentUvs.push(0, u * 40);
-    embankmentPos.push(roLx, roLy, roLz);
+    embankmentPos.push(klx, kly, klz);
     embankmentUvs.push(1, u * 40);
 
-    embankmentPos.push(roRx, roRy, roRz);
+    embankmentPos.push(krx, kry, krz);
     embankmentUvs.push(0, u * 40);
     embankmentPos.push(embRx, embRy, embRz);
     embankmentUvs.push(1, u * 40);
@@ -262,18 +225,6 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   kerbRGeo.setIndex(kerbRIndices);
   kerbRGeo.computeVertexNormals();
 
-  const runOffLGeo = new THREE.BufferGeometry();
-  runOffLGeo.setAttribute('position', new THREE.Float32BufferAttribute(runOffLPos, 3));
-  runOffLGeo.setAttribute('uv', new THREE.Float32BufferAttribute(runOffLUvs, 2));
-  runOffLGeo.setIndex(runOffLIndices);
-  runOffLGeo.computeVertexNormals();
-
-  const runOffRGeo = new THREE.BufferGeometry();
-  runOffRGeo.setAttribute('position', new THREE.Float32BufferAttribute(runOffRPos, 3));
-  runOffRGeo.setAttribute('uv', new THREE.Float32BufferAttribute(runOffRUvs, 2));
-  runOffRGeo.setIndex(runOffRIndices);
-  runOffRGeo.computeVertexNormals();
-
   const embankmentGeo = new THREE.BufferGeometry();
   embankmentGeo.setAttribute('position', new THREE.Float32BufferAttribute(embankmentPos, 3));
   embankmentGeo.setAttribute('uv', new THREE.Float32BufferAttribute(embankmentUvs, 2));
@@ -288,9 +239,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   roadMarkingsTex.repeat.set(1, 160);
 
   const kerbTex = createKerbTexture();
-  const runOffTex = createRunOffTexture();
 
-  disposables.textures.push(asphaltBumpTex, roadMarkingsTex, kerbTex, runOffTex);
+  disposables.textures.push(asphaltBumpTex, roadMarkingsTex, kerbTex);
 
   const trackMat = new THREE.MeshStandardMaterial({
     color: '#343a42',
@@ -315,17 +265,6 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     polygonOffsetUnits: -5,
   });
 
-  const runOffMat = new THREE.MeshStandardMaterial({
-    map: runOffTex,
-    bumpMap: asphaltBumpTex,
-    bumpScale: 0.03,
-    roughness: 0.90,
-    metalness: 0.02,
-    polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4,
-  });
-
   const embankmentMat = new THREE.MeshStandardMaterial({
     color: '#26431f',
     bumpMap: asphaltBumpTex,
@@ -337,21 +276,17 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     polygonOffsetUnits: -2,
   });
 
-  disposables.materials.push(trackMat, kerbMat, runOffMat, embankmentMat);
-  disposables.geometries.push(trackGeo, kerbLGeo, kerbRGeo, runOffLGeo, runOffRGeo, embankmentGeo);
+  disposables.materials.push(trackMat, kerbMat, embankmentMat);
+  disposables.geometries.push(trackGeo, kerbLGeo, kerbRGeo, embankmentGeo);
 
   const trackMesh = new THREE.Mesh(trackGeo, trackMat);
   trackMesh.receiveShadow = true;
   const kerbLMesh = new THREE.Mesh(kerbLGeo, kerbMat);
   const kerbRMesh = new THREE.Mesh(kerbRGeo, kerbMat);
-  const runOffLMesh = new THREE.Mesh(runOffLGeo, runOffMat);
-  runOffLMesh.receiveShadow = true;
-  const runOffRMesh = new THREE.Mesh(runOffRGeo, runOffMat);
-  runOffRMesh.receiveShadow = true;
   const embankmentMesh = new THREE.Mesh(embankmentGeo, embankmentMat);
   embankmentMesh.receiveShadow = true;
 
-  group.add(trackMesh, kerbLMesh, kerbRMesh, runOffLMesh, runOffRMesh, embankmentMesh);
+  group.add(trackMesh, kerbLMesh, kerbRMesh, embankmentMesh);
 
   // 4. Start-Ziel-Schachbrettmarkierung (Hamilton Straight bei u = 0.02)
   const sfPt = trackCurve.getPointAt(0.02);
@@ -594,31 +529,6 @@ function createKerbTexture(): THREE.CanvasTexture {
       ctx.moveTo(0, y);
       ctx.lineTo(256, y + 16);
       ctx.stroke();
-    }
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
-/** Erzeugt die Textur für Kiesbett-Auslaufzonen (Gravel Traps) */
-function createRunOffTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 256;
-  const ctx = c.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = '#b45309'; // Kiesbett Ocker/Braun
-    ctx.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 4000; i++) {
-      const gx = Math.random() * 256;
-      const gy = Math.random() * 256;
-      const r = Math.random() * 1.5 + 0.5;
-      ctx.fillStyle = Math.random() > 0.5 ? '#78350f' : '#d97706';
-      ctx.beginPath();
-      ctx.arc(gx, gy, r, 0, Math.PI * 2);
-      ctx.fill();
     }
   }
   const tex = new THREE.CanvasTexture(c);
