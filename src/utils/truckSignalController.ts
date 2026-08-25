@@ -107,7 +107,13 @@ export class TruckSignalController {
     rig.rearBlinkerMatL.emissiveIntensity = state.isLeftOn ? emHigh : emLow;
     rig.rearBlinkerMatR.emissiveIntensity = state.isRightOn ? emHigh : emLow;
 
-    // 3. Dynamische Heckblinker-PointLights für sichtbare Umgebungs-Ausleuchtung
+    // 3. Dynamische Front- & Heckblinker-PointLights für sichtbare Umgebungs-Ausleuchtung
+    if (rig.frontBlinkerLightL) {
+      rig.frontBlinkerLightL.intensity = state.isLeftOn ? 6.5 : 0.0;
+    }
+    if (rig.frontBlinkerLightR) {
+      rig.frontBlinkerLightR.intensity = state.isRightOn ? 6.5 : 0.0;
+    }
     if (rig.rearBlinkerLightL) {
       rig.rearBlinkerLightL.intensity = state.isLeftOn ? 6.0 : 0.0;
     }

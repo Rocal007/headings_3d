@@ -47,6 +47,8 @@ export interface ManTglTruckRig {
   rearBlinkerLightR: THREE.PointLight;
   frontBlinkerMatL: THREE.MeshStandardMaterial;
   frontBlinkerMatR: THREE.MeshStandardMaterial;
+  frontBlinkerLightL: THREE.PointLight;
+  frontBlinkerLightR: THREE.PointLight;
   biLedLensMat: THREE.MeshPhysicalMaterial;
   loadEdgeHeight: number;
   kofferBackZ: number;
@@ -771,13 +773,14 @@ export function createManTglTruckRig(): ManTglTruckRig {
     }
     g.add(outerLens);
 
-    // 5. LED DRL Lichtleiter-Streifen & LED Blinker
+    // 5. LED DRL Lichtleiter-Streifen & Prominenter Front-Blinker (Oberes Scheinwerferband)
     const drlStrip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.016, 0.015), drlMat);
     drlStrip.position.set(0, 0.118, 0.043);
 
-    const blinkerGeo = new THREE.BoxGeometry(0.42, 0.022, 0.015);
+    const blinkerGeo = new THREE.BoxGeometry(0.45, 0.036, 0.022);
     const blinker = new THREE.Mesh(blinkerGeo, blinkerMat);
-    blinker.position.set(0, 0.095, 0.043);
+    blinker.position.set(0, 0.096, 0.046);
+    blinker.renderOrder = 4;
     g.add(drlStrip, blinker);
 
     g.position.set(0.82 * s, 0.72, 4.53);
@@ -821,12 +824,19 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const headlightFlareR = new THREE.PointLight('#ffffff', 4.0, 9.0, 2);
   headlightFlareR.position.set(-0.82, 0.72, 4.62);
 
+  // Front-Blinker Streulichter (Amber PointLights für Front- und Boden-Beleuchtung)
+  const frontBlinkerLightL = new THREE.PointLight('#ff8800', 0, 7.5, 2);
+  frontBlinkerLightL.position.set(0.82, 0.72, 4.70);
+  const frontBlinkerLightR = new THREE.PointLight('#ff8800', 0, 7.5, 2);
+  frontBlinkerLightR.position.set(-0.82, 0.72, 4.70);
+
   truck.add(
     frontHlLeft, frontHlRight,
     leftFog, leftFogRing, rightFog, rightFogRing,
     roofMarkerL, roofMarkerR,
     leftSpot, leftSpot.target, rightSpot, rightSpot.target,
-    headlightFlareL, headlightFlareR
+    headlightFlareL, headlightFlareR,
+    frontBlinkerLightL, frontBlinkerLightR
   );
 
   // 3.8 Ergo-Cockpit Interieur
@@ -1140,7 +1150,6 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const rearWingGeo = new RoundedBoxGeometry(0.12, 0.38, 0.14, 2, 0.02);
   const sideMarkerGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.02, 16);
   sideMarkerGeo.rotateZ(Math.PI / 2);
-  const sideMarkerMat = new THREE.MeshStandardMaterial({ color: '#ff8800', emissive: '#ff8800', emissiveIntensity: 1.8, roughness: 0.2 });
 
   const frontMudflapGeo = new THREE.BoxGeometry(0.025, 0.24, 0.26);
   const innerArchGeo = new THREE.CylinderGeometry(0.49, 0.49, 0.24, 24, 1, false, 0, Math.PI);
@@ -1149,7 +1158,6 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const stepHousingGeo = new RoundedBoxGeometry(0.20, 0.36, 0.46, 2, 0.02);
   const stepPlateGeo = new THREE.BoxGeometry(0.18, 0.035, 0.38);
   const ledStripGeo = new THREE.BoxGeometry(0.025, 0.032, 0.42);
-  const ledStripMat = new THREE.MeshStandardMaterial({ color: '#ffaa00', emissive: '#ff8800', emissiveIntensity: 2.2, roughness: 0.1 });
 
   const createFrontWheelArch = (side: 'left' | 'right') => {
     const group = new THREE.Group();
@@ -1168,7 +1176,9 @@ export function createManTglTruckRig(): ManTglTruckRig {
     rearWing.position.set(1.16 * s, 0.36, frontAxleZ - 0.52);
     group.add(rearWing);
 
-    const marker = new THREE.Mesh(sideMarkerGeo, sideMarkerMat);
+    const blinkerMat = side === 'left' ? frontBlinkerMatL : frontBlinkerMatR;
+
+    const marker = new THREE.Mesh(sideMarkerGeo, blinkerMat);
     marker.position.set(1.23 * s, 0.44, frontAxleZ - 0.52);
     group.add(marker);
 
@@ -1188,7 +1198,8 @@ export function createManTglTruckRig(): ManTglTruckRig {
     upperStep.position.set(1.02 * s, 0.70, 2.66);
     group.add(stepHousing, lowerStep, upperStep);
 
-    const ledStrip = new THREE.Mesh(ledStripGeo, ledStripMat);
+    // Seiten-Zusatzblinker (Flankenblinker am Einstieg)
+    const ledStrip = new THREE.Mesh(ledStripGeo, blinkerMat);
     ledStrip.position.set(1.21 * s, 0.86, 2.66);
     group.add(ledStrip);
 
@@ -1240,6 +1251,8 @@ export function createManTglTruckRig(): ManTglTruckRig {
     rearBlinkerLightR,
     frontBlinkerMatL,
     frontBlinkerMatR,
+    frontBlinkerLightL,
+    frontBlinkerLightR,
     biLedLensMat,
     loadEdgeHeight,
     kofferBackZ,
