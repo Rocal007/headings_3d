@@ -58,25 +58,26 @@ export interface ManTglTruckRig {
 export function createManTglTruckRig(): ManTglTruckRig {
   const truck = new THREE.Group();
 
-  // --- Materials (Realistic Car Paint with Clearcoat) ---
+  // --- Materials (Realistic Car Paint with Clearcoat & Refined Light Response) ---
   const paintMat = new THREE.MeshPhysicalMaterial({ 
     color: '#f8f9fa', 
-    roughness: 0.1, 
-    metalness: 0.1,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.04
+    roughness: 0.16, 
+    metalness: 0.14, 
+    clearcoat: 1.0, 
+    clearcoatRoughness: 0.05,
+    ior: 1.5,
   });
   
-  const plasticMat = new THREE.MeshStandardMaterial({ color: '#16191d', roughness: 0.85, metalness: 0.1 });
-  const darkTrimMat = new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.9, metalness: 0.05 });
-  const chassisMat = new THREE.MeshStandardMaterial({ color: '#111111', roughness: 0.9 });
+  const plasticMat = new THREE.MeshStandardMaterial({ color: '#16191d', roughness: 0.70, metalness: 0.12 });
+  const darkTrimMat = new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.72, metalness: 0.10 });
+  const chassisMat = new THREE.MeshStandardMaterial({ color: '#141414', roughness: 0.78, metalness: 0.15 });
   const glassMat = new THREE.MeshStandardMaterial({ color: '#1e3a5f', roughness: 0.04, metalness: 0.85, transparent: true, opacity: 0.68 });
-  const visorMat = new THREE.MeshPhysicalMaterial({ color: '#0b1320', roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.85, transmission: 0.15 });
-  const rimMat = new THREE.MeshStandardMaterial({ color: '#b0b8c0', roughness: 0.3, metalness: 0.8 });
-  const silverMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.35, metalness: 0.9 });
-  const chromeMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.1, metalness: 0.98 });
-  const interiorMat = new THREE.MeshStandardMaterial({ color: '#1a1e24', roughness: 0.88, metalness: 0.05 });
-  const seatFabricMat = new THREE.MeshStandardMaterial({ color: '#272c35', roughness: 0.92, metalness: 0.02 });
+  const visorMat = new THREE.MeshPhysicalMaterial({ color: '#0b1320', roughness: 0.12, metalness: 0.35, transparent: true, opacity: 0.85, transmission: 0.20 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#b0b8c0', roughness: 0.24, metalness: 0.86 });
+  const silverMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.26, metalness: 0.92 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.06, metalness: 0.98 });
+  const interiorMat = new THREE.MeshStandardMaterial({ color: '#1a1e24', roughness: 0.82, metalness: 0.08 });
+  const seatFabricMat = new THREE.MeshStandardMaterial({ color: '#272c35', roughness: 0.88, metalness: 0.04 });
   
   const grillTex = createGrillTexture();
   const plateTex = createLicensePlateTexture();

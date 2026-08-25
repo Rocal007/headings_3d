@@ -63,10 +63,10 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
   };
 
   // Standard-Materialien
-  const silverMat = params.silverMat || regMat(new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.35, metalness: 0.9 }));
-  const darkTrimMat = params.darkTrimMat || regMat(new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.9, metalness: 0.05 }));
-  const interiorMat = params.interiorMat || regMat(new THREE.MeshStandardMaterial({ color: '#1a1e24', roughness: 0.88, metalness: 0.05 }));
-  const paintMat = params.paintMat || regMat(new THREE.MeshPhysicalMaterial({ color: '#f8f9fa', roughness: 0.1, metalness: 0.05, clearcoat: 0.8 }));
+  const silverMat = params.silverMat || regMat(new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.26, metalness: 0.92 }));
+  const darkTrimMat = params.darkTrimMat || regMat(new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.72, metalness: 0.10 }));
+  const interiorMat = params.interiorMat || regMat(new THREE.MeshStandardMaterial({ color: '#1a1e24', roughness: 0.82, metalness: 0.08 }));
+  const paintMat = params.paintMat || regMat(new THREE.MeshPhysicalMaterial({ color: '#f8f9fa', roughness: 0.16, metalness: 0.14, clearcoat: 1.0, clearcoatRoughness: 0.05, ior: 1.5 }));
 
   // --- Geometrie Parameter (Echte Maße: MAN TGL 12.250 Kofferaufbau) ---
   const kofferLength = 8.25;   // Außenlänge (~8.050mm Innenmaß + 200mm Rahmen/Stirnwand)
@@ -83,21 +83,23 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
 
   const boxGroup = new THREE.Group();
 
-  // 1. Texturierte PBR-Materialien für die Kofferaußenwände
+  // 1. Texturierte PBR-Materialien für die Kofferaußenwände (Feiner Gelcoat-Glanz & Reflexionsverhalten)
   const kofferSideTex = regTex(createKofferSideTexture());
   const boxMat = regMat(new THREE.MeshPhysicalMaterial({ 
     color: '#f8f9fa', 
-    roughness: 0.1, 
-    metalness: 0.05,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.2
+    roughness: 0.22, 
+    metalness: 0.08,
+    clearcoat: 0.90,
+    clearcoatRoughness: 0.10,
+    ior: 1.48
   }));
   const boxSideMat = regMat(new THREE.MeshPhysicalMaterial({ 
     map: kofferSideTex, 
-    roughness: 0.1, 
-    metalness: 0.05,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.2
+    roughness: 0.22, 
+    metalness: 0.08,
+    clearcoat: 0.90,
+    clearcoatRoughness: 0.10,
+    ior: 1.48
   }));
 
   // =========================================================================

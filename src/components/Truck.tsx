@@ -115,9 +115,9 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     // Haupt-Bodenplatte
     const floorGeo = new THREE.PlaneGeometry(160, 160);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: '#0d1117',
-      roughness: 0.82,
-      metalness: 0.2,
+      color: '#1a1f26',
+      roughness: 0.55,
+      metalness: 0.35,
     });
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
@@ -128,8 +128,8 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     const turntableGeo = new THREE.CylinderGeometry(9.0, 9.2, 0.08, 64);
     const turntableMat = new THREE.MeshStandardMaterial({
       color: '#161c24',
-      roughness: 0.45,
-      metalness: 0.55,
+      roughness: 0.36,
+      metalness: 0.65,
     });
     const turntableMesh = new THREE.Mesh(turntableGeo, turntableMat);
     turntableMesh.position.y = 0.04;
