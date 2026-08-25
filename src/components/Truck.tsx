@@ -20,40 +20,40 @@ export const TRUCK_STUDIO_CAMERAS: Record<TruckStudioCameraId, TruckStudioCamera
     id: 'orbit',
     name: '360° Studio Orbit (Frei)',
     icon: '🌟',
-    position: new THREE.Vector3(14, 5.5, 14),
-    target: new THREE.Vector3(0, 1.8, 0),
+    position: new THREE.Vector3(14, 5.58, 14),
+    target: new THREE.Vector3(0, 1.88, 0),
     fov: 45,
   },
   hero: {
     id: 'hero',
     name: 'Front 3/4 Hero Shot',
     icon: '👑',
-    position: new THREE.Vector3(7.5, 2.6, 9.5),
-    target: new THREE.Vector3(0, 1.8, 2.5),
+    position: new THREE.Vector3(7.5, 2.68, 9.5),
+    target: new THREE.Vector3(0, 1.88, 2.5),
     fov: 38,
   },
   cockpit: {
     id: 'cockpit',
     name: 'Fahrerkabine & Cockpit',
     icon: '💺',
-    position: new THREE.Vector3(0.55, 2.22, 3.48),
-    target: new THREE.Vector3(0.55, 2.10, 6.5),
+    position: new THREE.Vector3(0.55, 2.30, 3.48),
+    target: new THREE.Vector3(0.55, 2.18, 6.5),
     fov: 65,
   },
   tailgate: {
     id: 'tailgate',
     name: 'Ladebordwand & Frachtraum',
     icon: '📦',
-    position: new THREE.Vector3(0, 2.4, -9.5),
-    target: new THREE.Vector3(0, 1.6, -2.5),
+    position: new THREE.Vector3(0, 2.48, -9.5),
+    target: new THREE.Vector3(0, 1.68, -2.5),
     fov: 42,
   },
   side: {
     id: 'side',
     name: 'Seitenprofil (5550mm Radstand)',
     icon: '🪟',
-    position: new THREE.Vector3(15, 2.2, 0),
-    target: new THREE.Vector3(0, 1.8, 0),
+    position: new THREE.Vector3(15, 2.28, 0),
+    target: new THREE.Vector3(0, 1.88, 0),
     fov: 35,
   },
 };
@@ -101,7 +101,7 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.target.set(0, 1.8, 0);
+    controls.target.set(0, 1.88, 0);
     controls.maxPolarAngle = Math.PI / 2 - 0.02; // Nicht unter den Boden blicken
     controls.minDistance = 2.0;
     controls.maxDistance = 45.0;
@@ -191,6 +191,7 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     // 🚚 VOLLSTÄNDIGER MAN TGL 12.250 3D LKW MIT ALLEN SUBAGENTEN-TEILEN
     // =========================================================================
     const truckRig = createManTglTruckRig();
+    truckRig.truck.position.y = 0.08; // Exakte Höhe der Drehteller-Plattform (bündiger Stand)
     scene.add(truckRig.truck);
 
     // =========================================================================
