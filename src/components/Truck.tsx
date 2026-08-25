@@ -161,28 +161,38 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
 
     scene.add(studioFloorGroup);
 
-    // 💡 3-Point Showroom Beleuchtung
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    // 💡 17:00 Uhr Nachmittags-Beleuchtung (Golden Hour & lange dramatische Schatten)
+    const ambientLight = new THREE.AmbientLight(0x9cb8d9, 0.58);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff5ea, 2.4);
-    keyLight.position.set(15, 24, 18);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
-    keyLight.shadow.bias = -0.0002;
-    scene.add(keyLight);
+    // 17:00 Uhr tiefstehende Nachmittagssonne (Winkel ~16°, wirft weite Schatten)
+    const sun5pmLight = new THREE.DirectionalLight(0xffe0b2, 3.4);
+    sun5pmLight.position.set(28, 9.5, 22);
+    sun5pmLight.castShadow = true;
+    sun5pmLight.shadow.mapSize.width = 4096;
+    sun5pmLight.shadow.mapSize.height = 4096;
+    sun5pmLight.shadow.bias = -0.00015;
+    sun5pmLight.shadow.radius = 2.4; // Sanfte Penumbra-Weichheit
+    sun5pmLight.shadow.camera.left = -28;
+    sun5pmLight.shadow.camera.right = 28;
+    sun5pmLight.shadow.camera.top = 28;
+    sun5pmLight.shadow.camera.bottom = -28;
+    sun5pmLight.shadow.camera.near = 1.0;
+    sun5pmLight.shadow.camera.far = 140.0;
+    scene.add(sun5pmLight);
 
-    const fillLight = new THREE.DirectionalLight(0xa5c4e8, 1.4);
-    fillLight.position.set(-18, 18, -12);
-    scene.add(fillLight);
+    // Kühleres Himmels-Aufhelllicht (Gegenüberliegendes Himmelsblau)
+    const skyFillLight = new THREE.DirectionalLight(0x82a9d1, 1.2);
+    skyFillLight.position.set(-24, 16, -18);
+    scene.add(skyFillLight);
 
-    const overheadRimLight = new THREE.DirectionalLight(0xffffff, 1.6);
-    overheadRimLight.position.set(0, 32, -15);
-    scene.add(overheadRimLight);
+    // Goldener Streiflicht-Akzent (Warmes Gegenlicht auf Lackkanten & Kofferprofil)
+    const goldenRimLight = new THREE.DirectionalLight(0xffcc80, 1.5);
+    goldenRimLight.position.set(-16, 8, 26);
+    scene.add(goldenRimLight);
 
     // Spotlights für Scheinwerfer-Glow & Bodenakzente
-    const floorSpot = new THREE.SpotLight(0x00dcff, 3.5, 30, Math.PI / 4, 0.4);
+    const floorSpot = new THREE.SpotLight(0x00dcff, 2.8, 32, Math.PI / 4, 0.45);
     floorSpot.position.set(0, 18, 0);
     floorSpot.target.position.set(0, 0, 0);
     scene.add(floorSpot, floorSpot.target);
