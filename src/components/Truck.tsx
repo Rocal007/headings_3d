@@ -31,6 +31,72 @@ import {
 } from '../utils/raceTracks';
 import type { CircuitId, TrackMeshesResult } from '../utils/raceTracks';
 
+export type GraphicQualityId = 'ultra' | 'high' | 'medium' | 'eco';
+
+export interface GraphicQualityPreset {
+  id: GraphicQualityId;
+  name: string;
+  shortDesc: string;
+  icon: string;
+  shadows: boolean;
+  shadowMapSize: number;
+  pixelRatioCap: number;
+  cloudDensity: number;
+  cloudCoverage: number;
+  cloudSpeed: number;
+}
+
+export const GRAPHIC_QUALITY_PRESETS: Record<GraphicQualityId, GraphicQualityPreset> = {
+  ultra: {
+    id: 'ultra',
+    name: 'Ultra (2K Schatten, Retina)',
+    shortDesc: '2048px Schatten • 2.0x Retina • fBM Wolken',
+    icon: '🚀',
+    shadows: true,
+    shadowMapSize: 2048,
+    pixelRatioCap: 2.0,
+    cloudDensity: 0.88,
+    cloudCoverage: 0.22,
+    cloudSpeed: 0.0035,
+  },
+  high: {
+    id: 'high',
+    name: 'High (1K Schatten, 60 FPS)',
+    shortDesc: '1024px Schatten • 1.5x DPI • Ausgewogen',
+    icon: '⚡',
+    shadows: true,
+    shadowMapSize: 1024,
+    pixelRatioCap: 1.5,
+    cloudDensity: 0.75,
+    cloudCoverage: 0.18,
+    cloudSpeed: 0.0025,
+  },
+  medium: {
+    id: 'medium',
+    name: 'Medium (512px Schatten, 1.0x)',
+    shortDesc: '512px Schatten • 1.0x DPI • Leichte Last',
+    icon: '🌱',
+    shadows: true,
+    shadowMapSize: 512,
+    pixelRatioCap: 1.0,
+    cloudDensity: 0.50,
+    cloudCoverage: 0.12,
+    cloudSpeed: 0.0015,
+  },
+  eco: {
+    id: 'eco',
+    name: 'Eco / Potato (Max FPS, Schatten AUS)',
+    shortDesc: 'Schatten AUS • 0.85x DPI • Maximale FPS',
+    icon: '🔋',
+    shadows: false,
+    shadowMapSize: 256,
+    pixelRatioCap: 0.85,
+    cloudDensity: 0.0,
+    cloudCoverage: 0.0,
+    cloudSpeed: 0.0,
+  },
+};
+
 // Module-level scratch objects for Zero-GC in Render-Loop (Säule 1.1 Architecture Standard)
 const _ptScratch = new THREE.Vector3();
 const _tangentScratch = new THREE.Vector3();
@@ -46,6 +112,9 @@ export default function Truck() {
   const [platformLowered, setPlatformLowered] = useState(false);
   const [wipersActive, setWipersActive] = useState(false);
   const [isBsod, setIsBsod] = useState(false);
+  const [quality, setQuality] = useState<GraphicQualityId>('high');
+  const qualityRef = useRef<GraphicQualityId>('high');
+  const qualityChangeTriggerRef = useRef<((id: GraphicQualityId) => void) | null>(null);
   const [activeCam, setActiveCam] = useState<TruckCameraPresetId>('follow');
   const activeCamRef = useRef<TruckCameraPresetId>('follow');
   const effectiveCamRef = useRef<TruckCameraPresetId>('follow');
@@ -63,6 +132,7 @@ export default function Truck() {
   const wipersActiveRef = useRef(false);
 
   // DOM-Refs für Telemetrie-HUD (Subagent 22.6: 60fps Zero-Garbage Live Updates)
+  const telemetryFpsRef = useRef<HTMLSpanElement>(null);
   const directorBadgeRef = useRef<HTMLDivElement>(null);
   const telemetrySectorRef = useRef<HTMLSpanElement>(null);
   const telemetryF1Ref = useRef<HTMLDivElement>(null);
@@ -1444,6 +1514,42 @@ export default function Truck() {
       trackU = 0.0;
     };
 
+    // ⚙️ Dynamischer Grafik-Detailtreue & Performance-Umschalter
+    qualityChangeTriggerRef.current = (newQ: GraphicQualityId) => {
+      const preset = GRAPHIC_QUALITY_PRESETS[newQ];
+      
+      // 1. Pixel Ratio (DPI-Skalierung)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, preset.pixelRatioCap));
+      
+      // 2. Schattenwurf
+      renderer.shadowMap.enabled = preset.shadows;
+      dirLight.castShadow = preset.shadows;
+      if (preset.shadows) {
+        dirLight.shadow.mapSize.width = preset.shadowMapSize;
+        dirLight.shadow.mapSize.height = preset.shadowMapSize;
+        if (dirLight.shadow.map) {
+          dirLight.shadow.map.dispose();
+          (dirLight.shadow as any).map = null;
+        }
+      }
+      
+      // 3. Prozedurale Himmels- & Wolkenkomplexität
+      sky.uniforms.uCloudDensity.value = preset.cloudDensity;
+      sky.uniforms.uCloudCoverage.value = preset.cloudCoverage;
+      sky.uniforms.uCloudSpeed.value = preset.cloudSpeed;
+    };
+
+    // Initiale Grafik-Qualität anwenden
+    const initQuality = GRAPHIC_QUALITY_PRESETS[qualityRef.current];
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, initQuality.pixelRatioCap));
+    renderer.shadowMap.enabled = initQuality.shadows;
+    dirLight.castShadow = initQuality.shadows;
+    dirLight.shadow.mapSize.width = initQuality.shadowMapSize;
+    dirLight.shadow.mapSize.height = initQuality.shadowMapSize;
+    sky.uniforms.uCloudDensity.value = initQuality.cloudDensity;
+    sky.uniforms.uCloudCoverage.value = initQuality.cloudCoverage;
+    sky.uniforms.uCloudSpeed.value = initQuality.cloudSpeed;
+
     truck.rotation.y = 0;
     truck.position.set(0, 0, 0);
 
@@ -1484,12 +1590,30 @@ export default function Truck() {
     const wheelRadius = 0.408; // Match tireRadius
     const clock = new THREE.Clock();
 
+    let frameCount = 0;
+    let lastPerfSample = performance.now();
+
     const animate = () => {
       animationId = requestAnimationFrame(animate);
 
       // Delta-Time Normalisierung für 60Hz / 120Hz / 144Hz (Säule 1.2)
       const delta = Math.min(clock.getDelta(), 0.1);
       const elapsedTime = clock.getElapsedTime();
+
+      // ⏱️ FPS & GPU-Frame-Dauer Profiling (Aktualisierung alle 400ms)
+      frameCount++;
+      const nowPerf = performance.now();
+      if (nowPerf - lastPerfSample >= 400) {
+        const elapsedPerf = nowPerf - lastPerfSample;
+        const fps = (frameCount / elapsedPerf) * 1000;
+        const ms = elapsedPerf / Math.max(1, frameCount);
+        if (telemetryFpsRef.current) {
+          telemetryFpsRef.current.innerText = `${fps.toFixed(0)} FPS • ${ms.toFixed(1)}ms`;
+          telemetryFpsRef.current.style.color = fps >= 55 ? '#2ecc71' : fps >= 35 ? '#f1c40f' : '#e74c3c';
+        }
+        frameCount = 0;
+        lastPerfSample = nowPerf;
+      }
 
       // ☁️ Himmelsdom & dynamische Wolkendrift aktualisieren (zentriert auf Kamera)
       sky.uniforms.uTime.value = elapsedTime;
@@ -1978,14 +2102,23 @@ export default function Truck() {
             <span style={{ fontSize: 13 }}>📡</span>
             <span style={{ fontWeight: 700, letterSpacing: 0.8, color: '#00dcff', fontSize: 11 }}>MAN TELEMATICS HUD</span>
           </div>
-          <span style={{
-            fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-            background: isDriving ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)',
-            color: isDriving ? '#2ecc71' : '#e74c3c',
-            border: isDriving ? '1px solid #2ecc71' : '1px solid #e74c3c'
-          }}>
-            {isDriving ? '● DRIVING' : '○ IDLE'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span ref={telemetryFpsRef} style={{
+              fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
+              background: 'rgba(0,0,0,0.5)', color: '#2ecc71', border: '1px solid rgba(46, 204, 113, 0.4)',
+              fontFamily: 'monospace'
+            }}>
+              60 FPS • 16.6ms
+            </span>
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+              background: isDriving ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)',
+              color: isDriving ? '#2ecc71' : '#e74c3c',
+              border: isDriving ? '1px solid #2ecc71' : '1px solid #e74c3c'
+            }}>
+              {isDriving ? '● DRIVING' : '○ IDLE'}
+            </span>
+          </div>
         </div>
 
         {/* FIA Grand Prix Circuit Selector & Sector Display */}
@@ -2221,6 +2354,68 @@ export default function Truck() {
               ● ON AIR [AUTO-REGIE]
             </div>
           )}
+        </div>
+
+        {/* ⚙️ Grafik-Detailtreue & Performance-Stufe (Subagent 19: Performance Governance) */}
+        <div style={{
+          marginTop: 8,
+          padding: '8px 10px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          borderRadius: 8,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ color: '#8899aa', fontSize: 8.5, fontWeight: 700, letterSpacing: 0.5 }}>⚙️ DETAILTREUE / GRAFIK:</span>
+            <span style={{
+              fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
+              background: quality === 'ultra' ? '#ec4899' : quality === 'high' ? '#3b82f6' : quality === 'medium' ? '#10b981' : '#f59e0b',
+              color: '#ffffff'
+            }}>
+              {quality.toUpperCase()}
+            </span>
+          </div>
+
+          <select
+            value={quality}
+            onChange={(e) => {
+              const nextQ = e.target.value as GraphicQualityId;
+              setQuality(nextQ);
+              qualityRef.current = nextQ;
+              if (qualityChangeTriggerRef.current) {
+                qualityChangeTriggerRef.current(nextQ);
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              background: 'rgba(10, 15, 25, 0.95)',
+              color: '#ffffff',
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            {(Object.keys(GRAPHIC_QUALITY_PRESETS) as GraphicQualityId[]).map((qKey) => {
+              const qPreset = GRAPHIC_QUALITY_PRESETS[qKey];
+              return (
+                <option
+                  key={qKey}
+                  value={qKey}
+                  style={{ background: '#0b0f19', color: '#ffffff' }}
+                >
+                  {qPreset.icon} {qPreset.name}
+                </option>
+              );
+            })}
+          </select>
+
+          <div style={{ marginTop: 4, color: '#94a3b8', fontSize: 8, fontFamily: 'monospace' }}>
+            {GRAPHIC_QUALITY_PRESETS[quality].shortDesc}
+          </div>
         </div>
 
         {/* Footer Vehicle Specs */}
