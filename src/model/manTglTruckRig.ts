@@ -688,7 +688,7 @@ export function createManTglTruckRig(): ManTglTruckRig {
   truck.add(plate);
 
   // =========================================================================
-  // 💡 Subagent 22.13: `truck_headlights` - MAN LED-FRONTSCHEINWERFER & DRL
+  // 💡 Subagent 22.13: `truck_headlights` - MAN LED-FRONTSCHEINWERFER, DRL & FRONT-ECKBLINKER
   // =========================================================================
   
   const frontBlinkerMatL = new THREE.MeshStandardMaterial({ color: '#ff8800', emissive: '#ff8800', emissiveIntensity: 0.0, roughness: 0.2 });
@@ -697,6 +697,46 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const fogLampMat = new THREE.MeshStandardMaterial({ color: '#fffbf0', emissive: '#fff3d6', emissiveIntensity: 2.5, roughness: 0.15 });
   const roofMarkerMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 2.8, roughness: 0.2 });
   const drlMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 3.5, roughness: 0.1 });
+
+  // MAN Front-Eckblinker (Charakteristische Blinkleuchten an den vorderen Fahrerhaus-Ecken)
+  const createFrontCornerIndicator = (side: 'left' | 'right') => {
+    const g = new THREE.Group();
+    const s = side === 'left' ? 1 : -1;
+    const blinkerMat = side === 'left' ? frontBlinkerMatL : frontBlinkerMatR;
+
+    // Eckblinker-Gehäuse (abgewinkelt für optimale 180° Sichtbarkeit von vorn & seitlich)
+    const housingGeo = new RoundedBoxGeometry(0.12, 0.26, 0.18, 2, 0.02);
+    const housing = new THREE.Mesh(housingGeo, darkTrimMat);
+    g.add(housing);
+
+    // Verchromter Innenreflektor
+    const refGeo = new THREE.BoxGeometry(0.10, 0.23, 0.15);
+    const refMesh = new THREE.Mesh(refGeo, chromeMat);
+    refMesh.position.set(0.01 * s, 0, 0.01);
+    g.add(refMesh);
+
+    // Klares bernsteinfarbenes Glas-Prisma (strahlt intensiv nach vorne & zur Seite)
+    const lensGeo = new RoundedBoxGeometry(0.11, 0.24, 0.16, 2, 0.015);
+    const lensMesh = new THREE.Mesh(lensGeo, blinkerMat);
+    lensMesh.position.set(0.015 * s, 0, 0.015);
+    lensMesh.renderOrder = 4;
+    g.add(lensMesh);
+
+    // Horizontale MAN-Strukturippung
+    for (let y of [-0.07, 0, 0.07]) {
+      const ribGeo = new THREE.BoxGeometry(0.115, 0.012, 0.165);
+      const rib = new THREE.Mesh(ribGeo, darkTrimMat);
+      rib.position.set(0.015 * s, y, 0.015);
+      g.add(rib);
+    }
+
+    g.position.set(1.15 * s, 1.38, 4.34);
+    g.rotation.y = side === 'left' ? -0.38 : 0.38;
+    return g;
+  };
+
+  const frontCornerL = createFrontCornerIndicator('left');
+  const frontCornerR = createFrontCornerIndicator('right');
 
   const headlightLensMat = new THREE.MeshStandardMaterial({
     map: hlTex,
@@ -832,6 +872,7 @@ export function createManTglTruckRig(): ManTglTruckRig {
 
   truck.add(
     frontHlLeft, frontHlRight,
+    frontCornerL, frontCornerR,
     leftFog, leftFogRing, rightFog, rightFogRing,
     roofMarkerL, roofMarkerR,
     leftSpot, leftSpot.target, rightSpot, rightSpot.target,
