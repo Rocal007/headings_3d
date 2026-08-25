@@ -639,7 +639,11 @@ function createStartFinishTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-/** Erzeugt ein detailliertes 3D-Modell eines TV-Kameraturms inkl. Broadcast-Kamera, Stativ, Operator & Barrieren */
+/** 
+ * Erzeugt das authentische 3D-Modell des SUPERTECHNO 50 Teleskopkrans (Agent 1 bis 14)
+ * inklusive Dolly-Fahrwerk, hydraulischer Hubsäule, 4-stufigem Teleskopausleger,
+ * Gegengewichten, 3-Achs Remote Head, ARRI Cine Kamera, Flightcase-Pult und Operatoren.
+ */
 function createTracksideCameraMesh(
   cam: import('./trackTypes').TracksideCamera,
   pos: THREE.Vector3,
@@ -656,132 +660,270 @@ function createTracksideCameraMesh(
     root.rotation.y = Math.atan2(lookDir.x, lookDir.z);
   }
 
-  const steelMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.85, roughness: 0.25 });
-  const platformMat = new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.6, roughness: 0.4 });
-  const camBodyMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.4, roughness: 0.3 });
-  const lensMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.9, roughness: 0.1 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: '#0284c7', metalness: 0.95, roughness: 0.05 });
-  const tallyMat = new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 3.5 });
-  const barrierMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.7 });
-  const tireMat = new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.85 });
-  const operatorMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.8 }); // Crew Blau
+  // Hochwertige PBR Materialien
+  const chassisMat = new THREE.MeshStandardMaterial({ color: '#141820', metalness: 0.85, roughness: 0.35 });
+  const deckMat = new THREE.MeshStandardMaterial({ color: '#1e2430', metalness: 0.8, roughness: 0.4 });
+  const yellowDecalMat = new THREE.MeshStandardMaterial({ color: '#facc15', emissive: '#facc15', emissiveIntensity: 0.6, roughness: 0.3 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', metalness: 0.98, roughness: 0.12 });
+  const brassMat = new THREE.MeshStandardMaterial({ color: '#d4af37', metalness: 0.88, roughness: 0.28 });
+  const carbonMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.55, roughness: 0.32 });
+  const innerBoomMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.75, roughness: 0.28 });
+  const leadWeightMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.9, roughness: 0.2 });
+  const rubberMat = new THREE.MeshStandardMaterial({ color: '#14161a', metalness: 0.08, roughness: 0.88 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#c4ccd8', metalness: 0.94, roughness: 0.22 });
+  const camBodyMat = new THREE.MeshStandardMaterial({ color: '#090d16', metalness: 0.6, roughness: 0.3 });
+  const lensGlassMat = new THREE.MeshStandardMaterial({ color: '#0284c7', metalness: 0.95, roughness: 0.05 });
+  const tallyMat = new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 3.8 });
+  const barrierMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.7 });
+  const operatorMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.8 });
   const skinMat = new THREE.MeshStandardMaterial({ color: '#f5d0b0', roughness: 0.6 });
 
   if (cam.type === 'tower') {
-    const towerH = Math.max(2.5, cam.height - 1.2);
+    const groundOffsetY = -pos.y; // Abstand bis zum Erdboden (Y=0)
+    const craneReach = Math.min(9.5, Math.max(5.0, Math.hypot(lookDir.x, lookDir.z) * 0.35));
+
+    // =========================================================================
+    // 1. SUPERTECHNO 50 DOLLY CHASSIS (Agent 2 crane_dolly)
+    // =========================================================================
+    const dollyGroup = new THREE.Group();
+    dollyGroup.position.set(0, groundOffsetY, 0);
+
+    // Hauptrahmen (Chassis Box)
+    const chassisBox = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.26, 1.5), chassisMat);
+    chassisBox.position.set(0, 0.28, 0);
     
-    // 1. Gitterrohr-Turm / Scaffolding Gerüst (4 Beine)
-    const legGeo = new THREE.CylinderGeometry(0.06, 0.08, towerH, 8);
-    const legOffsets = [
-      [-1.1, -1.1],
-      [1.1, -1.1],
-      [1.1, 1.1],
-      [-1.1, 1.1],
+    // Riffelblech-Deckplatte
+    const deckPlate = new THREE.Mesh(new THREE.BoxGeometry(2.14, 0.04, 1.44), deckMat);
+    deckPlate.position.set(0, 0.42, 0);
+
+    // Gelbe "SUPERTECHNO 50" Seiten-Decals
+    const decalL = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.02), yellowDecalMat);
+    decalL.position.set(0, 0.28, 0.76);
+    const decalR = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.02), yellowDecalMat);
+    decalR.position.set(0, 0.28, -0.76);
+
+    dollyGroup.add(chassisBox, deckPlate, decalL, decalR);
+
+    // 4x Studio Doppelräder
+    const wheelOffsets = [
+      [-0.85, 0.24, -0.80],
+      [0.85, 0.24, -0.80],
+      [-0.85, 0.24, 0.80],
+      [0.85, 0.24, 0.80],
     ];
-    legOffsets.forEach(([ox, oz]) => {
-      const leg = new THREE.Mesh(legGeo, steelMat);
-      leg.position.set(ox, -towerH * 0.5, oz);
-      root.add(leg);
+    wheelOffsets.forEach(([wx, wy, wz]) => {
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.16, 16), rubberMat);
+      tire.rotation.x = Math.PI * 0.5;
+      tire.position.set(wx, wy, wz);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.17, 16), rimMat);
+      rim.rotation.x = Math.PI * 0.5;
+      rim.position.set(wx, wy, wz);
+      dollyGroup.add(tire, rim);
     });
 
-    // Horizontale & Diagonale Verstrebungen
-    const strutGeo = new THREE.BoxGeometry(2.2, 0.05, 0.05);
-    for (let h = -towerH + 0.8; h < -0.4; h += 1.4) {
-      const s1 = new THREE.Mesh(strutGeo, steelMat);
-      s1.position.set(0, h, 1.1);
-      const s2 = new THREE.Mesh(strutGeo, steelMat);
-      s2.position.set(0, h, -1.1);
-      root.add(s1, s2);
-    }
+    // 4x Hydraulische Nivellierstützen (Outriggers mit Fußplatten)
+    const jackOffsets = [
+      [-1.15, -0.85],
+      [1.15, -0.85],
+      [-1.15, 0.85],
+      [1.15, 0.85],
+    ];
+    jackOffsets.forEach(([jx, jz]) => {
+      const jackLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8), chromeMat);
+      jackLeg.position.set(jx, 0.18, jz);
+      const footPad = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 12), rubberMat);
+      footPad.position.set(jx, 0.02, jz);
+      dollyGroup.add(jackLeg, footPad);
+    });
 
-    // 2. Standplattform
-    const platGeo = new THREE.BoxGeometry(2.4, 0.12, 2.4);
-    const plat = new THREE.Mesh(platGeo, platformMat);
-    plat.position.set(0, -0.06, 0);
-    root.add(plat);
+    root.add(dollyGroup);
 
-    // Geländer
-    const railGeo = new THREE.BoxGeometry(2.4, 0.04, 0.04);
-    const topRail = new THREE.Mesh(railGeo, steelMat);
-    topRail.position.set(0, 1.05, 1.2);
-    const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 2.4), steelMat);
-    leftRail.position.set(-1.2, 1.05, 0);
-    const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 2.4), steelMat);
-    rightRail.position.set(1.2, 1.05, 0);
-    root.add(topRail, leftRail, rightRail);
+    // =========================================================================
+    // 2. HYDRAULISCHE HUBSÄULE (Agent 3 crane_column)
+    // =========================================================================
+    const columnH = Math.max(1.8, pos.y - 1.1);
+    
+    // Säulen-Sockel auf dem Dolly
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.48, 0.55, 20), chassisMat);
+    pedestal.position.set(0, groundOffsetY + 0.65, 0);
+    
+    // Teleskopierbarer Chrom-Hydraulikzylinder
+    const colCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, columnH, 20), chromeMat);
+    colCylinder.position.set(0, groundOffsetY + 0.55 + columnH * 0.5, 0);
 
-    // 3. Schweres Broadcast-Dreibeinstativ
-    const tripodLegGeo = new THREE.CylinderGeometry(0.025, 0.03, 1.1, 8);
-    for (let i = 0; i < 3; i++) {
-      const tLeg = new THREE.Mesh(tripodLegGeo, steelMat);
-      const ang = (i * Math.PI * 2) / 3;
-      tLeg.position.set(Math.sin(ang) * 0.35, 0.55, Math.cos(ang) * 0.35 + 0.2);
-      tLeg.rotation.z = Math.sin(ang) * 0.25;
-      tLeg.rotation.x = -Math.cos(ang) * 0.25;
-      root.add(tLeg);
-    }
+    // 360° Base-Pan Zahnkranz & Messing-Ring
+    const slewingRing = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.10, 24), brassMat);
+    slewingRing.position.set(0, -0.45, 0);
 
-    // 4. Professionelle Broadcast Box-Lens Kamera (Fujinon/Canon Style)
-    const camBase = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.12, 16), steelMat);
-    camBase.position.set(0, 1.12, 0.2);
-    root.add(camBase);
+    root.add(pedestal, colCylinder, slewingRing);
 
+    // =========================================================================
+    // 3. FULCRUM / HAUPTGELENK & YOKE (Agent 4 crane_fulcrum)
+    // =========================================================================
+    const yokeGabel = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.50, 0.60), innerBoomMat);
+    yokeGabel.position.set(0, -0.20, 0);
+    const pivotAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.82, 16), chromeMat);
+    pivotAxle.rotation.z = Math.PI * 0.5;
+    pivotAxle.position.set(0, 0, 0);
+
+    root.add(yokeGabel, pivotAxle);
+
+    // =========================================================================
+    // 4. 4-STUFIGER TELESKOPAUSLEGER (Agent 5 telescopic_boom)
+    // =========================================================================
+    const boomGroup = new THREE.Group();
+    // Leichte Neigung nach unten in Richtung Strecke
+    boomGroup.rotation.x = -0.12;
+
+    // Stufe 1: Haupt-Außenausleger (Beam 1)
+    const beam1 = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.54, 4.2), carbonMat);
+    beam1.position.set(0, 0, 1.4);
+    
+    // Gelber "SUPERTECHNO 50" Schriftzug auf Beam 1
+    const logoBeamL = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 0.02), yellowDecalMat);
+    logoBeamL.position.set(0.25, 0, 1.4);
+    const logoBeamR = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 0.02), yellowDecalMat);
+    logoBeamR.position.set(-0.25, 0, 1.4);
+
+    // Stufe 2: Mittlerer Ausleger (Beam 2)
+    const beam2 = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.46, 3.8), innerBoomMat);
+    beam2.position.set(0, 0, 1.4 + craneReach * 0.32);
+
+    // Stufe 3: Teleskop-Zwischenstufe (Beam 3)
+    const beam3 = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.38, 3.5), carbonMat);
+    beam3.position.set(0, 0, 1.4 + craneReach * 0.65);
+
+    // Stufe 4: Kranspitze & Linsenträger (Beam 4 + Nase)
+    const beam4 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 3.2), innerBoomMat);
+    beam4.position.set(0, 0, 1.4 + craneReach);
+
+    boomGroup.add(beam1, logoBeamL, logoBeamR, beam2, beam3, beam4);
+
+    // =========================================================================
+    // 5. GEGENGEWICHTSWAGEN & HECK-STEUERPULT (Agent 6 & 14)
+    // =========================================================================
+    // Führungsschienen für Gegengewichtswagen nach hinten
+    const cwRail1 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.0, 12), chromeMat);
+    cwRail1.rotation.x = Math.PI * 0.5;
+    cwRail1.position.set(0.18, -0.15, -1.8);
+    const cwRail2 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.0, 12), chromeMat);
+    cwRail2.rotation.x = Math.PI * 0.5;
+    cwRail2.position.set(-0.18, -0.15, -1.8);
+
+    // Gegengewichtswagen mit Bleigewichts-Plattenstack
+    const cwBucket = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.55, 0.95), leadWeightMat);
+    cwBucket.position.set(0, -0.10, -2.1);
+    
+    // Gelber Haltebügel am Gegengewicht
+    const cwHandle = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 0.08), yellowDecalMat);
+    cwHandle.position.set(0, 0.18, -2.1);
+
+    // Heck-Steuerpult mit Handrädern & Not-Aus (Rear Crane Controls)
+    const rearHandle = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.03, 8, 20, Math.PI), brassMat);
+    rearHandle.rotation.x = Math.PI * 0.5;
+    rearHandle.position.set(0, 0.05, -3.2);
+    const eStop = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 12), tallyMat);
+    eStop.position.set(0.24, 0.08, -3.2);
+
+    boomGroup.add(cwRail1, cwRail2, cwBucket, cwHandle, rearHandle, eStop);
+
+    // =========================================================================
+    // 6. AUTO-HORIZON MITCHELL MOUNT & 3-ACHS REMOTE HEAD (Agent 8 & 9)
+    // =========================================================================
+    const headTipZ = 1.4 + craneReach + 1.5;
+    
+    // Gyro Auto-Horizon Nivellierkopf
+    const gyroStage = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.14, 16), brassMat);
+    gyroStage.position.set(0, -0.22, headTipZ);
+
+    // 3-Achsen Remote Head Gimbal Yoke
+    const gimbalYoke = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.35, 0.18), carbonMat);
+    gimbalYoke.position.set(0, -0.48, headTipZ);
+
+    // =========================================================================
+    // 7. ARRI ALEXA MINI LF CINEMA KAMERA RIG (Agent 10 cinema_camera)
+    // =========================================================================
     // Kameragehäuse
-    const camBox = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.55), camBodyMat);
-    camBox.position.set(0, 1.34, 0.15);
+    const arriBody = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 0.35), camBodyMat);
+    arriBody.position.set(0, -0.65, headTipZ + 0.05);
+
+    // Telephoto Cine Zoom Objektiv
+    const cineLens = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.12, 0.55, 20), innerBoomMat);
+    cineLens.rotation.x = Math.PI * 0.5;
+    cineLens.position.set(0, -0.65, headTipZ + 0.45);
+
+    // Frontlinse mit optischem Glasglanz
+    const opticFront = new THREE.Mesh(new THREE.CircleGeometry(0.095, 20), lensGlassMat);
+    opticFront.position.set(0, -0.65, headTipZ + 0.73);
+
+    // Mattebox Sonnenblende mit Flags
+    const mattebox = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 0.12), carbonMat);
+    mattebox.position.set(0, -0.65, headTipZ + 0.70);
+
+    // Rote Live Tally-Signalleuchte auf der Kamera
+    const tallyLamp = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.04), tallyMat);
+    tallyLamp.position.set(0, -0.48, headTipZ + 0.05);
+
+    boomGroup.add(gyroStage, gimbalYoke, arriBody, cineLens, opticFront, mattebox, tallyLamp);
+    root.add(boomGroup);
+
+    // =========================================================================
+    // 8. FLIGHTCASE MASTER DESK & OPERATOR CREW (Agent 12 & 14)
+    // =========================================================================
+    // 1. Heck-Kranführer hinter den Gegengewichten
+    const opRearBody = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.75, 12), operatorMat);
+    opRearBody.position.set(0, groundOffsetY + 0.95, -3.8);
+    const opRearHead = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), skinMat);
+    opRearHead.position.set(0, groundOffsetY + 1.45, -3.8);
+    dollyGroup.add(opRearBody, opRearHead);
+
+    // 2. Boden-Flightcase Master Console am Boden neben der Säule
+    const deskStand = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.05, 8), chromeMat);
+    deskStand.position.set(2.1, 0.52, 0.4);
+    const flightcase = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.45, 0.55), chassisMat);
+    flightcase.position.set(2.1, 1.15, 0.4);
+    const monitor17 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.35, 0.04), lensGlassMat);
+    monitor17.position.set(2.1, 1.42, 0.4);
+    monitor17.rotation.x = -0.25;
+
+    // 3x Messing Fluid Handräder auf dem Pult
+    for (let w = -1; w <= 1; w++) {
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.015, 8, 16), brassMat);
+      wheel.position.set(2.1 + w * 0.22, 1.18, 0.55);
+      wheel.rotation.x = Math.PI * 0.4;
+      dollyGroup.add(wheel);
+    }
+    dollyGroup.add(deskStand, flightcase, monitor17);
+
+    // Head-Operator am Bodenpult
+    const opDeskBody = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.75, 12), operatorMat);
+    opDeskBody.position.set(2.1, groundOffsetY + 0.95, 1.1);
+    const opDeskHead = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), skinMat);
+    opDeskHead.position.set(2.1, groundOffsetY + 1.45, 1.1);
+    dollyGroup.add(opDeskBody, opDeskHead);
+
+    // =========================================================================
+    // 9. FIA BETON-LEITMAUER & REIFENSTAPEL ZUR STRECKE HIN
+    // =========================================================================
+    const barrier = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.15, 0.45), barrierMat);
+    barrier.position.set(0, groundOffsetY + 0.58, 2.2);
     
-    // Telephoto-Objektiv-Tubus
-    const lensTube = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.65), lensMat);
-    lensTube.position.set(0, 1.34, 0.65);
-    
-    // Große Frontlinse mit Antireflex-Glanz
-    const frontLens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 24), glassMat);
-    frontLens.rotation.x = Math.PI * 0.5;
-    frontLens.position.set(0, 1.34, 0.98);
-
-    // Tally-Rotlicht auf der Kamera (Live-On-Air Signalleuchte)
-    const tally = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.05), tallyMat);
-    tally.position.set(0, 1.52, 0.45);
-
-    // 7" Sucher-Monitor an der Seite
-    const vf = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.03), camBodyMat);
-    vf.position.set(0.22, 1.42, 0.0);
-    vf.rotation.y = -0.4;
-
-    root.add(camBox, lensTube, frontLens, tally, vf);
-
-    // 5. 3D-Kameramann / TV Operator (hinter dem Stativ)
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.75, 12), operatorMat);
-    body.position.set(0, 0.95, -0.45);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), skinMat);
-    head.position.set(0, 1.45, -0.45);
-    // Headset
-    const headset = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.02, 8, 16, Math.PI), steelMat);
-    headset.position.set(0, 1.47, -0.45);
-    headset.rotation.x = Math.PI * 0.5;
-
-    root.add(body, head, headset);
-
-    // 6. FIA Beton-Leitmauer & Reifenstapel vor dem Turm zur Strecke hin
-    const barrier = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.1, 0.45), barrierMat);
-    barrier.position.set(0, -towerH + 0.55, 1.8);
-    
-    // 3x Reifen vor der Leitmauer
-    for (let t = -1; t <= 1; t++) {
-      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.14, 12, 24), tireMat);
-      tire.position.set(t * 0.9, -towerH + 0.45, 2.15);
+    // 4x Schutzreifen vor der Leitmauer
+    for (let t = -1.5; t <= 1.5; t += 1.0) {
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.15, 12, 24), rubberMat);
+      tire.position.set(t * 0.95, groundOffsetY + 0.48, 2.55);
       root.add(tire);
     }
     root.add(barrier);
 
   } else if (cam.type === 'kerb') {
     // Miniaturisierte Puck-Kamera am Randstein
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.25), steelMat);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.25), chassisMat);
     base.position.set(0, 0.09, 0);
-    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.15, 16), lensMat);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.15, 16), innerBoomMat);
     lens.rotation.x = Math.PI * 0.5;
     lens.position.set(0, 0.12, 0.12);
-    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.055, 16), glassMat);
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.055, 16), lensGlassMat);
     glass.position.set(0, 0.12, 0.20);
     const tally = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.02), tallyMat);
     tally.position.set(0, 0.19, 0);
