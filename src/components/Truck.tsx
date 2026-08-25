@@ -1698,7 +1698,7 @@ export default function Truck() {
       const engineIdle = Math.sin(clock.getElapsedTime() * (isTurboActive ? 40.0 : 22.0)) * 0.0008;
 
       truck.position.x = x;
-      truck.position.y = y + roadVibe + engineIdle;
+      truck.position.y = y + 0.10 + roadVibe + engineIdle;
       truck.position.z = z;
 
       // Ausrichtung mit YXZ-Euler-Ordnung (Heading + Nick + Geländeneigung + Wank)

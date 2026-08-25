@@ -125,16 +125,16 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     const banking = getInterpolatedBanking(u);
     const bankY = Math.sin(banking) * halfW;
 
-    // Linker und rechter Fahrbahnrand
+    // Linker und rechter Fahrbahnrand (Leicht erhaben über dem Gelände Y + 0.10m)
     const lx = pt.x - normX * halfW;
-    const ly = pt.y - bankY;
+    const ly = pt.y - bankY + 0.10;
     const lz = pt.z - normZ * halfW;
 
     const rx = pt.x + normX * halfW;
-    const ry = pt.y + bankY;
+    const ry = pt.y + bankY + 0.10;
     const rz = pt.z + normZ * halfW;
 
-    // 1. Asphalt-Hauptfahrbahn (12.0m Standardbreite)
+    // 1. Asphalt-Hauptfahrbahn
     trackPos.push(lx, ly, lz);
     trackUvs.push(0, u * 160);
     trackPos.push(rx, ry, rz);
@@ -147,7 +147,6 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     }
 
     // 2. Maßstabsgetreue FIA Kerbs in Kurven (0.95m Breite, 0.90m Streifenlänge)
-    // Curbs aktivieren sich in Bremszonen, Scheiteln und Kurvenausgängen
     const cpFlags = getControlPointKerbFlags(u);
     const curveFactor = Math.min(1.0, Math.max(0.0, (curvature - 0.0012) / 0.0035));
     const activeL = Math.max(curveFactor, cpFlags.left);
@@ -156,12 +155,11 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     const curKwL = activeL * maxKerbWidth;
     const curKwR = activeR * maxKerbWidth;
 
-    // Streifen-UV: Genau 0.90m Streifenlänge pro rot/weißem Block
     const kerbUvT = u * (splineLength / 1.8);
 
-    // Linker Kerb (Außen/Innen Scheitel)
+    // Linker Kerb (+0.04m über Asphalt)
     const klx = lx - normX * curKwL;
-    const kly = ly + 0.024 * Math.min(1.0, activeL * 1.5);
+    const kly = ly + 0.040 * Math.min(1.0, activeL * 1.5);
     const klz = lz - normZ * curKwL;
 
     kerbLPos.push(klx, kly, klz);
@@ -169,9 +167,9 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     kerbLPos.push(lx, ly, lz);
     kerbLUvs.push(1, kerbUvT);
 
-    // Rechter Kerb
+    // Rechter Kerb (+0.04m über Asphalt)
     const krx = rx + normX * curKwR;
-    const kry = ry + 0.024 * Math.min(1.0, activeR * 1.5);
+    const kry = ry + 0.040 * Math.min(1.0, activeR * 1.5);
     const krz = rz + normZ * curKwR;
 
     kerbRPos.push(rx, ry, rz);
@@ -189,7 +187,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
 
     // 3. Auslaufzone links (Gravel / Tarmac)
     const roLx = klx - normX * runOffWidth;
-    const roLy = Math.max(0.02, ly - 0.015);
+    const roLy = ly - 0.01;
     const roLz = klz - normZ * runOffWidth;
 
     runOffLPos.push(roLx, roLy, roLz);
@@ -199,7 +197,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
 
     // 4. Auslaufzone rechts (Gravel / Tarmac)
     const roRx = krx + normX * runOffWidth;
-    const roRy = Math.max(0.02, ry - 0.015);
+    const roRy = ry - 0.01;
     const roRz = krz + normZ * runOffWidth;
 
     runOffRPos.push(krx, kry, krz);
@@ -215,14 +213,14 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
       runOffRIndices.push(b + 1, b + 3, b + 2);
     }
 
-    // 5. 3D-Böschungsunterbau (Embankment) vom Außenrand zum angrenzenden 3D-Gelände
-    const embLx = roLx - normX * 2.0;
-    const embLy = Math.max(0.0, roLy - 0.35);
-    const embLz = roLz - normZ * 2.0;
+    // 5. 3D-Böschungsunterbau (Embankment) taucht 0.60m tief in den Boden ein
+    const embLx = roLx - normX * 3.5;
+    const embLy = roLy - 0.60;
+    const embLz = roLz - normZ * 3.5;
 
-    const embRx = roRx + normX * 2.0;
-    const embRy = Math.max(0.0, roRy - 0.35);
-    const embRz = roRz + normZ * 2.0;
+    const embRx = roRx + normX * 3.5;
+    const embRy = roRy - 0.60;
+    const embRz = roRz + normZ * 3.5;
 
     embankmentPos.push(embLx, embLy, embLz);
     embankmentUvs.push(0, u * 40);
@@ -302,8 +300,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.78,
     metalness: 0.06,
     polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4,
+    polygonOffsetFactor: -6,
+    polygonOffsetUnits: -6,
   });
 
   const kerbMat = new THREE.MeshStandardMaterial({
@@ -313,8 +311,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.60,
     metalness: 0.05,
     polygonOffset: true,
-    polygonOffsetFactor: -3,
-    polygonOffsetUnits: -3,
+    polygonOffsetFactor: -5,
+    polygonOffsetUnits: -5,
   });
 
   const runOffMat = new THREE.MeshStandardMaterial({
@@ -324,8 +322,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.90,
     metalness: 0.02,
     polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
   });
 
   const embankmentMat = new THREE.MeshStandardMaterial({
@@ -335,8 +333,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.94,
     metalness: 0.0,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
 
   disposables.materials.push(trackMat, kerbMat, runOffMat, embankmentMat);
@@ -969,7 +967,7 @@ function createCircuitTerrainMesh(
 
   // 2. Erstellen eines hochauflösenden 3D-Terrain-Gitters (1600m x 1600m)
   const size = 1600;
-  const segments = 160; // 161x161 = 25.921 Scheitelpunkte
+  const segments = 240; // 241x241 = 58.081 Scheitelpunkte für maximale Kurven-Genauigkeit
   const terrainGeo = new THREE.PlaneGeometry(size, size, segments, segments);
   terrainGeo.rotateX(-Math.PI * 0.5);
 
@@ -999,22 +997,22 @@ function createCircuitTerrainMesh(
     const localTrackY = samples[closestIndex].y;
 
     // 2. Sanfte regionale Höhen-Wellen (Hügellandschaft außerhalb der Strecke)
-    const h1 = Math.sin(gx * 0.007 + gz * 0.005) * 5.5;
-    const h2 = Math.cos(gx * 0.004 - gz * 0.006) * 6.5;
-    const h3 = Math.sin((gx + gz) * 0.014) * 2.0;
+    const h1 = Math.sin(gx * 0.007 + gz * 0.005) * 5.0;
+    const h2 = Math.cos(gx * 0.004 - gz * 0.006) * 5.5;
+    const h3 = Math.sin((gx + gz) * 0.014) * 1.6;
     const regionalHills = h1 + h2 + h3;
 
     let finalY = localTrackY;
 
     // 3. Strenge Höhen-Guardrails zur Vermeidung jeglicher Strecken-Verschüttung:
-    if (minDist <= 22.0) {
-      // Unter und direkt neben der breiten Rennstrecke: Terrain liegt STRENG unter dem Asphalt & Randsteinen
-      finalY = localTrackY - 0.38 - (minDist / 22.0) * 0.22;
-    } else if (minDist <= 70.0) {
+    if (minDist <= 28.0) {
+      // Unter und direkt neben der breiten Rennstrecke: Terrain liegt STRENG 0.75m bis 1.10m unter dem Asphalt & Randsteinen
+      finalY = localTrackY - 0.75 - (minDist / 28.0) * 0.35;
+    } else if (minDist <= 75.0) {
       // Übergangszone: Sanfte Böschung in das Umland
-      const t = (minDist - 22.0) / 48.0;
-      const baseGround = localTrackY - 0.60;
-      const targetLandscape = localTrackY + regionalHills * 0.4;
+      const t = (minDist - 28.0) / 47.0;
+      const baseGround = localTrackY - 1.10;
+      const targetLandscape = localTrackY + regionalHills * 0.35;
       finalY = THREE.MathUtils.lerp(baseGround, targetLandscape, t * t);
     } else {
       // Weite Umgebung: Volle Topographie
@@ -1022,20 +1020,20 @@ function createCircuitTerrainMesh(
     }
 
     // 🛡️ GLOBALER SCHUTZ-ENVELOPE GEGENÜBER ALLEN STRECKENABSCHNITTEN
-    // Prüft alle Streckenpunkte im Umkreis von 120m, sodass benachbarte Haarnadeln,
+    // Prüft alle Streckenpunkte im Umkreis von 130m, sodass benachbarte Haarnadeln,
     // Schikanen oder Infield-Geraden NIEMALS von Hügeln verschüttet werden können!
     for (let s = 0; s < sampleCount; s++) {
       const sp = samples[s];
       const dx = gx - sp.x;
       const dz = gz - sp.z;
       const dSq = dx * dx + dz * dz;
-      if (dSq < 14400.0) { // Umkreis 120m
+      if (dSq < 16900.0) { // Umkreis 130m
         const d = Math.sqrt(dSq);
         let maxAllowedY: number;
-        if (d <= 22.0) {
-          maxAllowedY = sp.y - 0.35 - (d / 22.0) * 0.20;
+        if (d <= 28.0) {
+          maxAllowedY = sp.y - 0.75;
         } else {
-          maxAllowedY = (sp.y - 0.55) + (d - 22.0) * 0.085;
+          maxAllowedY = (sp.y - 0.75) + (d - 28.0) * 0.065;
         }
         if (finalY > maxAllowedY) {
           finalY = maxAllowedY;
@@ -1071,8 +1069,8 @@ function createCircuitTerrainMesh(
     roughness: 0.94,
     metalness: 0.0,
     polygonOffset: true,
-    polygonOffsetFactor: 4,
-    polygonOffsetUnits: 4,
+    polygonOffsetFactor: 8,
+    polygonOffsetUnits: 8,
   });
 
   disposables.materials.push(terrainMat);
