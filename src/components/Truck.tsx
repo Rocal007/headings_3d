@@ -56,6 +56,8 @@ export default function Truck() {
   // DOM-Refs für Telemetrie-HUD (Subagent 22.6: 60fps Zero-Garbage Live Updates)
   const directorBadgeRef = useRef<HTMLDivElement>(null);
   const telemetrySectorRef = useRef<HTMLSpanElement>(null);
+  const telemetryF1Ref = useRef<HTMLDivElement>(null);
+  const telemetryDrsRef = useRef<HTMLSpanElement>(null);
   const telemetrySpeedRef = useRef<HTMLSpanElement>(null);
   const telemetrySpeedBarRef = useRef<HTMLDivElement>(null);
   const telemetryGearRef = useRef<HTMLSpanElement>(null);
@@ -1664,6 +1666,20 @@ export default function Truck() {
       if (telemetryGearRef.current) {
         telemetryGearRef.current.textContent = gearName;
       }
+      if (telemetrySectorRef.current) {
+        telemetrySectorRef.current.textContent = sector.name;
+      }
+      if (telemetryF1Ref.current) {
+        telemetryF1Ref.current.textContent = `F1 REF: ${sector.f1Speed} km/h • GANG ${sector.f1Gear} • ${sector.f1GForce.toFixed(1)} G`;
+      }
+      if (telemetryDrsRef.current) {
+        if (sector.drsZone) {
+          telemetryDrsRef.current.style.display = 'inline-block';
+          telemetryDrsRef.current.textContent = sector.drsZone;
+        } else {
+          telemetryDrsRef.current.style.display = 'none';
+        }
+      }
 
       // Türen animieren mit exponentieller Dämpfung (Subagent 22.9 Kinematik)
       const targetDoorAngle = doorsRef.current ? Math.PI * 0.35 : 0; // 63 Grad öffnen
@@ -1933,19 +1949,24 @@ export default function Truck() {
           background: 'rgba(0, 220, 255, 0.08)',
           border: '1px solid rgba(0, 220, 255, 0.22)',
           borderRadius: 6,
-          padding: '5px 8px',
+          padding: '6px 8px',
           marginBottom: 10,
           display: 'flex',
           flexDirection: 'column',
-          gap: 2
+          gap: 3
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#8899aa', fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>🏎️ SILVERSTONE GP:</span>
-            <span style={{ color: '#2ecc71', fontSize: 8, fontWeight: 700 }}>FIA CIRCUIT</span>
+            <span ref={telemetryDrsRef} style={{ display: 'none', background: '#ffd700', color: '#000', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3 }}>
+              DRS
+            </span>
           </div>
           <span ref={telemetrySectorRef} style={{ color: '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
             HAMILTON STRAIGHT
           </span>
+          <div ref={telemetryF1Ref} style={{ color: '#94a3b8', fontSize: 8, fontWeight: 600, fontFamily: 'monospace' }}>
+            F1 REF: 290 km/h • GANG 7 • 1.0 G
+          </div>
         </div>
 
         {/* Speed & Gear Section */}
