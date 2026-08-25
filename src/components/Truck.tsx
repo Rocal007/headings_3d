@@ -219,10 +219,10 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
         truckRig.truck.rotation.y += 0.25 * delta;
       }
 
-      // 2. Fahrertüren Kinematik (68° Öffnungswinkel)
+      // 2. Fahrertüren Kinematik (68° Öffnungswinkel nach AUSSEN)
       const targetDoorAngle = doorsRef.current ? 1.18 : 0.0;
-      truckRig.leftDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.leftDoorGroup.rotation.y, targetDoorAngle, 1 - Math.exp(-6.0 * delta));
-      truckRig.rightDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.rightDoorGroup.rotation.y, -targetDoorAngle, 1 - Math.exp(-6.0 * delta));
+      truckRig.leftDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.leftDoorGroup.rotation.y, -targetDoorAngle, 1 - Math.exp(-6.0 * delta));
+      truckRig.rightDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.rightDoorGroup.rotation.y, targetDoorAngle, 1 - Math.exp(-6.0 * delta));
 
       // 3. Ladebordwand 3-Phasen Kinematik
       const targetFlap = tailgateRef.current ? 1.0 : 0.0;
