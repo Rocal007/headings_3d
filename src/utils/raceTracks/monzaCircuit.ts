@@ -14,7 +14,7 @@ export const MONZA_CIRCUIT: CircuitDefinition = {
   lapRecord: { time: '1:21.046', driver: 'Rubens Barrichello', year: 2004 },
   elevationGainM: 12.8,
   description: 'Der legendäre "Temple of Speed" im königlichen Park von Monza mit High-Speed-Geraden und harten Schikanen.',
-  trackWidth: 12.0,
+  trackWidth: 20.0,
   scale: 4.8,
   controlPoints: [
     // 1. Rettifilo Straight (Start/Ziel - Läuft von Süden nach Norden)

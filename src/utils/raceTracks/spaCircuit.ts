@@ -14,7 +14,7 @@ export const SPA_CIRCUIT: CircuitDefinition = {
   lapRecord: { time: '1:46.286', driver: 'Valtteri Bottas', year: 2018 },
   elevationGainM: 102.2,
   description: 'Die "Achterbahn der Ardennen" mit extremen Höhenunterschieden, der legendären Eau Rouge & Raidillon und Pouhon.',
-  trackWidth: 13.0,
+  trackWidth: 22.0,
   scale: 4.5,
   controlPoints: [
     // 1. Start/Ziel-Gerade

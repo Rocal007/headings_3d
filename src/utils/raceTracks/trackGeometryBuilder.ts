@@ -47,7 +47,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   const trackWidth = circuit.trackWidth;
   const halfW = trackWidth * 0.5;
   const maxKerbWidth = 0.95; // Realistische FIA Kerb-Breite (0.95m)
-  const runOffWidth = 4.5;
+  const runOffWidth = 6.5;
 
   // Vertex Buffer Daten für alle Baugruppen
   const trackPos: number[] = [];
@@ -1004,18 +1004,18 @@ function createCircuitTerrainMesh(
     let finalY = localTrackY;
 
     // 3. Strenge Höhen-Guardrails zur Vermeidung jeglicher Strecken-Verschüttung:
-    if (minDist <= 16.0) {
-      // Unter und direkt neben der Strecke: Terrain liegt STRENG unter dem Asphalt & Randsteinen
-      finalY = localTrackY - 0.22 - (minDist / 16.0) * 0.28;
-    } else if (minDist <= 55.0) {
+    if (minDist <= 22.0) {
+      // Unter und direkt neben der breiten Rennstrecke: Terrain liegt STRENG unter dem Asphalt & Randsteinen
+      finalY = localTrackY - 0.22 - (minDist / 22.0) * 0.28;
+    } else if (minDist <= 65.0) {
       // Übergangszone: Sanfter Anstieg/Abfall in die Umgebung, gedeckelt unterhalb der Sichtlinie
-      const t = (minDist - 16.0) / 39.0;
+      const t = (minDist - 22.0) / 43.0;
       const baseGround = localTrackY - 0.50;
       const targetLandscape = localTrackY + regionalHills * 0.5;
       finalY = THREE.MathUtils.lerp(baseGround, targetLandscape, t * t);
 
       // Harte Obergrenze: Darf die lokale Strecke im Nahbereich niemals überragen!
-      const maxCeiling = localTrackY - 0.15 + (minDist - 16.0) * 0.10;
+      const maxCeiling = localTrackY - 0.15 + (minDist - 22.0) * 0.10;
       finalY = Math.min(finalY, maxCeiling);
     } else {
       // Weite Umgebung: Volle Topographie
