@@ -357,7 +357,7 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     cabinGroup.add(grillMesh);
 
     // Windschutzscheibe
-    const windshieldGeo = createCurvedWindshieldGeometry(2.18, 1.12, 0.18, 16);
+    const windshieldGeo = createCurvedWindshieldGeometry(2.18, 1.12, 32, 16, 0.18);
     const windshield = new THREE.Mesh(windshieldGeo, windshieldMat);
     windshield.position.set(0, 2.52, 5.08);
     cabinGroup.add(windshield);
