@@ -1,18 +1,17 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { createKofferSideTexture } from '../materials/truckTextures';
 
 /**
  * 📦 Subagent 22.3: `truck_box_body` (Kofferaufbau & Laderaum Master)
  * 
  * Zuständigkeit:
- * - Vollwertiger, echter Hohlraum-Kofferaufbau nach realem MAN TGL 12.250 Datenblatt
+ * - 100% echter, physisch hohler Sandwich-Kofferaufbau ohne feste Heckwand
  * - 45mm GFK/Plywood-Sandwich-Seitenwände mit Panel-Nähten, Nieten und Alu-Scheuerleisten
  * - 27mm Siebdruck-Multiplex-Ladeboden mit Antirutsch-Struktur & Rammschutz
  * - 2-reihige Airline-Zurrschienen, Spanngurte mit Ratschen & Ladungssicherung
- * - Integrierte Decken-LED-Lichtbänder & Heckportal-Rahmen
+ * - Integrierte Decken-LED-Lichtbänder & offenes Heckportal
  * - Supertechno 50 Teleskopschienen, Flightcases mit Kugelecken & Krangezubehör
- * - Obere Heckportal-Klappe (Top Flap) mit Scharnierkinematik
+ * - Obere Heckportal-Klappe (Top Flap) mit Scharnierkinematik (schwenkt nach oben auf)
  */
 
 export interface TruckBoxBodyParams {
@@ -63,22 +62,24 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
     return tex;
   };
 
-  // Standard-Materialien falls nicht übergeben
+  // Standard-Materialien
   const silverMat = params.silverMat || regMat(new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.35, metalness: 0.9 }));
   const darkTrimMat = params.darkTrimMat || regMat(new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.9, metalness: 0.05 }));
   const interiorMat = params.interiorMat || regMat(new THREE.MeshStandardMaterial({ color: '#1a1e24', roughness: 0.88, metalness: 0.05 }));
   const paintMat = params.paintMat || regMat(new THREE.MeshPhysicalMaterial({ color: '#f8f9fa', roughness: 0.1, metalness: 0.05, clearcoat: 0.8 }));
 
-  // --- Geometrie Parameter (Echte Maße: Datenblatt MAN TGL 10.250 / 12.250) ---
-  const kofferLength = 8.25;   // Außenmaß (~8.050mm Innen + Stirnwand/Portal)
-  const kofferWidth = 2.57;    // Außenmaß (~2.470mm Innen + 2x50mm Wand)
-  const kofferHeight = 2.68;   // Außenmaß (~2.580mm Innen + Boden/Dach)
+  // --- Geometrie Parameter (Echte Maße: MAN TGL 12.250 Kofferaufbau) ---
+  const kofferLength = 8.25;   // Außenlänge (~8.050mm Innenmaß + 200mm Rahmen/Stirnwand)
+  const kofferWidth = 2.57;    // Außenbreite (~2.470mm Innenmaß + 2x50mm Wand)
+  const kofferHeight = 2.68;   // Außenhöhe (~2.580mm Innenmaß + Boden/Dach)
   const loadEdgeHeight = params.loadEdgeHeight ?? 1.02; // Ladekantenhöhe
   const kofferY = loadEdgeHeight + kofferHeight / 2;    // Koffer-Zentrum Y
   const frontAxleZ = params.frontAxleZ ?? 3.5;
   const kofferFrontZ = frontAxleZ - 1.2;                // Koffer beginnt kurz hinter der Vorderachse
   const kofferZ = kofferFrontZ - kofferLength / 2;      // Koffer-Zentrum Z
-  const kofferBackZ = kofferZ - kofferLength / 2;       // Koffer-Heckkante Z
+  const kofferBackZ = kofferZ - kofferLength / 2;       // Koffer-Heckkante Z (Offenes Portal)
+
+  const wallThickness = 0.045; // 45mm Sandwich-Paneelstärke
 
   const boxGroup = new THREE.Group();
 
@@ -98,78 +99,104 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
     clearcoat: 0.8,
     clearcoatRoughness: 0.2
   }));
-  const invisibleMat = regMat(new THREE.MeshBasicMaterial({ visible: false }));
+
+  // =========================================================================
+  // 🏢 2. ECHTE HOHLWAND-KONSTRUKTION (SEPARATE WÄNDE, DACH, STIRNWAND)
+  // =========================================================================
   
-  // 6 Box-Seiten: [+X (rechts), -X (links), +Y (Dach), -Y (Boden), +Z (Stirnwand), -Z (Heck - OFFEN für Hohlraum)]
-  const kofferMaterials = [boxSideMat, boxSideMat, boxMat, boxMat, boxMat, invisibleMat];
+  // Linke Sandwich-Seitenwand (Fahrerseite)
+  const sideWallGeo = regGeo(new THREE.BoxGeometry(wallThickness, kofferHeight, kofferLength));
+  const leftWallMesh = new THREE.Mesh(sideWallGeo, boxSideMat);
+  leftWallMesh.position.set(kofferWidth / 2 - wallThickness / 2, kofferY, kofferZ);
+  leftWallMesh.castShadow = true;
+  leftWallMesh.receiveShadow = true;
 
-  // 2. Koffer-Außenkörper (Hohlraum mit geöffnetem Heckportal)
-  const kofferGeo = regGeo(new RoundedBoxGeometry(kofferWidth, kofferHeight, kofferLength, 4, 0.06));
-  const kofferMesh = new THREE.Mesh(kofferGeo, kofferMaterials);
-  kofferMesh.position.set(0, kofferY, kofferZ);
-  kofferMesh.castShadow = true;
-  kofferMesh.receiveShadow = true;
-  boxGroup.add(kofferMesh);
+  // Rechte Sandwich-Seitenwand (Beifahrerseite)
+  const rightWallMesh = new THREE.Mesh(sideWallGeo, boxSideMat);
+  rightWallMesh.position.set(-kofferWidth / 2 + wallThickness / 2, kofferY, kofferZ);
+  rightWallMesh.castShadow = true;
+  rightWallMesh.receiveShadow = true;
 
-  // 3. Umlaufende eloxierte Aluminium-Eckprofile & Schutzkappen
-  const edgeGeo = regGeo(new THREE.BoxGeometry(kofferWidth + 0.04, kofferHeight + 0.04, 0.12));
-  const frontEdge = new THREE.Mesh(edgeGeo, silverMat);
-  frontEdge.position.set(0, kofferY, kofferZ + kofferLength / 2 - 0.05);
-  const backEdge = new THREE.Mesh(edgeGeo, silverMat);
-  backEdge.position.set(0, kofferY, kofferZ - kofferLength / 2 + 0.05);
-  boxGroup.add(frontEdge, backEdge);
+  // GFK-Stirnwand zur Fahrerkabine (Front Bulkhead)
+  const frontBulkheadGeo = regGeo(new THREE.BoxGeometry(kofferWidth, kofferHeight, wallThickness));
+  const frontBulkheadMesh = new THREE.Mesh(frontBulkheadGeo, boxMat);
+  frontBulkheadMesh.position.set(0, kofferY, kofferZ + kofferLength / 2 - wallThickness / 2);
+  frontBulkheadMesh.castShadow = true;
+  frontBulkheadMesh.receiveShadow = true;
+
+  // GFK-Dachpaneel (Insulated Roof Shell)
+  const roofPanelGeo = regGeo(new THREE.BoxGeometry(kofferWidth, 0.04, kofferLength));
+  const roofPanelMesh = new THREE.Mesh(roofPanelGeo, boxMat);
+  roofPanelMesh.position.set(0, kofferY + kofferHeight / 2 - 0.02, kofferZ);
+  roofPanelMesh.castShadow = true;
+  roofPanelMesh.receiveShadow = true;
+
+  boxGroup.add(leftWallMesh, rightWallMesh, frontBulkheadMesh, roofPanelMesh);
+
+  // 3. Umlaufende eloxierte Aluminium-Eckprofile (Front-Rahmen & Längsträger)
+  const frontPostGeo = regGeo(new THREE.BoxGeometry(0.08, kofferHeight, 0.08));
+  const frontPostL = new THREE.Mesh(frontPostGeo, silverMat);
+  frontPostL.position.set(kofferWidth / 2 - 0.04, kofferY, kofferZ + kofferLength / 2 - 0.04);
+  const frontPostR = new THREE.Mesh(frontPostGeo, silverMat);
+  frontPostR.position.set(-kofferWidth / 2 + 0.04, kofferY, kofferZ + kofferLength / 2 - 0.04);
+
+  const frontLintelGeo = regGeo(new THREE.BoxGeometry(kofferWidth, 0.08, 0.08));
+  const frontLintel = new THREE.Mesh(frontLintelGeo, silverMat);
+  frontLintel.position.set(0, kofferY + kofferHeight / 2 - 0.04, kofferZ + kofferLength / 2 - 0.04);
+
+  boxGroup.add(frontPostL, frontPostR, frontLintel);
 
   // Längs-Dachkantenprofile (Alu-Dachrahmen)
   const roofRailGeo = regGeo(new THREE.BoxGeometry(0.06, 0.06, kofferLength));
   const roofRailL = new THREE.Mesh(roofRailGeo, silverMat);
-  roofRailL.position.set(kofferWidth / 2 + 0.01, kofferY + kofferHeight / 2 - 0.02, kofferZ);
+  roofRailL.position.set(kofferWidth / 2, kofferY + kofferHeight / 2 - 0.02, kofferZ);
   const roofRailR = new THREE.Mesh(roofRailGeo, silverMat);
-  roofRailR.position.set(-kofferWidth / 2 - 0.01, kofferY + kofferHeight / 2 - 0.02, kofferZ);
+  roofRailR.position.set(-kofferWidth / 2, kofferY + kofferHeight / 2 - 0.02, kofferZ);
   boxGroup.add(roofRailL, roofRailR);
 
   // =========================================================================
-  // 🚪 HECKER-LADERAUM (BEGEHBARER HOHLRAUM MIT INNENAUSSTATTUNG)
+  // 🚪 3. HECKER-LADERAUM (VOLLSTÄNDIG EINSEHBARER HOHLRAUM)
   // =========================================================================
   const cargoGroup = new THREE.Group();
 
   // 4. Siebdruck-Multiplex-Ladeboden (27mm Antirutsch)
-  const cargoFloorGeo = regGeo(new THREE.BoxGeometry(kofferWidth - 0.10, 0.035, kofferLength - 0.20));
+  const cargoFloorGeo = regGeo(new THREE.BoxGeometry(kofferWidth - wallThickness * 2, 0.035, kofferLength - wallThickness));
   const cargoFloor = new THREE.Mesh(cargoFloorGeo, interiorMat);
-  cargoFloor.position.set(0, loadEdgeHeight + 0.035, kofferZ);
+  cargoFloor.position.set(0, loadEdgeHeight + 0.035, kofferZ + wallThickness / 2);
   cargoFloor.receiveShadow = true;
 
   // 5. Innenwand-Schutzverkleidungen & 300mm Aluminium-Scheuerleisten (Rammschutz)
   const interiorWallMat = regMat(new THREE.MeshStandardMaterial({ color: '#242b35', roughness: 0.85 }));
-  const wallGeo = regGeo(new THREE.BoxGeometry(0.03, kofferHeight - 0.12, kofferLength - 0.20));
+  const wallInnerGeo = regGeo(new THREE.BoxGeometry(0.015, kofferHeight - 0.12, kofferLength - wallThickness));
   
-  const wallLeft = new THREE.Mesh(wallGeo, interiorWallMat);
-  wallLeft.position.set(kofferWidth / 2 - 0.035, kofferY, kofferZ);
-  const wallRight = new THREE.Mesh(wallGeo, interiorWallMat);
-  wallRight.position.set(-kofferWidth / 2 + 0.035, kofferY, kofferZ);
+  const wallInnerLeft = new THREE.Mesh(wallInnerGeo, interiorWallMat);
+  wallInnerLeft.position.set(kofferWidth / 2 - wallThickness - 0.008, kofferY, kofferZ + wallThickness / 2);
+  const wallInnerRight = new THREE.Mesh(wallInnerGeo, interiorWallMat);
+  wallInnerRight.position.set(-kofferWidth / 2 + wallThickness + 0.008, kofferY, kofferZ + wallThickness / 2);
 
   // Untere Aluminium-Rammschutzleisten (Scuff Plates am Boden)
-  const scuffGeo = regGeo(new THREE.BoxGeometry(0.015, 0.32, kofferLength - 0.20));
+  const scuffGeo = regGeo(new THREE.BoxGeometry(0.012, 0.32, kofferLength - wallThickness));
   const scuffL = new THREE.Mesh(scuffGeo, silverMat);
-  scuffL.position.set(kofferWidth / 2 - 0.052, loadEdgeHeight + 0.18, kofferZ);
+  scuffL.position.set(kofferWidth / 2 - wallThickness - 0.014, loadEdgeHeight + 0.18, kofferZ + wallThickness / 2);
   const scuffR = new THREE.Mesh(scuffGeo, silverMat);
-  scuffR.position.set(-kofferWidth / 2 + 0.052, loadEdgeHeight + 0.18, kofferZ);
+  scuffR.position.set(-kofferWidth / 2 + wallThickness + 0.014, loadEdgeHeight + 0.18, kofferZ + wallThickness / 2);
 
   // 6. Zweireihige Airline-Zurrschienen an beiden Längswänden
-  const lashingRailGeo = regGeo(new THREE.BoxGeometry(0.02, 0.065, kofferLength - 0.25));
+  const lashingRailGeo = regGeo(new THREE.BoxGeometry(0.015, 0.065, kofferLength - wallThickness));
   
   // Untere Reihe (Höhe 800mm)
   const lashingL1 = new THREE.Mesh(lashingRailGeo, silverMat);
-  lashingL1.position.set(kofferWidth / 2 - 0.052, loadEdgeHeight + 0.80, kofferZ);
+  lashingL1.position.set(kofferWidth / 2 - wallThickness - 0.014, loadEdgeHeight + 0.80, kofferZ + wallThickness / 2);
   const lashingR1 = new THREE.Mesh(lashingRailGeo, silverMat);
-  lashingR1.position.set(-kofferWidth / 2 + 0.052, loadEdgeHeight + 0.80, kofferZ);
+  lashingR1.position.set(-kofferWidth / 2 + wallThickness + 0.014, loadEdgeHeight + 0.80, kofferZ + wallThickness / 2);
 
   // Obere Reihe (Höhe 1600mm)
   const lashingL2 = new THREE.Mesh(lashingRailGeo, silverMat);
-  lashingL2.position.set(kofferWidth / 2 - 0.052, loadEdgeHeight + 1.60, kofferZ);
+  lashingL2.position.set(kofferWidth / 2 - wallThickness - 0.014, loadEdgeHeight + 1.60, kofferZ + wallThickness / 2);
   const lashingR2 = new THREE.Mesh(lashingRailGeo, silverMat);
-  lashingR2.position.set(-kofferWidth / 2 + 0.052, loadEdgeHeight + 1.60, kofferZ);
+  lashingR2.position.set(-kofferWidth / 2 + wallThickness + 0.014, loadEdgeHeight + 1.60, kofferZ + wallThickness / 2);
 
-  // 7. Heckportal-Rahmen (Massives Alu-Profil um die Ladeöffnung)
+  // 7. Heckportal-Rahmen (Massiver offener Aluminium-Rahmen OHNE Mittelplatte!)
   const portalPostL = new THREE.Mesh(regGeo(new THREE.BoxGeometry(0.08, kofferHeight, 0.08)), silverMat);
   portalPostL.position.set(kofferWidth / 2 - 0.04, kofferY, kofferBackZ);
   const portalPostR = new THREE.Mesh(regGeo(new THREE.BoxGeometry(0.08, kofferHeight, 0.08)), silverMat);
@@ -189,7 +216,7 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
     body.position.set(0, h / 2, 0);
     body.castShadow = true;
 
-    // Aluminium-Schutzkanten & Kugelecken
+    // Aluminium-Schutzkanten
     const edgeProfile = new THREE.Mesh(regGeo(new THREE.BoxGeometry(w + 0.02, 0.03, d + 0.02)), caseCornerMat);
     edgeProfile.position.set(0, h, 0);
     const edgeBase = new THREE.Mesh(regGeo(new THREE.BoxGeometry(w + 0.02, 0.03, d + 0.02)), caseCornerMat);
@@ -243,7 +270,7 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
 
   // 10. Laderaum-Deckenbeleuchtung (Dual LED Light Strips)
   const ledStripGeo = regGeo(new THREE.BoxGeometry(0.08, 0.02, kofferLength - 0.60));
-  const ledStripMat = regMat(new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#e0f2fe', emissiveIntensity: 2.5 }));
+  const ledStripMat = regMat(new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#e0f2fe', emissiveIntensity: 3.5 }));
   
   const ledStripL = new THREE.Mesh(ledStripGeo, ledStripMat);
   ledStripL.position.set(0.60, kofferY + kofferHeight / 2 - 0.04, kofferZ);
@@ -251,13 +278,13 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
   ledStripR.position.set(-0.60, kofferY + kofferHeight / 2 - 0.04, kofferZ);
 
   // 2x PointLights für fotorealistische Ausleuchtung des Frachtraums
-  const cargoLightRear = new THREE.PointLight('#e0f2fe', 3.5, 9.0, 2);
+  const cargoLightRear = new THREE.PointLight('#e0f2fe', 4.5, 10.0, 2);
   cargoLightRear.position.set(0, kofferY + kofferHeight / 2 - 0.20, kofferBackZ + 2.0);
-  const cargoLightFront = new THREE.PointLight('#e0f2fe', 3.0, 9.0, 2);
+  const cargoLightFront = new THREE.PointLight('#e0f2fe', 4.0, 10.0, 2);
   cargoLightFront.position.set(0, kofferY + kofferHeight / 2 - 0.20, kofferBackZ + 5.5);
 
   cargoGroup.add(
-    cargoFloor, wallLeft, wallRight, scuffL, scuffR,
+    cargoFloor, wallInnerLeft, wallInnerRight, scuffL, scuffR,
     lashingL1, lashingR1, lashingL2, lashingR2,
     portalPostL, portalPostR, portalTop, portalSill,
     caseHead, caseWheels, caseWeights, caseRack,
