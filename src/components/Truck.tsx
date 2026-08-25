@@ -26,6 +26,13 @@ import {
   evaluateAutoDirectorTruckCut,
 } from '../utils/cameraDirector';
 import type { TruckCameraPresetId } from '../utils/cameraDirector';
+import {
+  createSilverstoneSpline,
+  createSilverstoneTrackGeometry,
+  createSilverstoneKerbTexture,
+  createStartFinishTexture,
+  getSilverstoneSector,
+} from '../utils/silverstoneTrack';
 
 export default function Truck() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,6 +55,7 @@ export default function Truck() {
 
   // DOM-Refs für Telemetrie-HUD (Subagent 22.6: 60fps Zero-Garbage Live Updates)
   const directorBadgeRef = useRef<HTMLDivElement>(null);
+  const telemetrySectorRef = useRef<HTMLSpanElement>(null);
   const telemetrySpeedRef = useRef<HTMLSpanElement>(null);
   const telemetrySpeedBarRef = useRef<HTMLDivElement>(null);
   const telemetryGearRef = useRef<HTMLSpanElement>(null);
@@ -1402,23 +1410,23 @@ export default function Truck() {
     truck.add(createRearMudguard(1.1, 0.45, rearAxleZ));
     truck.add(createRearMudguard(-1.1, 0.45, rearAxleZ));
 
-    // 9. PBR Asphalt-Boden & 2-Spur Lissajous-Rennstrecke (Subagent 11: scene_environment)
+    // 9. PBR Asphalt-Boden & Silverstone Grand Prix Rennstrecke (Subagent 11: scene_environment)
     const asphaltColorTex = createAsphaltTexture();
-    asphaltColorTex.repeat.set(24, 24);
+    asphaltColorTex.repeat.set(32, 32);
     const asphaltBumpTex = createAsphaltBumpTexture();
-    asphaltBumpTex.repeat.set(24, 24);
+    asphaltBumpTex.repeat.set(32, 32);
 
-    const planeGeo = new THREE.PlaneGeometry(240, 240, 32, 32);
+    const planeGeo = new THREE.PlaneGeometry(320, 320, 32, 32);
     const planeMat = new THREE.MeshStandardMaterial({ 
-      color: '#30353c', 
+      color: '#282d35', 
       map: asphaltColorTex,
       bumpMap: asphaltBumpTex,
       bumpScale: 0.022,
-      roughness: 0.84, 
+      roughness: 0.85, 
       metalness: 0.08,
       polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1
+      polygonOffsetFactor: 2,
+      polygonOffsetUnits: 2
     });
     const plane = new THREE.Mesh(planeGeo, planeMat);
     plane.position.y = 0;
@@ -1426,67 +1434,52 @@ export default function Truck() {
     plane.receiveShadow = true;
     scene.add(plane);
 
-    // 9.1 Lissajous 2-Spur Asphalt-Fahrbahn mit Straßenmarkierungen
+    // 9.1 Silverstone Grand Prix Strecken-Geometrie & FIA Kerbs
+    const silverstoneCurve = createSilverstoneSpline();
+    const { trackGeo, kerbLeftGeo, kerbRightGeo, startFinishGeo } = createSilverstoneTrackGeometry(silverstoneCurve, 500, 8.2, 0.95);
+
     const roadMarkingsTex = createRoadMarkingsTexture();
-    roadMarkingsTex.repeat.set(1, 16);
-
-    const trackSegments = 240;
-    const trackWidth = 7.4; // 2 vollwertige LKW-Fahrspuren (7.4m Breite)
-    const trackPositions: number[] = [];
-    const trackUvs: number[] = [];
-    const trackIndices: number[] = [];
-
-    for (let i = 0; i <= trackSegments; i++) {
-      const u = i / trackSegments;
-      const angle = u * Math.PI * 2;
-      const px = Math.sin(angle) * 20;
-      const pz = Math.sin(angle * 2) * 10;
-
-      // Tangentenvektor der Lissajous-Kurve
-      const tx = Math.cos(angle) * 20;
-      const tz = Math.cos(angle * 2) * 20;
-      const tLen = Math.hypot(tx, tz);
-      // Normale in XZ-Ebene (senkrecht zur Fahrtrichtung)
-      const nx = -tz / tLen;
-      const nz = tx / tLen;
-
-      const halfW = trackWidth * 0.5;
-      // Linker Fahrbahnrand
-      trackPositions.push(px - nx * halfW, 0.003, pz - nz * halfW);
-      trackUvs.push(0, u * 16);
-      // Rechter Fahrbahnrand
-      trackPositions.push(px + nx * halfW, 0.003, pz + nz * halfW);
-      trackUvs.push(1, u * 16);
-
-      if (i < trackSegments) {
-        const base = i * 2;
-        trackIndices.push(base, base + 1, base + 2);
-        trackIndices.push(base + 1, base + 3, base + 2);
-      }
-    }
-
-    const trackGeo = new THREE.BufferGeometry();
-    trackGeo.setAttribute('position', new THREE.Float32BufferAttribute(trackPositions, 3));
-    trackGeo.setAttribute('uv', new THREE.Float32BufferAttribute(trackUvs, 2));
-    trackGeo.setIndex(trackIndices);
-    trackGeo.computeVertexNormals();
+    roadMarkingsTex.repeat.set(1, 40);
 
     const trackMat = new THREE.MeshStandardMaterial({
       color: '#383e47',
       map: roadMarkingsTex,
       bumpMap: asphaltBumpTex,
-      bumpScale: 0.015,
-      roughness: 0.80,
+      bumpScale: 0.018,
+      roughness: 0.78,
       metalness: 0.06,
-      transparent: true,
-      depthWrite: true,
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1
     });
     const trackMesh = new THREE.Mesh(trackGeo, trackMat);
     trackMesh.receiveShadow = true;
-    scene.add(trackMesh);
+
+    const kerbTex = createSilverstoneKerbTexture();
+    const kerbMat = new THREE.MeshStandardMaterial({
+      map: kerbTex,
+      bumpMap: asphaltBumpTex,
+      bumpScale: 0.025,
+      roughness: 0.65,
+      metalness: 0.05,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2
+    });
+    const kerbLeftMesh = new THREE.Mesh(kerbLeftGeo, kerbMat);
+    const kerbRightMesh = new THREE.Mesh(kerbRightGeo, kerbMat);
+
+    const startFinishTex = createStartFinishTexture();
+    const startFinishMat = new THREE.MeshStandardMaterial({
+      map: startFinishTex,
+      roughness: 0.5,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3
+    });
+    const startFinishMesh = new THREE.Mesh(startFinishGeo, startFinishMat);
+
+    scene.add(trackMesh, kerbLeftMesh, kerbRightMesh, startFinishMesh);
 
     truck.rotation.y = 0;
     truck.position.set(0, 0, 0);
@@ -1511,14 +1504,13 @@ export default function Truck() {
     canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
 
     let animationId: number;
-    let t = 0;
+    let trackU = 0.0; // Streckenfortschritt auf dem Silverstone Kurs [0.0, 1.0)
     let flapProgress = 0;   // 0 = zu, 1 = waagerecht offen an Ladekante
     let lowerProgress = 0;  // 0 = an Ladekante Y=1.02m, 1 = am Boden Y=0.06m
     let currentSteerAngle = 0; // Aktueller Lenkwinkel der Vorderräder
     let currentSpeed = 0;      // Momentangeschwindigkeit in Einheiten/s
     let currentPitch = 0;      // Fahrgestell-Nickwinkel (Beschleunigen/Bremsen)
     let currentRoll = 0;       // Fahrgestell-Wankwinkel (Fliehkraft in Kurven)
-    const radius = 20;
     const wheelRadius = 0.408; // Match tireRadius
     const clock = new THREE.Clock();
 
@@ -1529,50 +1521,51 @@ export default function Truck() {
       const delta = Math.min(clock.getDelta(), 0.1);
       const timeScale = delta * 60; // 1.0 bei 60fps
 
-      // Achter-Kurve (Lissajous: x = sin(t), z = sin(2t)/2)
-      const x = Math.sin(t) * radius;
-      const z = Math.sin(t * 2) * (radius * 0.5);
+      // =======================================================================
+      // 🏎️ Silverstone Grand Prix Streckenkinematik & Kurvendynamik
+      // =======================================================================
+      const currentU = ((trackU % 1.0) + 1.0) % 1.0;
+      const pt = silverstoneCurve.getPointAt(currentU);
+      const tangent = silverstoneCurve.getTangentAt(currentU);
+      const x = pt.x;
+      const z = pt.z;
 
-      // Richtung berechnen (Tangente der Kurve)
-      const dx = Math.cos(t) * radius;
-      const dz = Math.cos(t * 2) * radius;
-      const heading = Math.atan2(dx, dz);
+      // Ausrichtung des LKWs (Tangentenwinkel)
+      const heading = Math.atan2(tangent.x, tangent.z);
 
-      // Kurvenkrümmung voraus berechnen (Telematik-Agent 22.6)
-      const dtAhead = 0.05;
-      const nextDx = Math.cos(t + dtAhead) * radius;
-      const nextDz = Math.cos((t + dtAhead) * 2) * radius;
-      const nextHeading = Math.atan2(nextDx, nextDz);
-      let dHeading = nextHeading - heading;
+      // Streckenkrümmung vorausschauend analysieren (Telematik-Agent 22.6)
+      const duAhead = 0.006;
+      const nextTangent = silverstoneCurve.getTangentAt((currentU + duAhead) % 1.0);
+      let dHeading = Math.atan2(nextTangent.x, nextTangent.z) - heading;
       if (dHeading > Math.PI) dHeading -= Math.PI * 2;
       if (dHeading < -Math.PI) dHeading += Math.PI * 2;
+      const curvature = Math.abs(dHeading / duAhead);
 
-      const curvature = Math.abs(dHeading / dtAhead);
+      // Aktueller Silverstone Streckenabschnitt
+      const sector = getSilverstoneSector(currentU);
 
-      // =======================================================================
-      // 🚚 Subagent 22.6: Dynamisches Geschwindigkeitsprofil (Gas & Bremse)
-      // =======================================================================
-      // Auf Geraden beschleunigt der LKW auf bis zu 0.36, vor engen Kurvenscheiteln bremst er auf 0.16 ab
-      const targetVelocity = drivingRef.current ? Math.max(0.15, 0.36 - curvature * 0.26) : 0.0;
-      const accelRate = (targetVelocity > currentSpeed) ? 2.2 : 4.5; // Bremsen greift dynamischer als Beschleunigen
+      // Dynamisches Geschwindigkeitsprofil:
+      // Auf Vollgas-Geraden (Hangar/Wellington) beschleunigt der LKW, vor Kurvenscheiteln (The Loop/Vale) bremst er ab
+      const targetVelocity = drivingRef.current ? Math.max(0.14, sector.speedTarget - curvature * 0.032) : 0.0;
+      const accelRate = (targetVelocity > currentSpeed) ? 2.4 : 4.8; // Bremsen greift dynamischer als Beschleunigen
       const prevSpeed = currentSpeed;
       currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetVelocity, 1 - Math.exp(-accelRate * delta));
       const currentAccel = (currentSpeed - prevSpeed) / Math.max(delta, 0.001);
 
-      // Trajektorie fortschalten mit dynamischer Ist-Geschwindigkeit
-      t += (currentSpeed / 60) * timeScale;
+      // Streckenfortschritt trackU fortschalten mit dynamischer Ist-Geschwindigkeit
+      trackU = (trackU + (currentSpeed / 220) * timeScale) % 1.0;
 
       // 1. Nick-Dynamik (Chassis Pitch: Heck geht runter beim Gasgeben, Front taucht ein beim Bremsen)
       const targetPitch = THREE.MathUtils.clamp(-currentAccel * 0.035, -0.045, 0.065);
       currentPitch = THREE.MathUtils.lerp(currentPitch, targetPitch, 1 - Math.exp(-8.0 * delta));
 
-      // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft leicht nach außen)
-      const lateralAccel = currentSpeed * (dHeading / dtAhead);
-      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * 0.08, -0.06, 0.06);
+      // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft in Silverstone Kurven)
+      const lateralAccel = currentSpeed * (dHeading / duAhead);
+      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * 0.012, -0.065, 0.065);
       currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-6.0 * delta));
 
       // 3. Fahrbahn-Rumpeln & 6-Zylinder Diesel Motorvibration
-      const roadVibe = (currentSpeed > 0.01) ? (Math.sin(t * 35.0) * 0.003 + Math.cos(t * 65.0) * 0.0015) * (currentSpeed / 0.36) : 0;
+      const roadVibe = (currentSpeed > 0.01) ? (Math.sin(clock.getElapsedTime() * 45.0) * 0.0025 + Math.cos(clock.getElapsedTime() * 85.0) * 0.0012) * (currentSpeed / 0.38) : 0;
       const engineIdle = Math.sin(clock.getElapsedTime() * 22.0) * 0.0008;
 
       truck.position.x = x;
@@ -1586,7 +1579,7 @@ export default function Truck() {
       truck.rotation.z = currentRoll;
 
       // 4. Vorderräder lenken synchron mit der Kurvenfahrt (Ackermann-Geometrie)
-      const targetSteerAngle = (currentSpeed > 0.005) ? THREE.MathUtils.clamp((dHeading / dtAhead) * 0.42, -0.44, 0.44) : 0;
+      const targetSteerAngle = (currentSpeed > 0.005) ? THREE.MathUtils.clamp((dHeading / duAhead) * 0.055, -0.44, 0.44) : 0;
       const steerDamp = 1 - Math.exp(-10 * delta);
       currentSteerAngle = THREE.MathUtils.lerp(currentSteerAngle, targetSteerAngle, steerDamp);
 
@@ -1600,7 +1593,7 @@ export default function Truck() {
 
       // 5. Räder drehen sich synchron zur echten Momentangeschwindigkeit
       if (currentSpeed > 0.001) {
-        const dist = (currentSpeed / 60) * timeScale * radius;
+        const dist = (currentSpeed / 60) * timeScale * 35.0;
         wheels.forEach(w => {
           w.children[0].rotation.x += dist / wheelRadius;
           w.children[1].rotation.x += dist / wheelRadius;
@@ -1708,9 +1701,11 @@ export default function Truck() {
       const tipTiltT = THREE.MathUtils.clamp((lowerProgress - 0.75) / 0.25, 0, 1);
       platformTipGroup.rotation.x = -tipTiltT * 0.06;
 
+      const elapsedTime = clock.getElapsedTime();
+
       // Sicherheits-Blinker an den Plattformecken blinken bei Aktivität
       if (flapProgress > 0.05 || lowerProgress > 0.05) {
-        const isBlink = Math.sin(t * 12.0) > 0;
+        const isBlink = Math.sin(elapsedTime * 12.0) > 0;
         tailgateBlinkerMat.emissiveIntensity = isBlink ? 2.5 : 0.2;
       } else {
         tailgateBlinkerMat.emissiveIntensity = 0.0;
@@ -1737,7 +1732,7 @@ export default function Truck() {
       // =======================================================================
       // 💡 Subagent 22.13: Dynamische Frontscheinwerfer & Blinker-Steuerung
       // =======================================================================
-      const blinkFreq = Math.sin(t * 16.0) > 0;
+      const blinkFreq = Math.sin(elapsedTime * 16.0) > 0;
       if (currentSteerAngle > 0.08) {
         rearBlinkerMatL.emissiveIntensity = blinkFreq ? 3.0 : 0.2;
         rearBlinkerMatR.emissiveIntensity = 0.0;
@@ -1761,7 +1756,7 @@ export default function Truck() {
 
       // Scheibenwischer animieren (Subagent 22.7 Kinematik)
       if (wipersActiveRef.current) {
-        const wiperAngle = (Math.sin(t * 18.0) * 0.5 + 0.5) * 1.35; // Synchron-Pendeln 0° - 77°
+        const wiperAngle = (Math.sin(elapsedTime * 18.0) * 0.5 + 0.5) * 1.35; // Synchron-Pendeln 0° - 77°
         wipers.forEach(w => {
           w.rotation.z = -0.35 + wiperAngle;
         });
@@ -1815,7 +1810,7 @@ export default function Truck() {
         controls.update();
       } else {
         controls.enabled = false;
-        const targetPose = calculateTruckCameraPose(effectiveCam, { x, y: 0, z }, heading, t);
+        const targetPose = calculateTruckCameraPose(effectiveCam, { x, y: 0, z }, heading, elapsedTime);
 
         if (isCut) {
           // ⚡ ECHTER BROADCAST-SCHNITT: 1-Frame Hard Cut (Keine interpolierende Kamerafahrt)
@@ -1892,6 +1887,8 @@ export default function Truck() {
       asphaltColorTex.dispose();
       asphaltBumpTex.dispose();
       roadMarkingsTex.dispose();
+      kerbTex.dispose();
+      startFinishTex.dispose();
     };
   }, []);
 
@@ -1916,7 +1913,7 @@ export default function Truck() {
         zIndex: 50,
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,220,255,0.2)', paddingBottom: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,220,255,0.2)', paddingBottom: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 13 }}>📡</span>
             <span style={{ fontWeight: 700, letterSpacing: 0.8, color: '#00dcff', fontSize: 11 }}>MAN TELEMATICS HUD</span>
@@ -1928,6 +1925,26 @@ export default function Truck() {
             border: isDriving ? '1px solid #2ecc71' : '1px solid #e74c3c'
           }}>
             {isDriving ? '● DRIVING' : '○ IDLE'}
+          </span>
+        </div>
+
+        {/* Silverstone Circuit Sector Display */}
+        <div style={{
+          background: 'rgba(0, 220, 255, 0.08)',
+          border: '1px solid rgba(0, 220, 255, 0.22)',
+          borderRadius: 6,
+          padding: '5px 8px',
+          marginBottom: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#8899aa', fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>🏎️ SILVERSTONE GP:</span>
+            <span style={{ color: '#2ecc71', fontSize: 8, fontWeight: 700 }}>FIA CIRCUIT</span>
+          </div>
+          <span ref={telemetrySectorRef} style={{ color: '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
+            HAMILTON STRAIGHT
           </span>
         </div>
 
