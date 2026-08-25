@@ -1440,7 +1440,7 @@ export default function Truck() {
       polygonOffsetUnits: 3
     });
     const plane = new THREE.Mesh(planeGeo, planeMat);
-    plane.position.y = -0.01;
+    plane.position.y = -0.05;
     plane.rotation.x = -Math.PI / 2;
     plane.receiveShadow = true;
     scene.add(plane);

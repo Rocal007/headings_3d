@@ -9,7 +9,7 @@ import {
  * ============================================================================
  * 🏎️ FIA GRAND PRIX TRACK BUILDER ENGINE (Subagent 22.14)
  * Generiert 3D-Fahrbahn, Querneigung (Camber), 3D-Höhenprofile, FIA Kerbs,
- * Kiesbetten, Auslaufzonen, Start-Ziel-Gantry & Bremstafeln.
+ * Kiesbetten, beidseitige Auslaufzonen, Böschung (Embankment), Start-Ziel-Gantry & Bremstafeln.
  * ============================================================================
  */
 
@@ -23,21 +23,33 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     textures: [],
   };
 
-  // 1. 3D Catmull-Rom Spline aus den Kontrollpunkten (inkl. 3D-Elevation Y)
+  // 1. 3D Catmull-Rom Spline aus den Kontrollpunkten
+  // AUTOMATISCHE HÖHENNORMALISIERUNG & 0-HORIZONT-SCHUTZ:
+  // Finde das minimale Y aller Kontrollpunkte. Der tiefste Punkt wird auf mindestens +0.12m
+  // über dem Boden fixiert, sodass KEIN Streckenteil jemals unter den 0-Horizont abtauchen kann!
+  let minY = Infinity;
+  circuit.controlPoints.forEach((p) => {
+    if (p.y < minY) minY = p.y;
+  });
+  if (!isFinite(minY)) minY = 0;
+
   const scale = circuit.scale;
-  const points = circuit.controlPoints.map(
-    (p) => new THREE.Vector3(p.x * scale, p.y * scale, p.z * scale)
-  );
+  const points = circuit.controlPoints.map((p) => {
+    // Relative Höhe über dem tiefsten Punkt skaliert (z.B. Spa Eau Rouge +24m oder Red Bull Ring +35m)
+    const normalizedY = (p.y - minY) * 1.6 + 0.12;
+    return new THREE.Vector3(p.x * scale, normalizedY, p.z * scale);
+  });
+
   const trackCurve = new THREE.CatmullRomCurve3(points, true, 'centripetal', 0.5);
   const splineLength = trackCurve.getLength();
 
-  const segments = Math.max(600, Math.round(splineLength * 0.45));
+  const segments = Math.max(700, Math.round(splineLength * 0.5));
   const trackWidth = circuit.trackWidth;
   const halfW = trackWidth * 0.5;
   const kerbWidth = 1.35;
-  const runOffWidth = 5.5;
+  const runOffWidth = 4.8;
 
-  // Vertex Buffer Daten
+  // Vertex Buffer Daten für alle Baugruppen
   const trackPos: number[] = [];
   const trackUvs: number[] = [];
   const trackIndices: number[] = [];
@@ -50,9 +62,17 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   const kerbRUvs: number[] = [];
   const kerbRIndices: number[] = [];
 
-  const runOffPos: number[] = [];
-  const runOffUvs: number[] = [];
-  const runOffIndices: number[] = [];
+  const runOffLPos: number[] = [];
+  const runOffLUvs: number[] = [];
+  const runOffLIndices: number[] = [];
+
+  const runOffRPos: number[] = [];
+  const runOffRUvs: number[] = [];
+  const runOffRIndices: number[] = [];
+
+  const embankmentPos: number[] = [];
+  const embankmentUvs: number[] = [];
+  const embankmentIndices: number[] = [];
 
   // Berechne Querneigung (Banking) an jedem Sample-Punkt
   const numCp = circuit.controlPoints.length;
@@ -75,23 +95,23 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     const nx = -tangent.z;
     const nz = tangent.x;
     const len = Math.hypot(nx, nz) || 1;
-    let normX = nx / len;
-    let normZ = nz / len;
+    const normX = nx / len;
+    const normZ = nz / len;
 
     // Berücksichtige 3D Querneigung (Camber / Banking)
     const banking = getInterpolatedBanking(u);
     const bankY = Math.sin(banking) * halfW;
 
-    // Linker und rechter Fahrbahnrand (mit Fahrbahnwölbung / Camber)
+    // Linker und rechter Fahrbahnrand
     const lx = pt.x - normX * halfW;
-    const ly = pt.y - bankY + 0.003;
+    const ly = pt.y - bankY;
     const lz = pt.z - normZ * halfW;
 
     const rx = pt.x + normX * halfW;
-    const ry = pt.y + bankY + 0.003;
+    const ry = pt.y + bankY;
     const rz = pt.z + normZ * halfW;
 
-    // 1. Fahrbahn
+    // 1. Asphalt-Hauptfahrbahn
     trackPos.push(lx, ly, lz);
     trackUvs.push(0, u * 160);
     trackPos.push(rx, ry, rz);
@@ -103,9 +123,9 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
       trackIndices.push(b + 1, b + 3, b + 2);
     }
 
-    // 2. Rot-Weiße Kerbs links (leicht erhöht mit Rampe)
+    // 2. Rot-Weiße Kerbs links (leicht erhöht mit Anschrägung)
     const klx = pt.x - normX * (halfW + kerbWidth);
-    const kly = ly + 0.025;
+    const kly = ly + 0.032;
     const klz = pt.z - normZ * (halfW + kerbWidth);
 
     kerbLPos.push(klx, kly, klz);
@@ -115,7 +135,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
 
     // 3. Rot-Weiße Kerbs rechts
     const krx = pt.x + normX * (halfW + kerbWidth);
-    const kry = ry + 0.025;
+    const kry = ry + 0.032;
     const krz = pt.z + normZ * (halfW + kerbWidth);
 
     kerbRPos.push(rx, ry, rz);
@@ -131,19 +151,60 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
       kerbRIndices.push(b + 1, b + 3, b + 2);
     }
 
-    // 4. Auslaufzonen & Bankette (Run-Offs)
+    // 4. Auslaufzone links (Gravel / Tarmac)
     const roLx = pt.x - normX * (halfW + kerbWidth + runOffWidth);
+    const roLy = Math.max(0.02, ly - 0.015);
     const roLz = pt.z - normZ * (halfW + kerbWidth + runOffWidth);
 
-    runOffPos.push(roLx, ly - 0.01, roLz);
-    runOffUvs.push(0, u * 80);
-    runOffPos.push(klx, kly - 0.01, klz);
-    runOffUvs.push(1, u * 80);
+    runOffLPos.push(roLx, roLy, roLz);
+    runOffLUvs.push(0, u * 80);
+    runOffLPos.push(klx, kly, klz);
+    runOffLUvs.push(1, u * 80);
+
+    // 5. Auslaufzone rechts (Gravel / Tarmac)
+    const roRx = pt.x + normX * (halfW + kerbWidth + runOffWidth);
+    const roRy = Math.max(0.02, ry - 0.015);
+    const roRz = pt.z + normZ * (halfW + kerbWidth + runOffWidth);
+
+    runOffRPos.push(krx, kry, krz);
+    runOffRUvs.push(0, u * 80);
+    runOffRPos.push(roRx, roRy, roRz);
+    runOffRUvs.push(1, u * 80);
 
     if (i < segments) {
       const b = i * 2;
-      runOffIndices.push(b, b + 1, b + 2);
-      runOffIndices.push(b + 1, b + 3, b + 2);
+      runOffLIndices.push(b, b + 1, b + 2);
+      runOffLIndices.push(b + 1, b + 3, b + 2);
+      runOffRIndices.push(b, b + 1, b + 2);
+      runOffRIndices.push(b + 1, b + 3, b + 2);
+    }
+
+    // 6. Böschung (Embankment) vom äußeren Rand hinab zum Boden (Y = 0)
+    const embLx = roLx - normX * 1.5;
+    const embLz = roLz - normZ * 1.5;
+    const embRx = roRx + normX * 1.5;
+    const embRz = roRz + normZ * 1.5;
+
+    // Linke Böschung
+    embankmentPos.push(embLx, 0.0, embLz);
+    embankmentUvs.push(0, u * 40);
+    embankmentPos.push(roLx, roLy, roLz);
+    embankmentUvs.push(1, u * 40);
+
+    // Rechte Böschung
+    embankmentPos.push(roRx, roRy, roRz);
+    embankmentUvs.push(0, u * 40);
+    embankmentPos.push(embRx, 0.0, embRz);
+    embankmentUvs.push(1, u * 40);
+
+    if (i < segments) {
+      const bL = i * 4;
+      embankmentIndices.push(bL, bL + 1, bL + 4);
+      embankmentIndices.push(bL + 1, bL + 5, bL + 4);
+
+      const bR = i * 4 + 2;
+      embankmentIndices.push(bR, bR + 1, bR + 4);
+      embankmentIndices.push(bR + 1, bR + 5, bR + 4);
     }
   }
 
@@ -166,11 +227,23 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   kerbRGeo.setIndex(kerbRIndices);
   kerbRGeo.computeVertexNormals();
 
-  const runOffGeo = new THREE.BufferGeometry();
-  runOffGeo.setAttribute('position', new THREE.Float32BufferAttribute(runOffPos, 3));
-  runOffGeo.setAttribute('uv', new THREE.Float32BufferAttribute(runOffUvs, 2));
-  runOffGeo.setIndex(runOffIndices);
-  runOffGeo.computeVertexNormals();
+  const runOffLGeo = new THREE.BufferGeometry();
+  runOffLGeo.setAttribute('position', new THREE.Float32BufferAttribute(runOffLPos, 3));
+  runOffLGeo.setAttribute('uv', new THREE.Float32BufferAttribute(runOffLUvs, 2));
+  runOffLGeo.setIndex(runOffLIndices);
+  runOffLGeo.computeVertexNormals();
+
+  const runOffRGeo = new THREE.BufferGeometry();
+  runOffRGeo.setAttribute('position', new THREE.Float32BufferAttribute(runOffRPos, 3));
+  runOffRGeo.setAttribute('uv', new THREE.Float32BufferAttribute(runOffRUvs, 2));
+  runOffRGeo.setIndex(runOffRIndices);
+  runOffRGeo.computeVertexNormals();
+
+  const embankmentGeo = new THREE.BufferGeometry();
+  embankmentGeo.setAttribute('position', new THREE.Float32BufferAttribute(embankmentPos, 3));
+  embankmentGeo.setAttribute('uv', new THREE.Float32BufferAttribute(embankmentUvs, 2));
+  embankmentGeo.setIndex(embankmentIndices);
+  embankmentGeo.computeVertexNormals();
 
   // --- Texturen & Materialien ---
   const asphaltBumpTex = createAsphaltBumpTexture();
@@ -218,17 +291,29 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     polygonOffsetUnits: 1,
   });
 
-  disposables.materials.push(trackMat, kerbMat, runOffMat);
-  disposables.geometries.push(trackGeo, kerbLGeo, kerbRGeo, runOffGeo);
+  const embankmentMat = new THREE.MeshStandardMaterial({
+    color: '#1e232a',
+    bumpMap: asphaltBumpTex,
+    bumpScale: 0.02,
+    roughness: 0.92,
+    metalness: 0.05,
+  });
+
+  disposables.materials.push(trackMat, kerbMat, runOffMat, embankmentMat);
+  disposables.geometries.push(trackGeo, kerbLGeo, kerbRGeo, runOffLGeo, runOffRGeo, embankmentGeo);
 
   const trackMesh = new THREE.Mesh(trackGeo, trackMat);
   trackMesh.receiveShadow = true;
   const kerbLMesh = new THREE.Mesh(kerbLGeo, kerbMat);
   const kerbRMesh = new THREE.Mesh(kerbRGeo, kerbMat);
-  const runOffMesh = new THREE.Mesh(runOffGeo, runOffMat);
-  runOffMesh.receiveShadow = true;
+  const runOffLMesh = new THREE.Mesh(runOffLGeo, runOffMat);
+  runOffLMesh.receiveShadow = true;
+  const runOffRMesh = new THREE.Mesh(runOffRGeo, runOffMat);
+  runOffRMesh.receiveShadow = true;
+  const embankmentMesh = new THREE.Mesh(embankmentGeo, embankmentMat);
+  embankmentMesh.receiveShadow = true;
 
-  group.add(trackMesh, kerbLMesh, kerbRMesh, runOffMesh);
+  group.add(trackMesh, kerbLMesh, kerbRMesh, runOffLMesh, runOffRMesh, embankmentMesh);
 
   // 5. Start-Ziel-Schachbrettmarkierung (Hamilton Straight bei u = 0.02)
   const sfPt = trackCurve.getPointAt(0.02);
