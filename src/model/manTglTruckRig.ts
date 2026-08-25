@@ -49,6 +49,8 @@ export interface ManTglTruckRig {
   frontBlinkerMatR: THREE.MeshStandardMaterial;
   frontBlinkerLightL: THREE.PointLight;
   frontBlinkerLightR: THREE.PointLight;
+  frontCornerLightL: THREE.PointLight;
+  frontCornerLightR: THREE.PointLight;
   biLedLensMat: THREE.MeshPhysicalMaterial;
   loadEdgeHeight: number;
   kofferBackZ: number;
@@ -705,28 +707,28 @@ export function createManTglTruckRig(): ManTglTruckRig {
     const blinkerMat = side === 'left' ? frontBlinkerMatL : frontBlinkerMatR;
 
     // Eckblinker-Gehäuse (abgewinkelt für optimale 180° Sichtbarkeit von vorn & seitlich)
-    const housingGeo = new RoundedBoxGeometry(0.12, 0.26, 0.18, 2, 0.02);
+    const housingGeo = new RoundedBoxGeometry(0.12, 0.28, 0.16, 2, 0.02);
     const housing = new THREE.Mesh(housingGeo, darkTrimMat);
     g.add(housing);
 
     // Verchromter Innenreflektor
-    const refGeo = new THREE.BoxGeometry(0.10, 0.23, 0.15);
+    const refGeo = new THREE.BoxGeometry(0.10, 0.25, 0.14);
     const refMesh = new THREE.Mesh(refGeo, chromeMat);
     refMesh.position.set(0.01 * s, 0, 0.01);
     g.add(refMesh);
 
     // Klares bernsteinfarbenes Glas-Prisma (strahlt intensiv nach vorne & zur Seite)
-    const lensGeo = new RoundedBoxGeometry(0.11, 0.24, 0.16, 2, 0.015);
+    const lensGeo = new RoundedBoxGeometry(0.13, 0.29, 0.17, 2, 0.02);
     const lensMesh = new THREE.Mesh(lensGeo, blinkerMat);
-    lensMesh.position.set(0.015 * s, 0, 0.015);
-    lensMesh.renderOrder = 4;
+    lensMesh.position.set(0.018 * s, 0, 0.018);
+    lensMesh.renderOrder = 5;
     g.add(lensMesh);
 
     // Horizontale MAN-Strukturippung
-    for (let y of [-0.07, 0, 0.07]) {
-      const ribGeo = new THREE.BoxGeometry(0.115, 0.012, 0.165);
+    for (let y of [-0.08, 0, 0.08]) {
+      const ribGeo = new THREE.BoxGeometry(0.135, 0.014, 0.175);
       const rib = new THREE.Mesh(ribGeo, darkTrimMat);
-      rib.position.set(0.015 * s, y, 0.015);
+      rib.position.set(0.018 * s, y, 0.018);
       g.add(rib);
     }
 
@@ -817,10 +819,10 @@ export function createManTglTruckRig(): ManTglTruckRig {
     const drlStrip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.016, 0.015), drlMat);
     drlStrip.position.set(0, 0.118, 0.043);
 
-    const blinkerGeo = new THREE.BoxGeometry(0.45, 0.036, 0.022);
+    const blinkerGeo = new THREE.BoxGeometry(0.46, 0.040, 0.025);
     const blinker = new THREE.Mesh(blinkerGeo, blinkerMat);
-    blinker.position.set(0, 0.096, 0.046);
-    blinker.renderOrder = 4;
+    blinker.position.set(0, 0.096, 0.048);
+    blinker.renderOrder = 5;
     g.add(drlStrip, blinker);
 
     g.position.set(0.82 * s, 0.72, 4.53);
@@ -864,11 +866,17 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const headlightFlareR = new THREE.PointLight('#ffffff', 4.0, 9.0, 2);
   headlightFlareR.position.set(-0.82, 0.72, 4.62);
 
-  // Front-Blinker Streulichter (Amber PointLights für Front- und Boden-Beleuchtung)
-  const frontBlinkerLightL = new THREE.PointLight('#ff8800', 0, 7.5, 2);
+  // Front-Blinker Streulichter (Amber PointLights für Frontscheinwerfer)
+  const frontBlinkerLightL = new THREE.PointLight('#ff8800', 0, 8.0, 2);
   frontBlinkerLightL.position.set(0.82, 0.72, 4.70);
-  const frontBlinkerLightR = new THREE.PointLight('#ff8800', 0, 7.5, 2);
+  const frontBlinkerLightR = new THREE.PointLight('#ff8800', 0, 8.0, 2);
   frontBlinkerLightR.position.set(-0.82, 0.72, 4.70);
+
+  // Front-Eckblinker Streulichter (Amber PointLights für obere Fahrerhaus-Ecken)
+  const frontCornerLightL = new THREE.PointLight('#ff8800', 0, 7.5, 2);
+  frontCornerLightL.position.set(1.18, 1.38, 4.45);
+  const frontCornerLightR = new THREE.PointLight('#ff8800', 0, 7.5, 2);
+  frontCornerLightR.position.set(-1.18, 1.38, 4.45);
 
   truck.add(
     frontHlLeft, frontHlRight,
@@ -877,7 +885,8 @@ export function createManTglTruckRig(): ManTglTruckRig {
     roofMarkerL, roofMarkerR,
     leftSpot, leftSpot.target, rightSpot, rightSpot.target,
     headlightFlareL, headlightFlareR,
-    frontBlinkerLightL, frontBlinkerLightR
+    frontBlinkerLightL, frontBlinkerLightR,
+    frontCornerLightL, frontCornerLightR
   );
 
   // 3.8 Ergo-Cockpit Interieur
@@ -1294,6 +1303,8 @@ export function createManTglTruckRig(): ManTglTruckRig {
     frontBlinkerMatR,
     frontBlinkerLightL,
     frontBlinkerLightR,
+    frontCornerLightL,
+    frontCornerLightR,
     biLedLensMat,
     loadEdgeHeight,
     kofferBackZ,

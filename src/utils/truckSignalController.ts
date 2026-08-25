@@ -96,10 +96,10 @@ export class TruckSignalController {
    */
   public updateRig(rig: ManTglTruckRig, elapsedTime: number, platformActive: boolean = false): BlinkerState {
     const state = this.evaluate(elapsedTime);
-    const emHigh = 5.2; // Intensiver LED-Blinker-Glow
+    const emHigh = 5.5; // Gleichmäßig ultra-intensiver LED-Blinker-Glow (Front & Heck)
     const emLow = 0.0;
 
-    // 1. Frontblinker & Radkasten-Seitenblinker
+    // 1. Front-Hauptblinker, Front-Eckblinker & Radkasten-Seitenblinker
     rig.frontBlinkerMatL.emissiveIntensity = state.isLeftOn ? emHigh : emLow;
     rig.frontBlinkerMatR.emissiveIntensity = state.isRightOn ? emHigh : emLow;
 
@@ -107,18 +107,24 @@ export class TruckSignalController {
     rig.rearBlinkerMatL.emissiveIntensity = state.isLeftOn ? emHigh : emLow;
     rig.rearBlinkerMatR.emissiveIntensity = state.isRightOn ? emHigh : emLow;
 
-    // 3. Dynamische Front- & Heckblinker-PointLights für sichtbare Umgebungs-Ausleuchtung
+    // 3. Dynamische Front-, Eck- & Heckblinker-PointLights für sichtbare Umgebungs-Ausleuchtung
     if (rig.frontBlinkerLightL) {
-      rig.frontBlinkerLightL.intensity = state.isLeftOn ? 6.5 : 0.0;
+      rig.frontBlinkerLightL.intensity = state.isLeftOn ? 7.5 : 0.0;
     }
     if (rig.frontBlinkerLightR) {
-      rig.frontBlinkerLightR.intensity = state.isRightOn ? 6.5 : 0.0;
+      rig.frontBlinkerLightR.intensity = state.isRightOn ? 7.5 : 0.0;
+    }
+    if (rig.frontCornerLightL) {
+      rig.frontCornerLightL.intensity = state.isLeftOn ? 7.0 : 0.0;
+    }
+    if (rig.frontCornerLightR) {
+      rig.frontCornerLightR.intensity = state.isRightOn ? 7.0 : 0.0;
     }
     if (rig.rearBlinkerLightL) {
-      rig.rearBlinkerLightL.intensity = state.isLeftOn ? 6.0 : 0.0;
+      rig.rearBlinkerLightL.intensity = state.isLeftOn ? 7.0 : 0.0;
     }
     if (rig.rearBlinkerLightR) {
-      rig.rearBlinkerLightR.intensity = state.isRightOn ? 6.0 : 0.0;
+      rig.rearBlinkerLightR.intensity = state.isRightOn ? 7.0 : 0.0;
     }
 
     // 4. Sicherheits-Blinker an den Ecken der Ladebordwand
