@@ -82,12 +82,10 @@ export default function Truck() {
     if (!canvasRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0d1117');
-    // Kein entfernungsabhängiger schwarzer Nebel mehr (Kameraabstand bleibt immer gleich hell)
+    // Kein entfernungsabhängiger schwarzer Nebel
     scene.fog = null;
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 2500);
-    // Move camera out to see the long truck
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 3000);
     camera.position.set(18, 6, 20);
 
     const renderer = new THREE.WebGLRenderer({ 
@@ -112,26 +110,31 @@ export default function Truck() {
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Ausgewogene, entfernungsunabhängige Ausleuchtung (Subagent 11: scene_environment)
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334455, 0.75);
+    // ☁️ Ultra-Realistischer Prozeduraler Atmosphären-Himmelsdom (Rayleigh & Mie-Scattering, fBM-Wolken)
+    const sky = createRealisticAtmosphericSky();
+    scene.add(sky.mesh);
+
+    // ☀️ Ausgewogene, fotorealistische Sonnen- & Himmelsausleuchtung (Subagent 11: scene_environment)
+    const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x24421b, 0.90);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
-    dirLight.position.set(12, 22, 16);
+    const dirLight = new THREE.DirectionalLight(0xfffef0, 2.3);
+    dirLight.position.set(25, 45, 30);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 70;
-    dirLight.shadow.camera.left = -20;
-    dirLight.shadow.camera.right = 20;
-    dirLight.shadow.camera.top = 15;
-    dirLight.shadow.camera.bottom = -15;
-    dirLight.shadow.bias = -0.0005;
+    dirLight.shadow.camera.far = 120;
+    dirLight.shadow.camera.left = -30;
+    dirLight.shadow.camera.right = 30;
+    dirLight.shadow.camera.top = 25;
+    dirLight.shadow.camera.bottom = -25;
+    dirLight.shadow.bias = -0.0004;
     scene.add(dirLight);
+    scene.add(dirLight.target);
 
-    const fillLight = new THREE.DirectionalLight(0xaaccff, 0.65);
-    fillLight.position.set(-12, 16, -14);
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.75);
+    fillLight.position.set(-25, 35, -28);
     scene.add(fillLight);
 
     const truck = new THREE.Group();
@@ -1486,6 +1489,11 @@ export default function Truck() {
 
       // Delta-Time Normalisierung für 60Hz / 120Hz / 144Hz (Säule 1.2)
       const delta = Math.min(clock.getDelta(), 0.1);
+      const elapsedTime = clock.getElapsedTime();
+
+      // ☁️ Himmelsdom & dynamische Wolkendrift aktualisieren (zentriert auf Kamera)
+      sky.uniforms.uTime.value = elapsedTime;
+      sky.mesh.position.copy(camera.position);
 
       // =======================================================================
       // 🏎️ Grand Prix Streckenkinematik, 3D-Höhenprofil & Kurvendynamik
@@ -1497,6 +1505,11 @@ export default function Truck() {
       const x = pt.x;
       const y = pt.y;
       const z = pt.z;
+
+      // Sonnenlicht-Target folgt dem LKW sanft für stets perfekte Kontaktschatten
+      dirLight.position.set(x + 35, y + 60, z + 45);
+      dirLight.target.position.set(x, y + 1.5, z);
+      dirLight.target.updateMatrixWorld();
 
       // Ausrichtung des LKWs (Tangentenwinkel)
       const heading = Math.atan2(tangent.x, tangent.z);
@@ -1731,8 +1744,6 @@ export default function Truck() {
       // Plattformspitze neigt sich als Roll-Off Rampe zum Boden wenn unten angekommen (> 0.75)
       const tipTiltT = THREE.MathUtils.clamp((lowerProgress - 0.75) / 0.25, 0, 1);
       platformTipGroup.rotation.x = -tipTiltT * 0.06;
-
-      const elapsedTime = clock.getElapsedTime();
 
       // Sicherheits-Blinker an den Plattformecken blinken bei Aktivität
       if (flapProgress > 0.05 || lowerProgress > 0.05) {
@@ -2402,4 +2413,155 @@ export default function Truck() {
       )}
     </div>
   );
+}
+
+/**
+ * ☁️ Erzeugt einen ultra-realistischen, prozeduralen Atmosphären-Himmelsdom
+ * mit physikalischer Rayleigh- & Mie-Streuung, Sonnenscheibe, Corona-Glow und fraktalen Kumuluswolken.
+ */
+function createRealisticAtmosphericSky(): {
+  mesh: THREE.Mesh;
+  material: THREE.ShaderMaterial;
+  uniforms: {
+    uZenithColor: { value: THREE.Color };
+    uHorizonColor: { value: THREE.Color };
+    uGroundColor: { value: THREE.Color };
+    uSunPosition: { value: THREE.Vector3 };
+    uSunColor: { value: THREE.Color };
+    uSunSize: { value: number };
+    uSunIntensity: { value: number };
+    uCloudCoverage: { value: number };
+    uCloudDensity: { value: number };
+    uCloudSpeed: { value: number };
+    uTime: { value: number };
+  };
+} {
+  const uniforms = {
+    uZenithColor: { value: new THREE.Color('#1040a0') }, // Tiefes Königsblau am Zenit
+    uHorizonColor: { value: new THREE.Color('#85c8f8') }, // Azurblauer Dunst am Horizont
+    uGroundColor: { value: new THREE.Color('#2d5022') },  // Natürlicher Wiesengrund
+    uSunPosition: { value: new THREE.Vector3(250, 380, 220).normalize() },
+    uSunColor: { value: new THREE.Color('#fffef4') },     // Brillantes Sonnenweiß
+    uSunSize: { value: 1.0 },
+    uSunIntensity: { value: 1.35 },
+    uCloudCoverage: { value: 0.22 },                      // Realistische Schäfchenwolken
+    uCloudDensity: { value: 0.88 },
+    uCloudSpeed: { value: 0.0035 },
+    uTime: { value: 0 },
+  };
+
+  const vertexShader = `
+    varying vec3 vWorldPosition;
+    varying vec3 vDirection;
+    void main() {
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      vWorldPosition = worldPosition.xyz;
+      vDirection = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const fragmentShader = `
+    uniform vec3 uZenithColor;
+    uniform vec3 uHorizonColor;
+    uniform vec3 uGroundColor;
+    uniform vec3 uSunPosition;
+    uniform vec3 uSunColor;
+    uniform float uSunSize;
+    uniform float uSunIntensity;
+    uniform float uCloudCoverage;
+    uniform float uCloudDensity;
+    uniform float uCloudSpeed;
+    uniform float uTime;
+
+    varying vec3 vWorldPosition;
+    varying vec3 vDirection;
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float a = hash(i);
+      float b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0));
+      float d = hash(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      mat2 rot = mat2(0.87, 0.50, -0.50, 0.87);
+      for (int i = 0; i < 5; ++i) {
+        v += a * noise(p);
+        p = rot * p * 2.04 + vec2(1.35, 2.65);
+        a *= 0.5;
+      }
+      return v;
+    }
+
+    void main() {
+      vec3 dir = normalize(vDirection);
+      float height = clamp(dir.y, 0.0, 1.0);
+
+      // 1. Rayleigh-Streuung (Atmosphärischer Himmelsgradient von Zenith bis Horizont)
+      float skyGradient = pow(1.0 - height, 1.55);
+      vec3 skyColor = mix(uZenithColor, uHorizonColor, skyGradient);
+
+      if (dir.y < 0.0) {
+        // Horizontdunst bis zum Boden
+        skyColor = mix(uHorizonColor, uGroundColor, clamp(-dir.y * 4.0, 0.0, 1.0));
+      }
+
+      // 2. Sonnenscheibe & Mie-Streuung (Corona Glow)
+      vec3 sunDir = normalize(uSunPosition);
+      float sunDot = max(0.0, dot(dir, sunDir));
+      float sunDisc = smoothstep(0.9992 - uSunSize * 0.0005, 0.9998, sunDot);
+      float sunCorona = pow(sunDot, 64.0) * 0.75 + pow(sunDot, 12.0) * 0.35;
+      vec3 sunGlow = uSunColor * (sunDisc * 4.0 + sunCorona * uSunIntensity);
+
+      // 3. Mehrschichtige fraktale Kumulus-Wolken (Driften mit Windgeschwindigkeit)
+      if (dir.y > 0.02 && uCloudCoverage > 0.005) {
+        vec2 cloudUV = (dir.xz / (dir.y + 0.16)) * 0.38;
+        cloudUV += vec2(uTime * uCloudSpeed, uTime * uCloudSpeed * 0.45);
+
+        float n1 = fbm(cloudUV * 2.8);
+        float n2 = fbm(cloudUV * 5.8 + vec2(4.2, 1.8));
+        float cloudNoise = n1 * 0.68 + n2 * 0.32;
+
+        float threshold = 1.0 - uCloudCoverage * 0.75;
+        float cloudMask = smoothstep(threshold, threshold + 0.18, cloudNoise);
+
+        // Sanfter Horizont-Schwund
+        float horizonFade = smoothstep(0.02, 0.20, dir.y);
+        cloudMask *= horizonFade;
+
+        // Wolkenbeleuchtung & Silberränder zur Sonne
+        float sunLit = clamp(dot(sunDir, dir) * 0.5 + 0.5, 0.0, 1.0);
+        vec3 cloudBaseShade = mix(vec3(0.82, 0.88, 0.96), vec3(0.98, 0.99, 1.0), sunLit);
+        vec3 cloudFinalColor = cloudBaseShade + sunCorona * 0.6 * uSunColor;
+
+        skyColor = mix(skyColor, cloudFinalColor, cloudMask * uCloudDensity);
+      }
+
+      skyColor += sunGlow;
+      gl_FragColor = vec4(skyColor, 1.0);
+    }
+  `;
+
+  const skyGeo = new THREE.SphereGeometry(2200, 48, 32);
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader,
+    fragmentShader,
+    side: THREE.BackSide,
+    depthWrite: false,
+  });
+
+  const skyMesh = new THREE.Mesh(skyGeo, skyMat);
+  return { mesh: skyMesh, material: skyMat, uniforms };
 }
