@@ -209,6 +209,12 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       wipers,
       leftSpot,
       rightSpot,
+      headlightFlareL,
+      headlightFlareR,
+      headlightLensMat,
+      fogLampMat,
+      roofMarkerMat,
+      drlMat,
       rearBrakeLightMat,
       thirdBrakeLightMat,
       rearBrakeLightL,
@@ -217,6 +223,7 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       rearBlinkerMatR,
       frontBlinkerMatL,
       frontBlinkerMatR,
+      biLedLensMat,
       kofferBackZ,
       textures,
     } = createManTglTruckRig();
@@ -643,6 +650,17 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
         frontBlinkerMatL.emissiveIntensity = 0.0;
         frontBlinkerMatR.emissiveIntensity = 0.0;
       }
+
+      // Volle Frontscheinwerfer-Illumination
+      biLedLensMat.emissiveIntensity = 4.5;
+      headlightLensMat.emissiveIntensity = 2.8;
+      drlMat.emissiveIntensity = 3.5;
+      fogLampMat.emissiveIntensity = 2.0;
+      roofMarkerMat.emissiveIntensity = 2.8;
+      leftSpot.intensity = 42;
+      rightSpot.intensity = 42;
+      headlightFlareL.intensity = 4.0;
+      headlightFlareR.intensity = 4.0;
 
       // Adaptives Kurvenlicht: Lichtkegel schwenken mit dem Lenkwinkel dynamisch mit
       leftSpot.target.position.set(0.82 + currentSteerAngle * 4.0, -0.5, 22);

@@ -31,6 +31,12 @@ export interface ManTglTruckRig {
   wipers: THREE.Group[];
   leftSpot: THREE.SpotLight;
   rightSpot: THREE.SpotLight;
+  headlightFlareL: THREE.PointLight;
+  headlightFlareR: THREE.PointLight;
+  headlightLensMat: THREE.MeshStandardMaterial;
+  fogLampMat: THREE.MeshStandardMaterial;
+  roofMarkerMat: THREE.MeshStandardMaterial;
+  drlMat: THREE.MeshStandardMaterial;
   rearBrakeLightMat: THREE.MeshStandardMaterial;
   thirdBrakeLightMat: THREE.MeshStandardMaterial;
   rearBrakeLightL: THREE.PointLight;
@@ -772,9 +778,20 @@ export function createManTglTruckRig(): ManTglTruckRig {
   
   const frontBlinkerMatL = new THREE.MeshStandardMaterial({ color: '#ff8800', emissive: '#ff8800', emissiveIntensity: 0.0, roughness: 0.2 });
   const frontBlinkerMatR = new THREE.MeshStandardMaterial({ color: '#ff8800', emissive: '#ff8800', emissiveIntensity: 0.0, roughness: 0.2 });
-  const biLedLensMat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 1.8, roughness: 0.05, clearcoat: 1.0, transmission: 0.4 });
-  const fogLampMat = new THREE.MeshStandardMaterial({ color: '#fffbf0', emissive: '#fff3d6', emissiveIntensity: 1.4, roughness: 0.15 });
-  const roofMarkerMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 2.2, roughness: 0.2 });
+  const biLedLensMat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 3.5, roughness: 0.05, clearcoat: 1.0, transmission: 0.3 });
+  const fogLampMat = new THREE.MeshStandardMaterial({ color: '#fffbf0', emissive: '#fff3d6', emissiveIntensity: 2.5, roughness: 0.15 });
+  const roofMarkerMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 2.8, roughness: 0.2 });
+  const drlMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 3.5, roughness: 0.1 });
+
+  const headlightLensMat = new THREE.MeshStandardMaterial({
+    map: hlTex,
+    roughness: 0.06,
+    metalness: 0.05,
+    transparent: true,
+    opacity: 0.94,
+    emissive: '#ffffff',
+    emissiveIntensity: 2.4,
+  });
 
   const createFrontHeadlightCluster = (side: 'left' | 'right') => {
     const g = new THREE.Group();
@@ -790,28 +807,33 @@ export function createManTglTruckRig(): ManTglTruckRig {
     reflectorBed.position.set(0, 0, 0.01);
     g.add(reflectorBed);
 
+    // 1. Großer Reflektor & leuchtende Projektorlinse (Abblendlicht)
     const bowlLargeGeo = new THREE.CylinderGeometry(0.105, 0.065, 0.035, 24, 1, true);
     bowlLargeGeo.rotateX(Math.PI / 2);
     const bowlLarge = new THREE.Mesh(bowlLargeGeo, chromeMat);
     bowlLarge.position.set(-0.09 * s, 0, 0.02);
 
+    const projectorDiscLarge = new THREE.Mesh(new THREE.CircleGeometry(0.092, 24), biLedLensMat);
+    projectorDiscLarge.position.set(-0.09 * s, 0, 0.036);
+
     const bulbCapLarge = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 12), darkTrimMat);
     bulbCapLarge.position.set(-0.09 * s, 0, 0.038);
-    const bulbGlowLarge = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), biLedLensMat);
-    bulbGlowLarge.position.set(-0.09 * s, 0, 0.035);
-    g.add(bowlLarge, bulbCapLarge, bulbGlowLarge);
+    g.add(bowlLarge, projectorDiscLarge, bulbCapLarge);
 
+    // 2. Kleinerer Reflektor & Fernlichtlinse
     const bowlSmallGeo = new THREE.CylinderGeometry(0.085, 0.055, 0.03, 20, 1, true);
     bowlSmallGeo.rotateX(Math.PI / 2);
     const bowlSmall = new THREE.Mesh(bowlSmallGeo, chromeMat);
     bowlSmall.position.set(0.10 * s, 0, 0.02);
 
+    const projectorDiscSmall = new THREE.Mesh(new THREE.CircleGeometry(0.074, 20), biLedLensMat);
+    projectorDiscSmall.position.set(0.10 * s, 0, 0.033);
+
     const bulbCapSmall = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 12), darkTrimMat);
     bulbCapSmall.position.set(0.10 * s, 0, 0.035);
-    const bulbGlowSmall = new THREE.Mesh(new THREE.SphereGeometry(0.01, 8, 8), biLedLensMat);
-    bulbGlowSmall.position.set(0.10 * s, 0, 0.032);
-    g.add(bowlSmall, bulbCapSmall, bulbGlowSmall);
+    g.add(bowlSmall, projectorDiscSmall, bulbCapSmall);
 
+    // 3. Montagescharnier / Gehäuselasche
     const hingeGroup = new THREE.Group();
     const hingePlateGeo = new THREE.BoxGeometry(0.06, 0.22, 0.04);
     const hingePlate = new THREE.Mesh(hingePlateGeo, darkTrimMat);
@@ -826,14 +848,8 @@ export function createManTglTruckRig(): ManTglTruckRig {
     hingeGroup.position.set(0.30 * s, 0, 0);
     g.add(hingeGroup);
 
-    const outerLensMat = new THREE.MeshStandardMaterial({
-      map: hlTex,
-      roughness: 0.08,
-      metalness: 0.05,
-      transparent: true,
-      opacity: 0.90
-    });
-    const outerLens = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.26), outerLensMat);
+    // 4. Klarglas-Frontscheibe mit intensiv leuchtendem Emissive-Glow
+    const outerLens = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.26), headlightLensMat);
     outerLens.position.set(0, 0, 0.042);
     if (side === 'left') {
       outerLens.scale.set(1, 1, 1);
@@ -842,10 +858,14 @@ export function createManTglTruckRig(): ManTglTruckRig {
     }
     g.add(outerLens);
 
-    const blinkerGeo = new THREE.BoxGeometry(0.42, 0.025, 0.015);
+    // 5. LED DRL Lichtleiter-Streifen & LED Blinker
+    const drlStrip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.016, 0.015), drlMat);
+    drlStrip.position.set(0, 0.118, 0.043);
+
+    const blinkerGeo = new THREE.BoxGeometry(0.42, 0.022, 0.015);
     const blinker = new THREE.Mesh(blinkerGeo, blinkerMat);
-    blinker.position.set(0, 0.11, 0.04);
-    g.add(blinker);
+    blinker.position.set(0, 0.095, 0.043);
+    g.add(drlStrip, blinker);
 
     g.position.set(0.82 * s, 0.72, 4.53);
     return g;
@@ -874,19 +894,26 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const roofMarkerR = new THREE.Mesh(roofMarkerGeo, roofMarkerMat);
   roofMarkerR.position.set(-0.85, 3.42, 3.92);
 
-  const leftSpot = new THREE.SpotLight('#ffffff', 32, 60, Math.PI / 5, 0.45, 1.5);
+  const leftSpot = new THREE.SpotLight('#ffffff', 42, 65, Math.PI / 5, 0.45, 1.5);
   leftSpot.position.set(0.82, 0.72, 4.54);
-  leftSpot.target.position.set(0.82, -0.5, 22);
+  leftSpot.target.position.set(0.82, -0.5, 24);
   
-  const rightSpot = new THREE.SpotLight('#ffffff', 32, 60, Math.PI / 5, 0.45, 1.5);
+  const rightSpot = new THREE.SpotLight('#ffffff', 42, 65, Math.PI / 5, 0.45, 1.5);
   rightSpot.position.set(-0.82, 0.72, 4.54);
-  rightSpot.target.position.set(-0.82, -0.5, 22);
+  rightSpot.target.position.set(-0.82, -0.5, 24);
+
+  // Nach vorne strahlende Linsen-Streulichter (Headlight Flares)
+  const headlightFlareL = new THREE.PointLight('#ffffff', 4.0, 9.0, 2);
+  headlightFlareL.position.set(0.82, 0.72, 4.62);
+  const headlightFlareR = new THREE.PointLight('#ffffff', 4.0, 9.0, 2);
+  headlightFlareR.position.set(-0.82, 0.72, 4.62);
 
   truck.add(
     frontHlLeft, frontHlRight,
     leftFog, leftFogRing, rightFog, rightFogRing,
     roofMarkerL, roofMarkerR,
-    leftSpot, leftSpot.target, rightSpot, rightSpot.target
+    leftSpot, leftSpot.target, rightSpot, rightSpot.target,
+    headlightFlareL, headlightFlareR
   );
 
   // 3.8 Ergo-Cockpit Interieur
@@ -1284,6 +1311,12 @@ export function createManTglTruckRig(): ManTglTruckRig {
     wipers,
     leftSpot,
     rightSpot,
+    headlightFlareL,
+    headlightFlareR,
+    headlightLensMat,
+    fogLampMat,
+    roofMarkerMat,
+    drlMat,
     rearBrakeLightMat,
     thirdBrakeLightMat,
     rearBrakeLightL,

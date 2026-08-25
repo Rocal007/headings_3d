@@ -273,11 +273,17 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
         truckRig.tailgateBlinkerMat.emissiveIntensity = 0.0;
       }
 
-      // 4. Scheinwerfer & Licht
+      // 4. Scheinwerfer & Beleuchtung (Volle Illumination)
       const isLights = headlightsRef.current;
-      truckRig.biLedLensMat.emissiveIntensity = isLights ? 2.8 : 0.0;
-      truckRig.leftSpot.intensity = isLights ? 32 : 0.0;
-      truckRig.rightSpot.intensity = isLights ? 32 : 0.0;
+      truckRig.biLedLensMat.emissiveIntensity = isLights ? 4.5 : 0.0;
+      truckRig.headlightLensMat.emissiveIntensity = isLights ? 2.8 : 0.0;
+      truckRig.drlMat.emissiveIntensity = isLights ? 3.5 : 0.4;
+      truckRig.fogLampMat.emissiveIntensity = isLights ? 2.5 : 0.0;
+      truckRig.roofMarkerMat.emissiveIntensity = isLights ? 2.8 : 0.0;
+      truckRig.leftSpot.intensity = isLights ? 42 : 0.0;
+      truckRig.rightSpot.intensity = isLights ? 42 : 0.0;
+      truckRig.headlightFlareL.intensity = isLights ? 4.5 : 0.0;
+      truckRig.headlightFlareR.intensity = isLights ? 4.5 : 0.0;
 
       // 5. Scheibenwischer Kinematik
       if (wipersRef.current) {
