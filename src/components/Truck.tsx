@@ -42,6 +42,7 @@ const _truckPosScratch = { x: 0, y: 0, z: 0 };
 export default function Truck() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDriving, setIsDriving] = useState(true);
+  const [isTurbo, setIsTurbo] = useState(false);
   const [doorsOpen, setDoorsOpen] = useState(false);
   const [tailgateOpen, setTailgateOpen] = useState(false);
   const [platformLowered, setPlatformLowered] = useState(false);
@@ -57,6 +58,7 @@ export default function Truck() {
   const circuitChangeTriggerRef = useRef<((id: CircuitId) => void) | null>(null);
 
   const drivingRef = useRef(true);
+  const turboRef = useRef(false);
   const doorsRef = useRef(false);
   const tailgateRef = useRef(false);
   const platformLoweredRef = useRef(false);
@@ -1473,7 +1475,14 @@ export default function Truck() {
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
-    window.addEventListener('resize', handleResize);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 't' || e.key === 'T') {
+        const next = !turboRef.current;
+        turboRef.current = next;
+        setIsTurbo(next);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
 
     // WebGL Context Loss & Recovery Handling (Säule 6.2)
     const handleContextLost = (event: Event) => {
@@ -1533,9 +1542,25 @@ export default function Truck() {
       const sector = getCircuitSector(currentCircuitDef, currentU);
 
       // Dynamisches Geschwindigkeitsprofil in km/h & m/s:
-      const targetSpeedKmh = drivingRef.current ? Math.max(24.0, sector.speedTarget - curvature * 360.0) : 0.0;
+      const isTurboActive = turboRef.current;
+      let targetSpeedKmh = 0.0;
+      if (drivingRef.current) {
+        if (isTurboActive) {
+          // 🚀 F1 TELEMETRIE-MODUS: Echte Formula 1 Rundenzeiten, Grip & Speeds
+          const baseF1Speed = sector.f1Speed || 290.0;
+          const drsBoost = sector.drsZone ? 24.0 : 0.0;
+          targetSpeedKmh = Math.max(85.0, (baseF1Speed + drsBoost) - curvature * 450.0);
+        } else {
+          // Standard 12t LKW Fahrdynamik
+          targetSpeedKmh = Math.max(24.0, sector.speedTarget - curvature * 360.0);
+        }
+      }
+
       const targetSpeedMps = targetSpeedKmh / 3.6;
-      const accelRate = (targetSpeedMps > currentSpeed) ? 1.8 : 3.8; // Bremsen greift dynamischer als Beschleunigen
+      const accelRate = isTurboActive 
+        ? ((targetSpeedMps > currentSpeed) ? 6.5 : 12.5) 
+        : ((targetSpeedMps > currentSpeed) ? 1.8 : 3.8);
+
       const prevSpeed = currentSpeed;
       currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeedMps, 1 - Math.exp(-accelRate * delta));
       const currentAccel = (currentSpeed - prevSpeed) / Math.max(delta, 0.001); // m/s^2
@@ -1545,17 +1570,21 @@ export default function Truck() {
       trackU = (trackU + distanceTravelled / splineLength) % 1.0;
 
       // 1. Nick-Dynamik (Chassis Pitch + 3D-Geländeneigung)
-      const targetPitch = THREE.MathUtils.clamp(-currentAccel * 0.008, -0.045, 0.065);
-      currentPitch = THREE.MathUtils.lerp(currentPitch, targetPitch, 1 - Math.exp(-8.0 * delta));
+      const pitchMult = isTurboActive ? 0.012 : 0.008;
+      const targetPitch = THREE.MathUtils.clamp(-currentAccel * pitchMult, -0.055, 0.085);
+      currentPitch = THREE.MathUtils.lerp(currentPitch, targetPitch, 1 - Math.exp(-9.0 * delta));
 
       // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft in Kurven)
       const lateralAccel = (currentSpeed * currentSpeed) * (dHeading / lookaheadMeters); // m/s^2
-      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * 0.007, -0.065, 0.065);
-      currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-6.0 * delta));
+      const rollMult = isTurboActive ? 0.0035 : 0.007; // F1 steifere Aufhängung
+      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * rollMult, -0.065, 0.065);
+      currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-7.0 * delta));
 
-      // 3. Fahrbahn-Rumpeln & 6-Zylinder Diesel Motorvibration
-      const roadVibe = (currentSpeed > 0.1) ? (Math.sin(clock.getElapsedTime() * 45.0) * 0.0025 + Math.cos(clock.getElapsedTime() * 85.0) * 0.0012) * Math.min(1.0, currentSpeed / 20.0) : 0;
-      const engineIdle = Math.sin(clock.getElapsedTime() * 22.0) * 0.0008;
+      // 3. Fahrbahn-Rumpeln & 6-Zylinder Diesel Motorvibration (bei Turbo Hochfrequenz-Pfeifen)
+      const vibeFreq = isTurboActive ? 85.0 : 45.0;
+      const vibeAmp = isTurboActive ? 0.0012 : 0.0025;
+      const roadVibe = (currentSpeed > 0.1) ? (Math.sin(clock.getElapsedTime() * vibeFreq) * vibeAmp) * Math.min(1.0, currentSpeed / 20.0) : 0;
+      const engineIdle = Math.sin(clock.getElapsedTime() * (isTurboActive ? 40.0 : 22.0)) * 0.0008;
 
       truck.position.x = x;
       truck.position.y = y + roadVibe + engineIdle;
@@ -1608,29 +1637,41 @@ export default function Truck() {
       let rpm = 750;
       let gearName = 'N';
       if (drivingRef.current && currentSpeed > 0.1) {
-        if (speedKmh < 18) {
-          gearName = 'D1';
-          rpm = 800 + (speedKmh / 18) * 1100;
-        } else if (speedKmh < 36) {
-          gearName = 'D2';
-          rpm = 1000 + ((speedKmh - 18) / 18) * 1000;
-        } else if (speedKmh < 54) {
-          gearName = 'D3';
-          rpm = 1100 + ((speedKmh - 36) / 18) * 950;
-        } else if (speedKmh < 72) {
-          gearName = 'D4';
-          rpm = 1200 + ((speedKmh - 54) / 18) * 900;
+        if (isTurboActive) {
+          const f1GearNum = Math.min(8, Math.max(1, Math.floor(speedKmh / 42) + 1));
+          gearName = `G${f1GearNum}`;
+          const gearFrac = (speedKmh % 42) / 42;
+          rpm = 8500 + gearFrac * 3800; // 8.500 bis 12.300 RPM
         } else {
-          gearName = 'D5';
-          rpm = 1300 + ((speedKmh - 72) / 20) * 800;
+          if (speedKmh < 18) {
+            gearName = 'D1';
+            rpm = 800 + (speedKmh / 18) * 1100;
+          } else if (speedKmh < 36) {
+            gearName = 'D2';
+            rpm = 1000 + ((speedKmh - 18) / 18) * 1000;
+          } else if (speedKmh < 54) {
+            gearName = 'D3';
+            rpm = 1100 + ((speedKmh - 36) / 18) * 950;
+          } else if (speedKmh < 72) {
+            gearName = 'D4';
+            rpm = 1200 + ((speedKmh - 54) / 18) * 900;
+          } else {
+            gearName = 'D5';
+            rpm = 1300 + ((speedKmh - 72) / 20) * 800;
+          }
         }
       }
 
       if (telemetrySpeedRef.current) {
         telemetrySpeedRef.current.textContent = `${speedKmh.toFixed(1)} km/h`;
+        telemetrySpeedRef.current.style.color = isTurboActive ? '#ec4899' : '#00dcff';
       }
       if (telemetrySpeedBarRef.current) {
-        telemetrySpeedBarRef.current.style.width = `${Math.min(100, (speedKmh / 90) * 100)}%`;
+        const maxGaugeSpeed = isTurboActive ? 360 : 90;
+        telemetrySpeedBarRef.current.style.width = `${Math.min(100, (speedKmh / maxGaugeSpeed) * 100)}%`;
+        telemetrySpeedBarRef.current.style.background = isTurboActive
+          ? 'linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6)'
+          : 'linear-gradient(90deg, #00dcff, #3498db)';
       }
       if (telemetryAccelRef.current) {
         telemetryAccelRef.current.textContent = `${accelG >= 0 ? '+' : ''}${accelG.toFixed(2)} g`;
@@ -1641,6 +1682,7 @@ export default function Truck() {
       }
       if (telemetryLateralGRef.current) {
         telemetryLateralGRef.current.textContent = `${lateralG >= 0 ? '+' : ''}${lateralG.toFixed(2)} g`;
+        telemetryLateralGRef.current.style.color = Math.abs(lateralG) > 2.0 ? '#ec4899' : '#ffffff';
       }
       if (telemetryPitchRef.current) {
         telemetryPitchRef.current.textContent = `${pitchDeg.toFixed(1)}° ${pitchDeg > 0.4 ? '🔻 DIVE' : pitchDeg < -0.3 ? '🔺 SQUAT' : 'LEVEL'}`;
@@ -1652,10 +1694,16 @@ export default function Truck() {
         telemetryRpmRef.current.textContent = `${Math.round(rpm)} RPM`;
       }
       if (telemetryRpmBarRef.current) {
-        telemetryRpmBarRef.current.style.width = `${Math.min(100, Math.max(5, ((rpm - 600) / 1600) * 100))}%`;
+        const maxRpm = isTurboActive ? 13000 : 2200;
+        const minRpm = isTurboActive ? 4000 : 600;
+        telemetryRpmBarRef.current.style.width = `${Math.min(100, Math.max(5, ((rpm - minRpm) / (maxRpm - minRpm)) * 100))}%`;
+        telemetryRpmBarRef.current.style.background = isTurboActive
+          ? (rpm > 11500 ? 'linear-gradient(90deg, #3b82f6, #6366f1, #ec4899)' : 'linear-gradient(90deg, #10b981, #f59e0b, #ef4444)')
+          : 'linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c)';
       }
       if (telemetryGearRef.current) {
         telemetryGearRef.current.textContent = gearName;
+        telemetryGearRef.current.style.color = isTurboActive ? '#f43f5e' : '#ffd700';
       }
       if (telemetrySectorRef.current) {
         telemetrySectorRef.current.textContent = sector.name;
@@ -1666,7 +1714,9 @@ export default function Truck() {
       if (telemetryDrsRef.current) {
         if (sector.drsZone) {
           telemetryDrsRef.current.style.display = 'inline-block';
-          telemetryDrsRef.current.textContent = sector.drsZone;
+          telemetryDrsRef.current.textContent = isTurboActive ? `⚡ DRS OPEN (+25 KM/H)` : sector.drsZone;
+          telemetryDrsRef.current.style.background = isTurboActive ? '#22c55e' : '#ffd700';
+          telemetryDrsRef.current.style.color = '#000';
         } else {
           telemetryDrsRef.current.style.display = 'none';
         }
@@ -1863,6 +1913,7 @@ export default function Truck() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       canvas.removeEventListener('webglcontextrestored', handleContextRestored);
       cancelAnimationFrame(animationId);
@@ -1997,13 +2048,55 @@ export default function Truck() {
           </div>
 
           <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <span ref={telemetrySectorRef} style={{ color: '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
+            <span ref={telemetrySectorRef} style={{ color: isTurbo ? '#ec4899' : '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
               HAMILTON STRAIGHT
             </span>
             <div ref={telemetryF1Ref} style={{ color: '#94a3b8', fontSize: 8, fontWeight: 600, fontFamily: 'monospace', marginTop: 2 }}>
               F1 REF: 290 km/h • GANG 7 • 1.0 G
             </div>
           </div>
+
+          {/* ⚡ F1 TELEMETRIE TURBO BOOST BUTTON */}
+          <button
+            onClick={() => {
+              const next = !isTurbo;
+              setIsTurbo(next);
+              turboRef.current = next;
+            }}
+            style={{
+              marginTop: 6,
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: isTurbo ? '1px solid #ec4899' : '1px solid rgba(255, 215, 0, 0.4)',
+              background: isTurbo
+                ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 215, 0, 0.12) 0%, rgba(0, 220, 255, 0.08) 100%)',
+              color: isTurbo ? '#ffffff' : '#ffd700',
+              fontFamily: 'inherit',
+              fontSize: 9,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: isTurbo ? '0 0 14px rgba(236, 72, 153, 0.5), inset 0 0 6px rgba(236, 72, 153, 0.3)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontSize: 12 }}>{isTurbo ? '🔥' : '⚡'}</span>
+              <span>{isTurbo ? 'F1 TELEMETRIE: 350 KM/H' : 'F1 TURBO BOOST: AUS'}</span>
+            </div>
+            <span style={{
+              fontSize: 7.5,
+              padding: '1px 4px',
+              borderRadius: 3,
+              background: isTurbo ? '#ec4899' : 'rgba(255,255,255,0.12)',
+              color: '#ffffff'
+            }}>
+              [T]
+            </span>
+          </button>
         </div>
 
         {/* Speed & Gear Section */}
@@ -2088,6 +2181,26 @@ export default function Truck() {
           }}
         >
           {isDriving ? '🛑 Anhalten' : '▶️ Weiterfahren'}
+        </button>
+
+        <button
+          onClick={() => {
+            const next = !isTurbo;
+            setIsTurbo(next);
+            turboRef.current = next;
+          }}
+          style={{
+            padding: '12px 20px', borderRadius: 8,
+            border: isTurbo ? '1px solid #ec4899' : '1px solid rgba(255,215,0,0.4)',
+            background: isTurbo ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(0,0,0,0.6)',
+            color: isTurbo ? '#ffffff' : '#ffd700',
+            fontFamily: '"Inter", sans-serif', fontWeight: 700, fontSize: 13,
+            cursor: 'pointer', backdropFilter: 'blur(8px)',
+            boxShadow: isTurbo ? '0 0 16px rgba(236, 72, 153, 0.6)' : '0 4px 12px rgba(0,0,0,0.5)',
+            transition: 'all 0.2s',
+          }}
+        >
+          {isTurbo ? '🔥 F1 Turbo: AN (350 km/h)' : '⚡ F1 Turbo: AUS'}
         </button>
 
         <button
