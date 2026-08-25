@@ -1023,9 +1023,6 @@ export function validate180DegreeAxis(
 /**
  * Aspect Ratio & Safe Area Framing Guide Definitions for Director Viewfinder HUD
  */
-/**
- * Aspect Ratio & Safe Area Framing Guide Definitions for Director Viewfinder HUD
- */
 export const CINE_FRAMING_GUIDES = {
   anamorphic_239: { ratio: 2.39, name: '2.39:1 CinemaScope', safeArea: 0.90 },
   academy_185: { ratio: 1.85, name: '1.85:1 Flat Academy', safeArea: 0.90 },
@@ -1039,6 +1036,7 @@ export const CINE_FRAMING_GUIDES = {
 
 export type TruckCameraPresetId =
   | 'free'          // Freier Orbit (User OrbitControls)
+  | 'trackside_tv'  // Reale TV-Streckenkameras & Tele-Türme
   | 'follow'        // Dynamische 3rd-Person Verfolgerkamera (Chase-Cam)
   | 'cockpit'       // Cockpit First-Person Sicht durch die Windschutzscheibe
   | 'side_mirror'   // Rückspiegel-Blick entlang der Fahrzeugflanke
@@ -1058,6 +1056,15 @@ export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo>
     category: 'operator',
     minHoldDuration: 0,
     preferredTransitions: ['smooth_lerp']
+  },
+  trackside_tv: {
+    id: 'trackside_tv' as any,
+    name: 'TV Streckenkameras',
+    desc: 'Reale FIA TV-Türme & Randsteinkameras mit Super-Teleobjektiven',
+    icon: '📺',
+    category: 'broadcast',
+    minHoldDuration: 3.5,
+    preferredTransitions: ['cut', 'smooth_lerp']
   },
   follow: {
     id: 'follow' as any,
@@ -1142,6 +1149,12 @@ export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo>
   }
 };
 
+export interface TruckTrackContext {
+  cameras?: import('./raceTracks/trackTypes').TracksideCamera[];
+  trackCurve?: THREE.CatmullRomCurve3;
+  currentU?: number;
+}
+
 // Reusable scratch objects for zero GC in truck camera calculations (Säule 1.1)
 const _tTruckPos = new THREE.Vector3();
 const _tCamPos = new THREE.Vector3();
@@ -1155,7 +1168,8 @@ export function calculateTruckCameraPose(
   presetId: TruckCameraPresetId,
   truckWorldPos: { x: number; y: number; z: number },
   heading: number,
-  time: number
+  time: number,
+  trackContext?: TruckTrackContext
 ): { position: THREE.Vector3; target: THREE.Vector3; fov: number } {
   _tTruckPos.set(truckWorldPos.x, truckWorldPos.y, truckWorldPos.z);
   
@@ -1172,6 +1186,51 @@ export function calculateTruckCameraPose(
   };
 
   switch (presetId) {
+    case 'trackside_tv': {
+      if (trackContext?.cameras && trackContext.cameras.length > 0 && trackContext.trackCurve && trackContext.currentU !== undefined) {
+        const u = trackContext.currentU;
+        // Finde die beste TV-Streckenkamera
+        let bestCam = trackContext.cameras[0];
+        let minDiff = 999;
+        for (const c of trackContext.cameras) {
+          let diff = (c.uTarget - u + 1) % 1;
+          if (diff > 0.5) diff = 1 - diff;
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestCam = c;
+          }
+        }
+
+        const cPt = trackContext.trackCurve.getPointAt(bestCam.uTarget);
+        const cTan = trackContext.trackCurve.getTangentAt(bestCam.uTarget);
+        const cNx = -cTan.z;
+        const cNz = cTan.x;
+        const cLen = Math.hypot(cNx, cNz) || 1;
+        const cnX = cNx / cLen;
+        const cnZ = cNz / cLen;
+
+        const camX = cPt.x + cnX * bestCam.offsetSide;
+        const camY = cPt.y + bestCam.height;
+        const camZ = cPt.z + cnZ * bestCam.offsetSide;
+
+        _tCamPos.set(camX, camY, camZ);
+        _tCamTgt.set(_tTruckPos.x, _tTruckPos.y + 1.6, _tTruckPos.z);
+
+        // Dynamischer Telephoto FOV Solver basierend auf Entfernung & Brennweite
+        const dist = _tCamPos.distanceTo(_tTruckPos);
+        const f = bestCam.focalLengthMm || 300;
+        const targetFov = Math.max(10.0, Math.min(58.0, (1200.0 / (f * 0.14 + dist * 0.85))));
+        _tPoseResult.fov = targetFov;
+        return _tPoseResult;
+      }
+
+      // Fallback
+      _tCamPos.set(_tTruckPos.x + 28, _tTruckPos.y + 8.5, _tTruckPos.z + 18);
+      _tCamTgt.set(_tTruckPos.x, _tTruckPos.y + 1.6, _tTruckPos.z);
+      _tPoseResult.fov = 32;
+      return _tPoseResult;
+    }
+
     case 'follow': {
       // Behind the truck (Z = -10.5m), elevated (Y = 3.6m)
       setLocalToWorld(_tCamPos, 0, 3.6, -10.5);
@@ -1208,15 +1267,15 @@ export function calculateTruckCameraPose(
       // Focused on rear loading lift
       setLocalToWorld(_tCamPos, 0, 1.6, -9.5);
       setLocalToWorld(_tCamTgt, 0, 1.2, -5.2);
-      _tPoseResult.fov = 46;
+      _tPoseResult.fov = 50;
       return _tPoseResult;
     }
 
     case 'front_hero': {
-      // Low front angle facing the truck
-      setLocalToWorld(_tCamPos, 2.4, 0.8, 8.8);
-      setLocalToWorld(_tCamTgt, 0, 1.6, 3.5);
-      _tPoseResult.fov = 44;
+      // Low angle in front of truck looking up
+      setLocalToWorld(_tCamPos, -2.4, 0.85, 9.8);
+      setLocalToWorld(_tCamTgt, 0, 1.8, 2.0);
+      _tPoseResult.fov = 48;
       return _tPoseResult;
     }
 
@@ -1275,30 +1334,30 @@ export function evaluateAutoDirectorTruckCut(
     return { nextCam: currentCam, reason: 'Kamera-Haltedauer aktiv' };
   }
 
-  // 3. Dynamic Steering Curve Action: Cut to Wheel Cam or Side Mirror
+  // 3. Dynamic Steering Curve Action: Cut to Trackside TV, Wheel Cam or Side Mirror
   if (Math.abs(steerDeg) > 12.0) {
-    const curveCams: TruckCameraPresetId[] = ['wheel', 'side_mirror', 'front_hero'];
+    const curveCams: TruckCameraPresetId[] = ['trackside_tv', 'wheel', 'side_mirror', 'front_hero'];
     const filtered = curveCams.filter(c => c !== currentCam);
     const chosen = filtered[Math.floor(Math.random() * filtered.length)];
     return {
       nextCam: chosen,
-      reason: `🌀 Kurvenfahrt (${Math.abs(steerDeg).toFixed(1)}° Lenkeinschlag) • Dynamische Action-Perspektive`
+      reason: `🌀 Kurvenpassage (${Math.abs(steerDeg).toFixed(1)}° Lenkeinschlag) • ${chosen === 'trackside_tv' ? 'TV-Streckenkamera mit Teleobjektiv' : 'Dynamische Action-Perspektive'}`
     };
   }
 
-  // 4. High-Speed Cruising: Alternate between Follow, Cockpit, Front Hero, and Drone
+  // 4. High-Speed Cruising: Alternate between Trackside TV, Follow, Cockpit, Front Hero, and Drone
   if (speedKmh > 20.0) {
-    const cruiseCams: TruckCameraPresetId[] = ['follow', 'cockpit', 'front_hero', 'drone', 'cinematic'];
+    const cruiseCams: TruckCameraPresetId[] = ['trackside_tv', 'follow', 'cockpit', 'front_hero', 'drone', 'cinematic'];
     const filtered = cruiseCams.filter(c => c !== currentCam);
     const chosen = filtered[Math.floor(Math.random() * filtered.length)];
     return {
       nextCam: chosen,
-      reason: `🚀 Schnelle Geradeausfahrt (${speedKmh.toFixed(0)} km/h) • Filmreifer Regie-Schnitt`
+      reason: `🚀 High-Speed Fahrt (${speedKmh.toFixed(0)} km/h) • ${chosen === 'trackside_tv' ? 'Strecken-Kameraturm Tele-Verfolgung' : 'Filmreifer TV-Regieschnitt'}`
     };
   }
 
   // 5. Default Periodic Rotation
-  const defaultCams: TruckCameraPresetId[] = ['follow', 'front_hero', 'cinematic', 'side_mirror'];
+  const defaultCams: TruckCameraPresetId[] = ['trackside_tv', 'follow', 'front_hero', 'cinematic', 'side_mirror'];
   const filtered = defaultCams.filter(c => c !== currentCam);
   const chosen = filtered[Math.floor(Math.random() * filtered.length)];
   return {

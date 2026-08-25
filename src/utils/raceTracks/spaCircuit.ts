@@ -78,5 +78,15 @@ export const SPA_CIRCUIT: CircuitDefinition = {
     { uStart: 0.82, uEnd: 0.88, turnNum: 14, name: 'T14/T15 CAMPUS & STAVELOT', code: 'STAVELOT', f1Speed: 220, f1Gear: 5, f1GForce: 3.0, speedTarget: 58.0 },
     { uStart: 0.88, uEnd: 0.94, turnNum: 16, name: 'T16/T17 BLANCHIMONT', code: 'BLANCHIMONT', f1Speed: 315, f1Gear: 8, f1GForce: 3.8, speedTarget: 82.0 },
     { uStart: 0.94, uEnd: 1.00, turnNum: 18, name: 'T18/T19 BUS STOP CHICANE', code: 'BUS STOP', f1Speed: 80, f1Gear: 2, f1GForce: 2.6, speedTarget: 28.0, brakeMarker: true },
+  ],
+  cameras: [
+    { id: 'spa_sf_gantry', name: 'Spa Start/Finish Gantry Cam', type: 'gantry', uTarget: 0.02, offsetSide: 0.0, height: 8.0, focalLengthMm: 50, description: 'Start-Ziel-Gerade Spa' },
+    { id: 'spa_lasource_tower', name: 'La Source Hairpin Tower', type: 'tower', uTarget: 0.09, offsetSide: -16.0, height: 7.0, focalLengthMm: 220, description: 'Enge Spitzkehre La Source' },
+    { id: 'spa_eaurouge_crest', name: 'Eau Rouge / Raidillon Monumental Tower', type: 'tower', uTarget: 0.23, offsetSide: 30.0, height: 12.5, focalLengthMm: 450, description: 'Spektakulärer Panoramaturm oben am Raidillon-Kamm (+24m Steigung)' },
+    { id: 'spa_kemmel_zoom', name: 'Kemmel Straight 800mm Box Lens', type: 'tower', uTarget: 0.36, offsetSide: -22.0, height: 7.5, focalLengthMm: 800, description: 'Extreme 800mm Telephoto-Kamera auf der 345 km/h Kemmel-Geraden' },
+    { id: 'spa_combes_tower', name: 'Les Combes Braking Tower', type: 'tower', uTarget: 0.46, offsetSide: 28.0, height: 8.0, focalLengthMm: 340, description: 'Bremszone Les Combes am Ende der Kemmel-Geraden' },
+    { id: 'spa_pouhon_high', name: 'Pouhon Double-Apex High-G Tower', type: 'tower', uTarget: 0.69, offsetSide: 32.0, height: 9.5, focalLengthMm: 400, description: 'High-Speed Doppel-Links Pouhon mit 4.8g Querbeschleunigung' },
+    { id: 'spa_blanchimont_cam', name: 'Blanchimont 315 km/h Sweep Cam', type: 'tower', uTarget: 0.90, offsetSide: 25.0, height: 7.5, focalLengthMm: 380, description: 'Vollgas-Linksknick Blanchimont' },
+    { id: 'spa_busstop_kerb', name: 'Bus Stop Chicane Kerb Cam', type: 'kerb', uTarget: 0.97, offsetSide: -10.0, height: 0.35, focalLengthMm: 28, description: 'Randstein-Actionkamera an der Bus Stop Schikane vor Start/Ziel' },
   ]
 };

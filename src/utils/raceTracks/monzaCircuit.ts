@@ -72,5 +72,15 @@ export const MONZA_CIRCUIT: CircuitDefinition = {
     { uStart: 0.72, uEnd: 0.82, turnNum: 8, name: 'T8-T10 VARIANTE ASCARI', code: 'ASCARI', f1Speed: 175, f1Gear: 4, f1GForce: 3.8, speedTarget: 48.0, brakeMarker: true },
     { uStart: 0.82, uEnd: 0.90, turnNum: 0, name: 'RETTIFILO POSTERIORE', code: 'BACK STRAIGHT', f1Speed: 350, f1Gear: 8, f1GForce: 1.0, speedTarget: 88.0 },
     { uStart: 0.90, uEnd: 1.00, turnNum: 11, name: 'T11 CURVA PARABOLICA (ALBORETO)', code: 'PARABOLICA', f1Speed: 215, f1Gear: 5, f1GForce: 3.6, speedTarget: 65.0, brakeMarker: true },
+  ],
+  cameras: [
+    { id: 'mon_sf_gantry', name: 'Monza Start/Finish Gantry Cam', type: 'gantry', uTarget: 0.02, offsetSide: 0.0, height: 7.5, focalLengthMm: 50, description: 'Overhead Start/Ziel Kamera Monza' },
+    { id: 'mon_rettifilo_tower', name: 'Variante del Rettifilo Tower', type: 'tower', uTarget: 0.14, offsetSide: 28.0, height: 8.5, focalLengthMm: 420, description: 'Bremszonen-Turm Rettifilo Schikane 350 -> 75 km/h' },
+    { id: 'mon_biassono_cam', name: 'Curva Grande High Speed Cam', type: 'tower', uTarget: 0.24, offsetSide: -24.0, height: 7.0, focalLengthMm: 300, description: 'High-Speed Bogen Curva Grande' },
+    { id: 'mon_roggia_tower', name: 'Variante della Roggia Tower', type: 'tower', uTarget: 0.40, offsetSide: 25.0, height: 8.0, focalLengthMm: 350, description: 'Außenturm Roggia Schikane' },
+    { id: 'mon_lesmo_cam', name: 'Curva di Lesmo 1 & 2 Apex Cam', type: 'tower', uTarget: 0.52, offsetSide: -20.0, height: 6.5, focalLengthMm: 280, description: 'Doppelkurve Lesmo' },
+    { id: 'mon_serraglio_zoom', name: 'Serraglio Super-Speed Zoom', type: 'tower', uTarget: 0.66, offsetSide: 22.0, height: 6.0, focalLengthMm: 500, description: 'Tele-Verfolgung unter der alten Steilkurven-Brücke' },
+    { id: 'mon_ascari_tower', name: 'Variante Ascari Scaffolding Tower', type: 'tower', uTarget: 0.76, offsetSide: 26.0, height: 9.0, focalLengthMm: 360, description: 'Ascari Schikanen-Komplex' },
+    { id: 'mon_parabolica_high', name: 'Curva Parabolica Monumental High Tower', type: 'tower', uTarget: 0.94, offsetSide: 32.0, height: 11.5, focalLengthMm: 600, description: 'Monumentaler TV-Turm an der 180° Parabolica-Kurve' },
   ]
 };

@@ -31,6 +31,17 @@ export interface TrackSectorInfo {
   brakeMarker?: boolean; // 150m/100m/50m Bremstafeln vor Kurvenscheitel
 }
 
+export interface TracksideCamera {
+  id: string;
+  name: string;
+  type: 'tower' | 'kerb' | 'gantry' | 'wire_cam';
+  uTarget: number;       // Streckenfortschritt [0.0, 1.0)
+  offsetSide: number;    // Querabstand von Fahrbahnmitte in Metern (+ = links, - = rechts)
+  height: number;        // Höhe über der Fahrbahn in Metern
+  focalLengthMm: number; // Äquivalente Brennweite (z.B. 24mm bis 600mm)
+  description: string;
+}
+
 export type CircuitId = 'silverstone' | 'monza' | 'spa' | 'red_bull_ring';
 
 export interface CircuitDefinition {
@@ -47,6 +58,7 @@ export interface CircuitDefinition {
   scale: number;
   controlPoints: TrackControlPoint[];
   sectors: TrackSectorInfo[];
+  cameras?: TracksideCamera[];
 }
 
 export interface TrackMeshesResult {

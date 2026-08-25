@@ -1870,7 +1870,17 @@ export default function Truck() {
         _truckPosScratch.x = x;
         _truckPosScratch.y = y;
         _truckPosScratch.z = z;
-        const targetPose = calculateTruckCameraPose(effectiveCam, _truckPosScratch, heading, elapsedTime);
+        const targetPose = calculateTruckCameraPose(
+          effectiveCam,
+          _truckPosScratch,
+          heading,
+          elapsedTime,
+          {
+            cameras: currentCircuitDef.cameras,
+            trackCurve: currentCircuitResult.trackCurve,
+            currentU: trackU,
+          }
+        );
 
         if (isCut) {
           // ⚡ ECHTER BROADCAST-SCHNITT: 1-Frame Hard Cut (Keine interpolierende Kamerafahrt)
@@ -1881,14 +1891,20 @@ export default function Truck() {
           camera.lookAt(controls.target);
         } else {
           // Innerhalb der laufenden Einstellung:
-          // Cockpit, Spiegel, Radkasten, Front-Hero & Heck sind starr am LKW montiert (Zero-Lag)
-          if (
+          if (effectiveCam === 'trackside_tv') {
+            // 📺 TV-Streckenkameraturm: Position ist fest auf dem Gerüst, Kamera schwenkt dem LKW hinterher
+            camera.position.copy(targetPose.position);
+            const panDamp = 1 - Math.exp(-14.0 * delta);
+            controls.target.lerp(targetPose.target, panDamp);
+            camera.lookAt(controls.target);
+          } else if (
             effectiveCam === 'cockpit' ||
             effectiveCam === 'wheel' ||
             effectiveCam === 'side_mirror' ||
             effectiveCam === 'front_hero' ||
             effectiveCam === 'tailgate'
           ) {
+            // Cockpit, Spiegel, Radkasten, Front-Hero & Heck sind starr am LKW montiert (Zero-Lag)
             camera.position.copy(targetPose.position);
             controls.target.copy(targetPose.target);
             camera.lookAt(controls.target);

@@ -89,5 +89,17 @@ export const SILVERSTONE_CIRCUIT: CircuitDefinition = {
     { uStart: 0.91, uEnd: 0.94, turnNum: 16, name: 'T16 VALE CHICANE', code: 'VALE', f1Speed: 105, f1Gear: 2, f1GForce: 2.1, speedTarget: 30.0, brakeMarker: true },
     { uStart: 0.94, uEnd: 0.97, turnNum: 17, name: 'T17 VALE EXIT', code: 'VALE OUT', f1Speed: 135, f1Gear: 2, f1GForce: 2.3, speedTarget: 40.0 },
     { uStart: 0.97, uEnd: 1.00, turnNum: 18, name: 'T18 CLUB CORNER', code: 'CLUB', f1Speed: 225, f1Gear: 4, f1GForce: 3.2, speedTarget: 64.0 },
+  ],
+  cameras: [
+    { id: 'sil_sf_gantry', name: 'Start-Finish Gantry Cam', type: 'gantry', uTarget: 0.02, offsetSide: 0.0, height: 7.2, focalLengthMm: 50, description: 'Overhead-Kamera an der Startampel-Brücke über der Hamilton Straight' },
+    { id: 'sil_abbey_tower', name: 'Abbey High TV Tower', type: 'tower', uTarget: 0.09, offsetSide: 24.0, height: 6.8, focalLengthMm: 280, description: 'Außenturm mit Teleobjektiv für High-Speed Turn 1 Abbey' },
+    { id: 'sil_loop_apex', name: 'The Loop Infield Cam', type: 'kerb', uTarget: 0.22, offsetSide: -12.0, height: 0.85, focalLengthMm: 35, description: 'Flache Infield-Kamera am inneren Scheitelpunkt von The Loop' },
+    { id: 'sil_wellington_zoom', name: 'Wellington Long Zoom', type: 'tower', uTarget: 0.33, offsetSide: -20.0, height: 8.0, focalLengthMm: 450, description: 'Super-Tele Kamera entlang der Wellington Straight' },
+    { id: 'sil_brooklands_tower', name: 'Brooklands Braking Tower', type: 'tower', uTarget: 0.40, offsetSide: 26.0, height: 7.2, focalLengthMm: 320, description: 'Kameraturm in der harten Bremszone von Brooklands' },
+    { id: 'sil_copse_outside', name: 'Copse High Speed Tower', type: 'tower', uTarget: 0.58, offsetSide: 28.0, height: 9.5, focalLengthMm: 500, description: 'Monumentaler TV-Turm an der 300 km/h Copse-Kurve' },
+    { id: 'sil_becketts_crane', name: 'Maggotts/Becketts Crane Cam', type: 'tower', uTarget: 0.70, offsetSide: 25.0, height: 11.0, focalLengthMm: 380, description: 'Hochkran-Perspektive über den berüchtigten Becketts-Schikanen' },
+    { id: 'sil_hangar_straight', name: 'Hangar Straight Speed Cam', type: 'tower', uTarget: 0.82, offsetSide: -22.0, height: 6.5, focalLengthMm: 600, description: 'Extreme 600mm Telephoto-Box-Lens auf der 310 km/h Hangar-Geraden' },
+    { id: 'sil_stowe_outside', name: 'Stowe Braking Cam', type: 'tower', uTarget: 0.89, offsetSide: 26.0, height: 7.5, focalLengthMm: 340, description: 'Außenturm Stowe Corner' },
+    { id: 'sil_club_kerb', name: 'Club Final Apex Kerb Cam', type: 'kerb', uTarget: 0.98, offsetSide: -9.0, height: 0.35, focalLengthMm: 24, description: 'Micro-Puck Randsteinkamera am Club-Scheitel zur Start-Ziel-Geraden' },
   ]
 };

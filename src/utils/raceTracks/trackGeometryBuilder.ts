@@ -413,6 +413,31 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     }
   }
 
+  // 7. Reale 3D-Streckenkameras & TV-Türme an der Rennstrecke aufbauen (Subagent 20: Broadcast Regie)
+  if (circuit.cameras) {
+    for (const cam of circuit.cameras) {
+      if (cam.type === 'gantry') continue; // Gantry Cam sitzt bereits auf der Startampel-Brücke
+      const camU = cam.uTarget;
+      const cPt = trackCurve.getPointAt(camU);
+      const cTan = trackCurve.getTangentAt(camU);
+      const cNx = -cTan.z;
+      const cNz = cTan.x;
+      const cLen = Math.hypot(cNx, cNz) || 1;
+      const cnX = cNx / cLen;
+      const cnZ = cNz / cLen;
+
+      // Kameraposition in Weltkoordinaten
+      const worldCamPos = new THREE.Vector3(
+        cPt.x + cnX * cam.offsetSide,
+        cPt.y + cam.height,
+        cPt.z + cnZ * cam.offsetSide
+      );
+
+      const tracksideMesh = createTracksideCameraMesh(cam, worldCamPos, cPt, cTan);
+      group.add(tracksideMesh);
+    }
+  }
+
   // Rekursives Erfassen aller GPU-Ressourcen für 100% Zero-Leak Garantie (Säule 2.1)
   group.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -612,4 +637,157 @@ function createStartFinishTexture(): THREE.CanvasTexture {
   }
   const tex = new THREE.CanvasTexture(c);
   return tex;
+}
+
+/** Erzeugt ein detailliertes 3D-Modell eines TV-Kameraturms inkl. Broadcast-Kamera, Stativ, Operator & Barrieren */
+function createTracksideCameraMesh(
+  cam: import('./trackTypes').TracksideCamera,
+  pos: THREE.Vector3,
+  trackPt: THREE.Vector3,
+  _tangent?: THREE.Vector3
+): THREE.Group {
+  const root = new THREE.Group();
+  root.position.copy(pos);
+
+  // Ausrichtung zur Strecke hin
+  const lookDir = new THREE.Vector3().subVectors(trackPt, pos);
+  lookDir.y = 0;
+  if (lookDir.lengthSq() > 0.001) {
+    root.rotation.y = Math.atan2(lookDir.x, lookDir.z);
+  }
+
+  const steelMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.85, roughness: 0.25 });
+  const platformMat = new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.6, roughness: 0.4 });
+  const camBodyMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.4, roughness: 0.3 });
+  const lensMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.9, roughness: 0.1 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: '#0284c7', metalness: 0.95, roughness: 0.05 });
+  const tallyMat = new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 3.5 });
+  const barrierMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.7 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.85 });
+  const operatorMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.8 }); // Crew Blau
+  const skinMat = new THREE.MeshStandardMaterial({ color: '#f5d0b0', roughness: 0.6 });
+
+  if (cam.type === 'tower') {
+    const towerH = Math.max(2.5, cam.height - 1.2);
+    
+    // 1. Gitterrohr-Turm / Scaffolding Gerüst (4 Beine)
+    const legGeo = new THREE.CylinderGeometry(0.06, 0.08, towerH, 8);
+    const legOffsets = [
+      [-1.1, -1.1],
+      [1.1, -1.1],
+      [1.1, 1.1],
+      [-1.1, 1.1],
+    ];
+    legOffsets.forEach(([ox, oz]) => {
+      const leg = new THREE.Mesh(legGeo, steelMat);
+      leg.position.set(ox, -towerH * 0.5, oz);
+      root.add(leg);
+    });
+
+    // Horizontale & Diagonale Verstrebungen
+    const strutGeo = new THREE.BoxGeometry(2.2, 0.05, 0.05);
+    for (let h = -towerH + 0.8; h < -0.4; h += 1.4) {
+      const s1 = new THREE.Mesh(strutGeo, steelMat);
+      s1.position.set(0, h, 1.1);
+      const s2 = new THREE.Mesh(strutGeo, steelMat);
+      s2.position.set(0, h, -1.1);
+      root.add(s1, s2);
+    }
+
+    // 2. Standplattform
+    const platGeo = new THREE.BoxGeometry(2.4, 0.12, 2.4);
+    const plat = new THREE.Mesh(platGeo, platformMat);
+    plat.position.set(0, -0.06, 0);
+    root.add(plat);
+
+    // Geländer
+    const railGeo = new THREE.BoxGeometry(2.4, 0.04, 0.04);
+    const topRail = new THREE.Mesh(railGeo, steelMat);
+    topRail.position.set(0, 1.05, 1.2);
+    const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 2.4), steelMat);
+    leftRail.position.set(-1.2, 1.05, 0);
+    const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 2.4), steelMat);
+    rightRail.position.set(1.2, 1.05, 0);
+    root.add(topRail, leftRail, rightRail);
+
+    // 3. Schweres Broadcast-Dreibeinstativ
+    const tripodLegGeo = new THREE.CylinderGeometry(0.025, 0.03, 1.1, 8);
+    for (let i = 0; i < 3; i++) {
+      const tLeg = new THREE.Mesh(tripodLegGeo, steelMat);
+      const ang = (i * Math.PI * 2) / 3;
+      tLeg.position.set(Math.sin(ang) * 0.35, 0.55, Math.cos(ang) * 0.35 + 0.2);
+      tLeg.rotation.z = Math.sin(ang) * 0.25;
+      tLeg.rotation.x = -Math.cos(ang) * 0.25;
+      root.add(tLeg);
+    }
+
+    // 4. Professionelle Broadcast Box-Lens Kamera (Fujinon/Canon Style)
+    const camBase = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.12, 16), steelMat);
+    camBase.position.set(0, 1.12, 0.2);
+    root.add(camBase);
+
+    // Kameragehäuse
+    const camBox = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.55), camBodyMat);
+    camBox.position.set(0, 1.34, 0.15);
+    
+    // Telephoto-Objektiv-Tubus
+    const lensTube = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.26, 0.65), lensMat);
+    lensTube.position.set(0, 1.34, 0.65);
+    
+    // Große Frontlinse mit Antireflex-Glanz
+    const frontLens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 24), glassMat);
+    frontLens.rotation.x = Math.PI * 0.5;
+    frontLens.position.set(0, 1.34, 0.98);
+
+    // Tally-Rotlicht auf der Kamera (Live-On-Air Signalleuchte)
+    const tally = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.05), tallyMat);
+    tally.position.set(0, 1.52, 0.45);
+
+    // 7" Sucher-Monitor an der Seite
+    const vf = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.03), camBodyMat);
+    vf.position.set(0.22, 1.42, 0.0);
+    vf.rotation.y = -0.4;
+
+    root.add(camBox, lensTube, frontLens, tally, vf);
+
+    // 5. 3D-Kameramann / TV Operator (hinter dem Stativ)
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.75, 12), operatorMat);
+    body.position.set(0, 0.95, -0.45);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), skinMat);
+    head.position.set(0, 1.45, -0.45);
+    // Headset
+    const headset = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.02, 8, 16, Math.PI), steelMat);
+    headset.position.set(0, 1.47, -0.45);
+    headset.rotation.x = Math.PI * 0.5;
+
+    root.add(body, head, headset);
+
+    // 6. FIA Beton-Leitmauer & Reifenstapel vor dem Turm zur Strecke hin
+    const barrier = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.1, 0.45), barrierMat);
+    barrier.position.set(0, -towerH + 0.55, 1.8);
+    
+    // 3x Reifen vor der Leitmauer
+    for (let t = -1; t <= 1; t++) {
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.14, 12, 24), tireMat);
+      tire.position.set(t * 0.9, -towerH + 0.45, 2.15);
+      root.add(tire);
+    }
+    root.add(barrier);
+
+  } else if (cam.type === 'kerb') {
+    // Miniaturisierte Puck-Kamera am Randstein
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.25), steelMat);
+    base.position.set(0, 0.09, 0);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.15, 16), lensMat);
+    lens.rotation.x = Math.PI * 0.5;
+    lens.position.set(0, 0.12, 0.12);
+    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.055, 16), glassMat);
+    glass.position.set(0, 0.12, 0.20);
+    const tally = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.02), tallyMat);
+    tally.position.set(0, 0.19, 0);
+
+    root.add(base, lens, glass, tally);
+  }
+
+  return root;
 }

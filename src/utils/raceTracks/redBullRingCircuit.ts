@@ -61,5 +61,14 @@ export const RED_BULL_RING_CIRCUIT: CircuitDefinition = {
     { uStart: 0.72, uEnd: 0.82, turnNum: 7, name: 'T7/T8 WÜRTH & GÖSSER', code: 'WÜRTH', f1Speed: 205, f1Gear: 5, f1GForce: 3.5, speedTarget: 56.0 },
     { uStart: 0.82, uEnd: 0.92, turnNum: 9, name: 'T9 JOCHEN RINDT KURVE', code: 'RINDT', f1Speed: 220, f1Gear: 6, f1GForce: 3.6, speedTarget: 60.0, brakeMarker: true },
     { uStart: 0.92, uEnd: 1.00, turnNum: 10, name: 'T10 RED BULL MOBILE', code: 'T10', f1Speed: 215, f1Gear: 5, f1GForce: 3.2, speedTarget: 62.0 },
+  ],
+  cameras: [
+    { id: 'rbr_sf_gantry', name: 'Red Bull Ring Start/Finish Gantry Cam', type: 'gantry', uTarget: 0.02, offsetSide: 0.0, height: 7.5, focalLengthMm: 50, description: 'Start-Ziel Red Bull Ring Spielberg' },
+    { id: 'rbr_lauda_tower', name: 'Niki Lauda Kurve Turn 1 Tower', type: 'tower', uTarget: 0.14, offsetSide: 25.0, height: 7.2, focalLengthMm: 300, description: 'Steile Rechtskurve Turn 1 Niki Lauda' },
+    { id: 'rbr_remus_peak', name: 'Remus Hairpin Mountain Peak Tower', type: 'tower', uTarget: 0.38, offsetSide: 32.0, height: 11.0, focalLengthMm: 500, description: 'Monumentaler TV-Turm am Berggipfel der Remus Spitzkehre (+35m Bergauf)' },
+    { id: 'rbr_downhill_zoom', name: 'Schönberg Downhill Long Zoom', type: 'tower', uTarget: 0.49, offsetSide: -24.0, height: 8.0, focalLengthMm: 450, description: 'High-Speed Bergabfahrt nach Schlossgold' },
+    { id: 'rbr_schlossgold_cam', name: 'Schlossgold Braking Cam', type: 'tower', uTarget: 0.59, offsetSide: 26.0, height: 7.5, focalLengthMm: 320, description: 'Bremszone Schlossgold Kurve' },
+    { id: 'rbr_rindt_tower', name: 'Jochen Rindt Kurve Apex Tower', type: 'tower', uTarget: 0.86, offsetSide: -22.0, height: 8.0, focalLengthMm: 350, description: 'Schneller Doppel-Rechtsbogen Jochen Rindt Kurve' },
+    { id: 'rbr_t10_kerb', name: 'Red Bull Mobile Final Kerb Cam', type: 'kerb', uTarget: 0.96, offsetSide: -9.0, height: 0.35, focalLengthMm: 24, description: 'Randsteinkamera Kurve 10 zur Start-Ziel-Geraden' },
   ]
 };
