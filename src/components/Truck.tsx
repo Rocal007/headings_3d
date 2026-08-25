@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createManTglTruckRig } from '../model/manTglTruckRig';
+import { TruckSignalController, type BlinkerMode } from '../utils/truckSignalController';
 
 export type TruckStudioCameraId = 'orbit' | 'cockpit' | 'hero' | 'tailgate' | 'side';
 
@@ -28,24 +29,24 @@ export const TRUCK_STUDIO_CAMERAS: Record<TruckStudioCameraId, TruckStudioCamera
     id: 'hero',
     name: 'Front 3/4 Hero Shot',
     icon: '👑',
-    position: new THREE.Vector3(7.5, 2.68, 9.5),
-    target: new THREE.Vector3(0, 1.88, 2.5),
+    position: new THREE.Vector3(6.5, 2.48, 8.5),
+    target: new THREE.Vector3(0, 1.88, 3.5),
     fov: 38,
   },
   cockpit: {
     id: 'cockpit',
     name: 'Fahrerkabine & Cockpit',
     icon: '💺',
-    position: new THREE.Vector3(0.55, 2.30, 3.48),
-    target: new THREE.Vector3(0.55, 2.18, 6.5),
+    position: new THREE.Vector3(0.55, 2.58, 2.95),
+    target: new THREE.Vector3(0.55, 2.28, 4.2),
     fov: 65,
   },
   tailgate: {
     id: 'tailgate',
-    name: 'Ladebordwand & Frachtraum',
+    name: 'Heck & Ladebordwand',
     icon: '📦',
-    position: new THREE.Vector3(0, 2.48, -9.5),
-    target: new THREE.Vector3(0, 1.68, -2.5),
+    position: new THREE.Vector3(0, 2.88, -8.8),
+    target: new THREE.Vector3(0, 1.58, -3.5),
     fov: 42,
   },
   side: {
@@ -66,6 +67,7 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
   const [platformLowered, setPlatformLowered] = useState(false);
   const [headlightsOn, setHeadlightsOn] = useState(true);
   const [wipersActive, setWipersActive] = useState(false);
+  const [blinkerMode, setBlinkerMode] = useState<BlinkerMode>('off');
   const [autoRotate, setAutoRotate] = useState(false);
   const [activeCam, setActiveCam] = useState<TruckStudioCameraId>('orbit');
 
@@ -74,6 +76,8 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
   const platformLoweredRef = useRef(false);
   const headlightsRef = useRef(true);
   const wipersRef = useRef(false);
+  const blinkerModeRef = useRef<BlinkerMode>('off');
+  const signalControllerRef = useRef(new TruckSignalController('off'));
   const autoRotateRef = useRef(false);
   const activeCamRef = useRef<TruckStudioCameraId>('orbit');
 
@@ -265,13 +269,13 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
       const tipTiltT = THREE.MathUtils.clamp((lowerProgress - 0.75) / 0.25, 0, 1);
       truckRig.platformTipGroup.rotation.x = -tipTiltT * 0.065;
 
-      // Sicherheits-Blinker an den Plattformecken blinken bei Betrieb
-      if (flapProgress > 0.05 || lowerProgress > 0.05) {
-        const isBlink = Math.sin(elapsedTime * 12.0) > 0;
-        truckRig.tailgateBlinkerMat.emissiveIntensity = isBlink ? 2.5 : 0.2;
-      } else {
-        truckRig.tailgateBlinkerMat.emissiveIntensity = 0.0;
-      }
+      // 3. Fahrtrichtungsanzeiger, Warnblinkanlage & Ladebordwand-Sicherheitsblinker (Subagent 22.15)
+      signalControllerRef.current.setMode(blinkerModeRef.current);
+      signalControllerRef.current.updateRig(
+        truckRig,
+        elapsedTime,
+        flapProgress > 0.05 || lowerProgress > 0.05
+      );
 
       // 4. Scheinwerfer & Beleuchtung (Volle Illumination)
       const isLights = headlightsRef.current;
@@ -518,6 +522,69 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
         >
           💡 {headlightsOn ? 'Licht: AN' : 'Licht: AUS'}
         </button>
+
+        {/* 🚨 Subagent 22.15: Blinker & Warnblinker Kontrollleiste */}
+        <div style={{
+          display: 'flex', gap: 4, background: 'rgba(0, 0, 0, 0.45)', padding: '2px 4px',
+          borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.35)', alignItems: 'center'
+        }}>
+          <button
+            title="Blinker Links einschalten"
+            onClick={() => {
+              const next: BlinkerMode = blinkerMode === 'left' ? 'off' : 'left';
+              setBlinkerMode(next);
+              blinkerModeRef.current = next;
+            }}
+            style={{
+              padding: '7px 10px', borderRadius: 6,
+              border: blinkerMode === 'left' ? '1px solid #f59e0b' : '1px solid transparent',
+              background: blinkerMode === 'left' ? 'rgba(245, 158, 11, 0.35)' : 'transparent',
+              color: blinkerMode === 'left' ? '#fbbf24' : '#94a3b8',
+              fontFamily: '"Inter", sans-serif', fontWeight: 700, fontSize: 11.5,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            ⬅️ L
+          </button>
+
+          <button
+            title="Warnblinkanlage (alle 4 Ecken + Heck) aktivieren"
+            onClick={() => {
+              const next: BlinkerMode = blinkerMode === 'hazard' ? 'off' : 'hazard';
+              setBlinkerMode(next);
+              blinkerModeRef.current = next;
+            }}
+            style={{
+              padding: '7px 12px', borderRadius: 6,
+              border: blinkerMode === 'hazard' ? '1px solid #ef4444' : '1px solid transparent',
+              background: blinkerMode === 'hazard' ? 'rgba(239, 68, 68, 0.35)' : 'transparent',
+              color: blinkerMode === 'hazard' ? '#fca5a5' : '#e2e8f0',
+              fontFamily: '"Inter", sans-serif', fontWeight: 700, fontSize: 11.5,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            ⚠️ Warnblinker
+          </button>
+
+          <button
+            title="Blinker Rechts einschalten"
+            onClick={() => {
+              const next: BlinkerMode = blinkerMode === 'right' ? 'off' : 'right';
+              setBlinkerMode(next);
+              blinkerModeRef.current = next;
+            }}
+            style={{
+              padding: '7px 10px', borderRadius: 6,
+              border: blinkerMode === 'right' ? '1px solid #f59e0b' : '1px solid transparent',
+              background: blinkerMode === 'right' ? 'rgba(245, 158, 11, 0.35)' : 'transparent',
+              color: blinkerMode === 'right' ? '#fbbf24' : '#94a3b8',
+              fontFamily: '"Inter", sans-serif', fontWeight: 700, fontSize: 11.5,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            R ➡️
+          </button>
+        </div>
 
         <button
           onClick={() => {

@@ -47,6 +47,7 @@ graph TD
         LKW --> RearLights[22.12 truck_rear_lights<br/>🚨 Heckleuchten-Cluster, Bremslicht & Blinker]
         LKW --> Headlights[22.13 truck_headlights<br/>💡 LED-Frontscheinwerfer, DRL & Nebellampen]
         LKW --> Tracks[22.14 truck_race_tracks<br/>🏎️ Silverstone GP, Rennstrecken & FIA Kerbs]
+        LKW --> Signals[22.15 truck_turn_signals<br/>🚨 Fahrtrichtungsanzeiger, Warnblinker & Relais]
     end
 ```
 
@@ -558,7 +559,20 @@ graph TD
     * 3D-Geländeneigungs-Kopplung: LKW-Chassis neigt den Nickwinkel ($\theta_{\text{pitch}}$) an Steigungen und Gefälle (z.B. Eau Rouge Kompression / Kuppe) und den Wankwinkel ($\theta_{\text{roll}}$) an Kurvenüberhöhungen an.
     * Vorausschauende Krümmungsanalyse (`lookaheadMeters = 18m`) zur dynamischen Geschwindigkeitsregulierung.
     * Null Schlupf beim Abrollen aller 6 Räder und dynamischer LKW-folgender Sonnen-Schattenwurf.
-    * Dynamische Streckenumschaltung in Echtzeit über das Telematics HUD mit vollständigem Zero-Leak GPU Resource Disposing.
+#### 22.15 `truck_turn_signals` (🚨 Fahrtrichtungsanzeiger, Warnblinkanlage & Relais Master)
+* **Dateien**: [`src/utils/truckSignalController.ts`](file:///e:/3D-headings/src/utils/truckSignalController.ts), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/model/manTglTruckRig.ts`](file:///e:/3D-headings/src/model/manTglTruckRig.ts)
+* **Zuständigkeit**:
+  * **1. ECE-R48 Richtlinien-Konforme Signalanlage**:
+    * Präzise $1.5\,\text{Hz}$ Blinkfrequenz ($90\,\text{Impulse/min}$) mit $52/48$ Tastverhältnis (Duty Cycle).
+    * Synchronisation aller Signalleuchten in Bernsteingold (`#ff8800` / `#ff9900`, $3.6\times$ Emissive-Glühen).
+  * **2. 4 Betriebsmodi (`BlinkerMode`)**:
+    * `off`: Signalanlage im Standby-Modus.
+    * `left`: Fahrtrichtungsanzeiger links (Front-LED-Blinker, Seitenblinker am vorderen Radkasten, oberste Kammer im 7-Kammer Heckleuchten-Cluster).
+    * `right`: Fahrtrichtungsanzeiger rechts (Front-LED-Blinker, Seitenblinker am vorderen Radkasten, oberste Kammer im 7-Kammer Heckleuchten-Cluster).
+    * `hazard`: Warnblinkanlage synchron an allen 4 Ecken des Fahrzeugs sowie Warn-Pulsieren an den Plattform-Sicherheits-LEDs der Ladebordwand.
+  * **3. Showroom & Telematics Integration**:
+    * 3D-Blinkerschnittstelle mit animiertem HUD-Segment-Schalter (`[⬅️ L] [⚠️ Warnblinker] [R ➡️]`).
+    * Automatische Koppelung an die Ladebordwand-Bewegung (Plattform-Sicherheitsblinken).
 
 ---
 
