@@ -63,6 +63,31 @@ export function createKnurlingTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+/** Erzeugt eine 2D Carbon-Gewebe (Weave) Bump-Map */
+export function createCarbonFiberTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#333333';
+    for (let y = 0; y < 64; y += 8) {
+      for (let x = 0; x < 64; x += 8) {
+        if ((x / 8 + y / 8) % 2 === 0) {
+          ctx.fillRect(x, y, 8, 8);
+        }
+      }
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(16, 16);
+  return tex;
+}
+
 // --- 🏗️ CRANE PBR MATERIALS FACTORY ---
 
 export function createCranePBRMaterials() {

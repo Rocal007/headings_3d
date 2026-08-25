@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { Supertechno50FBXModel } from '../../model/Supertechno50FBXModel';
 import CraneTennisRacketHead from '../CraneTennisRacketHead';
 import CraneCounterweight from '../CraneCounterweight';
+import { TennisBallDeployment } from './TennisBallDeployment';
+import type { BallHopperState, BallCannonConfig, BallBoyFeedEvent } from '../../utils/ballDeployment';
 import { createCheckerplateTexture, createKnurlingTexture } from '../../materials/craneMaterials';
 
 /**
  * ============================================================================
- * TENNIS MOUNTED CRANE RIG & DOLLY (AGENT 13 / 16)
- * FBX-Kranarm-Montage, Fahrwerk & 3-Achsen Schlägerkopf-Synchronisation
+ * TENNIS MOUNTED CRANE RIG & DOLLY (AGENT 13 / 16 / 21)
+ * FBX-Kranarm-Montage, Fahrwerk, 3-Achsen Schläger & Ball-Kran Deployment System
  * ============================================================================
  */
 
@@ -19,7 +21,11 @@ const _racketNeckQuat = new THREE.Quaternion();
 const _racketTargetPos = new THREE.Vector3();
 const _racketTargetQuat = new THREE.Quaternion();
 
-export function SupertechnoDollyBase({ teamColor = '#facc15' }: { teamColor?: string }) {
+export function SupertechnoDollyBase({ 
+  teamColor = '#facc15'
+}: { 
+  teamColor?: string;
+}) {
   const { checkerplateTex, knurlingTex } = useMemo(() => ({
     checkerplateTex: createCheckerplateTexture(),
     knurlingTex: createKnurlingTexture()
@@ -271,6 +277,7 @@ export function SupertechnoDollyBase({ teamColor = '#facc15' }: { teamColor?: st
       <mesh material={matYellowAccent} position={[0, 0.26, -1.06]}>
         <boxGeometry args={[1.4, 0.025, 0.01]} />
       </mesh>
+
     </group>
   );
 }
@@ -294,6 +301,9 @@ export interface MountedCranePlayerProps {
   baseRotation?: number;
   dollyTrackZ?: number;
   dollyGroupRef: React.RefObject<THREE.Group | null>;
+  hopperState?: BallHopperState;
+  cannonConfig?: BallCannonConfig;
+  activeFeedEvent?: BallBoyFeedEvent | null;
 }
 
 export function MountedCranePlayer({
@@ -305,7 +315,10 @@ export function MountedCranePlayer({
   racketWorldQuatRef,
   baseRotation = 0,
   dollyTrackZ = -15.2,
-  dollyGroupRef
+  dollyGroupRef,
+  hopperState,
+  cannonConfig,
+  activeFeedEvent
 }: MountedCranePlayerProps) {
   const racketHeadGroupRef = useRef<THREE.Group>(null);
   const racketTargetRef = useRef<THREE.Group>(null);
@@ -341,7 +354,9 @@ export function MountedCranePlayer({
     <>
       {/* 1. CRANE DOLLY BASE & FBX SKELETON */}
       <group ref={dollyGroupRef} position={[0, 0, dollyTrackZ]} rotation={[0, baseRotation, 0]}>
-        <SupertechnoDollyBase teamColor={teamColor} />
+        <SupertechnoDollyBase 
+          teamColor={teamColor} 
+        />
         {crane && <primitive object={crane.group} />}
       </group>
 
@@ -363,6 +378,15 @@ export function MountedCranePlayer({
         crane={crane}
         kinematicsRef={kinematicsRef}
         visible={true}
+      />
+
+      {/* 4. 🎾 TRANSPARENTES BALLROHR OBEN AUF DEM KRAN NACH DEN GEWICHTEN (AGENT 21) */}
+      <TennisBallDeployment
+        crane={crane}
+        teamColor={teamColor}
+        hopperState={hopperState}
+        cannonConfig={cannonConfig}
+        activeFeedEvent={activeFeedEvent}
       />
     </>
   );

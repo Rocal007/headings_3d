@@ -33,6 +33,19 @@ import type { CraneOperatorMode } from './CraneOperator';
 export type { CraneSceneryType, CraneOperatorMode };
 export type CraneCableType = 'photo' | 'bundle' | 'flat' | 'heavy' | 'braided';
 
+// ⚡ ZERO-GC SCRATCH OBJECTS FOR REALTIME FRAME & CAMERA LOOPS
+const _festoonBeamWorldPos = new THREE.Vector3();
+const _festoonBeamWorldQuat = new THREE.Quaternion();
+const _mastWorld = new THREE.Vector3();
+const _localHeadPos = new THREE.Vector3();
+const _localCablePos = new THREE.Vector3();
+const _localCwPos = new THREE.Vector3();
+const _targetPos = new THREE.Vector3();
+const _desiredCamPos = new THREE.Vector3();
+const _camOffset = new THREE.Vector3();
+const _axisX = new THREE.Vector3(1, 0, 0);
+const _axisY = new THREE.Vector3(0, 1, 0);
+
 // --- DYNAMIC SLOPED FESTOON CABLE SYSTEM FOR CRANE BOOM (MATCHING REFERENCE PHOTO) ---
 function CraneFestoonCable({
   crane,
@@ -122,10 +135,6 @@ function CraneFestoonCable({
     metalness: 0.75,
     roughness: 0.45
   }), []);
-
-// ⚡ ZERO-GC SCRATCH OBJECTS FOR REALTIME FRAME LOOPS
-const _festoonBeamWorldPos = new THREE.Vector3();
-const _festoonBeamWorldQuat = new THREE.Quaternion();
 
   // Update Group Position & Rotation to track crane.nodes.beams in real-time
   useFrame(() => {
@@ -1763,17 +1772,6 @@ function CraneScene({
     const tipZ = -3.34 - tExt * 11.40;
     const tipY = 0.05;
     const tipX = -0.01;
-
-// ⚡ ZERO-GC SCRATCH OBJECTS FOR CAMERA & TRACKING LOOPS
-const _mastWorld = new THREE.Vector3();
-const _localHeadPos = new THREE.Vector3();
-const _localCablePos = new THREE.Vector3();
-const _localCwPos = new THREE.Vector3();
-const _targetPos = new THREE.Vector3();
-const _desiredCamPos = new THREE.Vector3();
-const _camOffset = new THREE.Vector3();
-const _axisX = new THREE.Vector3(1, 0, 0);
-const _axisY = new THREE.Vector3(0, 1, 0);
 
     const colH = kin.columnElevation || 1.54;
     const dollyZ = -(kin.dollyTrack || 0);

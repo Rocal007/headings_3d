@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -13,6 +13,7 @@ import { TennisUmpireCallWindow } from './tennis/TennisUmpireCallWindow';
 import TennisHawkEyeOverlay, { type HawkEyeData } from './tennis/TennisHawkEyeOverlay';
 import { AtmosphericSkyDome } from './CraneScenery';
 import { useTennisMatchEngine } from '../hooks/useTennisMatchEngine';
+import { usePerformanceMetrics, type PerformanceSnapshot } from '../hooks/usePerformanceMetrics';
 import { 
   calculateBallBounceReboundVelocity, 
   SURFACE_FRICTION, 
@@ -103,7 +104,9 @@ function CraneTennisScene({
   manualResetTrigger,
   showScoreboard3D = true,
   onDirectorInfoChange,
-  onHawkEyeTrigger
+  onHawkEyeTrigger,
+  graphicsDetail = 1.0,
+  onPerfUpdate
 }: {
   courtSurface: CourtSurface;
   cameraMode: TennisCameraMode;
@@ -130,7 +133,10 @@ function CraneTennisScene({
   manualResetTrigger?: number;
   onDirectorInfoChange?: (info: { cam: TennisCameraMode; label: string; reason: string }) => void;
   onHawkEyeTrigger?: (data: HawkEyeData) => void;
+  graphicsDetail?: number;
+  onPerfUpdate?: (metrics: PerformanceSnapshot) => void;
 }) {
+  const { recordFrame } = usePerformanceMetrics(onPerfUpdate);
   const [crane1, setCrane1] = useState<Supertechno50FBXModel | null>(null);
   const [crane2, setCrane2] = useState<Supertechno50FBXModel | null>(null);
 
@@ -195,7 +201,31 @@ function CraneTennisScene({
   const directorShotTimerRef = useRef(0);
   const directorCutReasonRef = useRef('TV-Hauptkamera (Center Court)');
 
-  const [ballVisualPos, setBallVisualPos] = useState(new THREE.Vector3(0, 2.2, -9.8));
+  const ballPosRef = useRef(new THREE.Vector3(0, 2.2, -9.8));
+  const ballMeshGroupRef = useRef<THREE.Group>(null);
+
+  const geomBallSphere = useMemo(() => new THREE.SphereGeometry(0.105, 32, 32), []);
+  const geomBallSeam = useMemo(() => new THREE.TorusGeometry(0.106, 0.005, 8, 32), []);
+  const geomBallAura = useMemo(() => new THREE.SphereGeometry(0.13, 16, 16), []);
+
+  const matBallFelt = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#ccff00',
+    roughness: 0.85,
+    metalness: 0.05,
+    emissive: '#84cc16',
+    emissiveIntensity: 0.15
+  }), []);
+
+  const matBallSeam = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    roughness: 0.4
+  }), []);
+
+  const matBallAura = useMemo(() => new THREE.MeshBasicMaterial({
+    color: '#eab308',
+    transparent: true,
+    opacity: 0.25
+  }), []);
   const serveImpactPosRef = useRef(new THREE.Vector3());
 
   const shotRef = useRef<RallyShot>({
@@ -1320,6 +1350,7 @@ function CraneTennisScene({
   }, []);
 
   useFrame(({ camera }, delta) => {
+    recordFrame(delta);
     const playFactor = isAIvsAI ? 1.0 : 0.0;
     const dt = Math.min(0.05, delta) * gameSpeed * playFactor;
     const shot = shotRef.current;
@@ -1381,8 +1412,11 @@ function CraneTennisScene({
         bc.vel.y = Math.max(0.5, bc.vel.y * 0.6 + 1.0);
       }
 
-      // 5. Visualisierung kontinuierlich synchronisieren
-      setBallVisualPos(bc.pos.clone());
+      // 5. Visualisierung kontinuierlich synchronisieren (Zero-GC)
+      ballPosRef.current.copy(bc.pos);
+      if (ballMeshGroupRef.current) {
+        ballMeshGroupRef.current.position.copy(bc.pos);
+      }
     };
 
     // --- 🔄 DYNAMISCHER SEITENWECHSEL (CHANGE OF ENDS: KRÄNE FAHREN MIT UNTERSCHIEDLICHEN GESCHWINDIGKEITEN & EMOTIONEN) ---
@@ -2374,8 +2408,11 @@ function CraneTennisScene({
       currentZ = THREE.MathUtils.lerp(currentZ, rPos.z, blendT);
     }
 
-    const currentBallPos = new THREE.Vector3(currentX, currentY, currentZ);
-    setBallVisualPos(currentBallPos);
+    ballPosRef.current.set(currentX, currentY, currentZ);
+    if (ballMeshGroupRef.current) {
+      ballMeshGroupRef.current.position.set(currentX, currentY, currentZ);
+    }
+    const currentBallPos = ballPosRef.current;
 
     if (dt > 0.0001) {
       ballVelocityRef.current.copy(currentBallPos).sub(prevBallPosRef.current).divideScalar(dt);
@@ -2959,7 +2996,7 @@ function CraneTennisScene({
   return (
     <>
       {/* ☀️ ATMOSPHÄRISCHER WIMBLEDON-HIMMEL MIT SANFTEN WOLKEN & WEICHEM SONNENLICHT */}
-      {courtSurface !== 'cyber' && (
+      {courtSurface !== 'cyber' && graphicsDetail >= 0.35 && (
         <AtmosphericSkyDome
           zenithColor={courtSurface === 'grass' ? '#1d4ed8' : '#2563eb'}
           horizonColor={courtSurface === 'grass' ? '#93c5fd' : '#bfdbfe'}
@@ -2979,8 +3016,8 @@ function CraneTennisScene({
         position={[28, 32, 18]}
         intensity={2.1}
         color="#fffbeb"
-        castShadow
-        shadow-mapSize={[2048, 2048]}
+        castShadow={graphicsDetail >= 0.45}
+        shadow-mapSize={[graphicsDetail >= 0.80 ? 2048 : 1024, graphicsDetail >= 0.80 ? 2048 : 1024]}
         shadow-camera-left={-30}
         shadow-camera-right={30}
         shadow-camera-top={30}
@@ -3008,19 +3045,19 @@ function CraneTennisScene({
       {/* 🪑 Official Chair Umpire & Staff (Togglable) */}
       {showCourtsideStaff && (
         <>
-          <TennisUmpire ballPos={ballVisualPos} />
+          <TennisUmpire ballPos={ballPosRef} />
           <TennisCourtsideStaff />
         </>
       )}
 
-      {/* 👥 Sitzendes Publikum auf echten Stadionsitzen (Togglable) */}
+      {/* 👥 Sitzendes Publikum auf echten Stadionsitzen (Togglable & LOD-Gesteuert) */}
       <TennisStadiumSpectators 
-        showSpectators={showSpectators}
-        showGrandstands={showGrandstands}
+        showSpectators={showSpectators && graphicsDetail >= 0.45}
+        showGrandstands={showGrandstands && graphicsDetail >= 0.30}
       />
 
       {/* 🏟️ 3D STADIUM LED SCOREBOARDS (NUR VORNE & HINTEN AN DEN GRUNDLINIEN - AGENT 17) */}
-      {showScoreboard3D && (
+      {showScoreboard3D && graphicsDetail >= 0.35 && (
         <>
           {/* 1. Süd-Tafel (Hinten / hinter Kran 1 Sinner) */}
           <TennisStadiumScoreboard 
@@ -3065,39 +3102,14 @@ function CraneTennisScene({
         dollyGroupRef={dolly2GroupRef}
       />
 
-      {/* 🎾 TENNISBALL MIT PROPORTIONALEM FAKTOR 3.0 (20.1 CM DURCHMESSER) & OPTIK-FILZ & AURA */}
-      <group position={[ballVisualPos.x, ballVisualPos.y, ballVisualPos.z]}>
-        {/* Haupt-Filzkern (Faktor 3.0: r = 0.1005 m / d = 20.1 cm) */}
-        <mesh castShadow receiveShadow>
-          <sphereGeometry args={[shotRef.current.isSmash ? 0.108 : shotRef.current.isLob ? 0.105 : 0.1005, 32, 32]} />
-          <meshStandardMaterial
-            color={shotRef.current.isSmash ? "#fef08a" : shotRef.current.isLob ? "#7dd3fc" : "#ccff00"}
-            emissive={shotRef.current.isSmash ? "#f59e0b" : shotRef.current.isLob ? "#0284c7" : "#84cc16"}
-            emissiveIntensity={shotRef.current.isSmash ? 1.4 : shotRef.current.isLob ? 1.0 : 0.35}
-            roughness={0.82}
-            metalness={0.05}
-          />
-        </mesh>
-        {/* Typische weiße Tennisball-Naht (Curved Seam, 3x Skalierung) */}
-        <mesh rotation={[0.4, 0.6, 0]}>
-          <torusGeometry args={[0.1014, 0.0048, 12, 32]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.9} metalness={0.05} />
-        </mesh>
-        {/* Kinetische Leucht-Aura für perfekte TV-Sichtbarkeit aus jeder Broadcast-Distanz */}
-        <mesh>
-          <sphereGeometry args={[shotRef.current.isSmash ? 0.165 : shotRef.current.isLob ? 0.144 : 0.126, 16, 16]} />
-          <meshBasicMaterial
-            color={shotRef.current.isSmash ? "#ea580c" : shotRef.current.isLob ? "#38bdf8" : "#bef264"}
-            transparent
-            opacity={shotRef.current.isSmash ? 0.45 : shotRef.current.isLob ? 0.35 : 0.20}
-          />
-        </mesh>
-        {/* Smash / Power Lichtquelle */}
-        <pointLight
-          color={shotRef.current.isSmash ? "#f59e0b" : "#bef264"}
-          intensity={shotRef.current.isSmash ? 2.2 : 0.8}
-          distance={3.6}
-        />
+      {/* 🎾 3D TENNISBALL & OPTISCHER BALL-AURA-EFFEKT (ZERO-GC DIRECT MESH MUTATION) */}
+      <group ref={ballMeshGroupRef} position={[ballPosRef.current.x, ballPosRef.current.y, ballPosRef.current.z]}>
+        <mesh castShadow={graphicsDetail >= 0.45} geometry={geomBallSphere} material={matBallFelt} />
+        <mesh geometry={geomBallSeam} material={matBallSeam} />
+        {/* Kinetische Ball-Aura / Geschwindigkeits-Glow */}
+        {shotRef.current && (shotRef.current.speedKmh > 180 || shotRef.current.isSmash) && graphicsDetail >= 0.50 && (
+          <mesh geometry={geomBallAura} material={matBallAura} />
+        )}
       </group>
 
       <OrbitControls
@@ -3146,6 +3158,18 @@ export default function CraneTennis() {
 
   // 🦅 Hawk-Eye Line Replay Data State
   const [hawkEyeData, setHawkEyeData] = useState<HawkEyeData | null>(null);
+
+  // ⚡ GRAFIK-DETAILTREUE & GPU-PERFORMANCE BENCHMARK (AGENT 19)
+  const [graphicsDetail, setGraphicsDetail] = useState<number>(1.0);
+  const [isGpuHudExpanded, setIsGpuHudExpanded] = useState<boolean>(true);
+  const [perfMetrics, setPerfMetrics] = useState<PerformanceSnapshot>({ fps: 60, frameMs: 16.6, qualityGrade: 'optimal' });
+
+  const canvasDpr = useMemo(() => {
+    if (graphicsDetail >= 0.85) return [1, 2] as [number, number];
+    if (graphicsDetail >= 0.60) return [1, 1.5] as [number, number];
+    if (graphicsDetail >= 0.35) return 1.0;
+    return 0.75;
+  }, [graphicsDetail]);
   const hawkEyeTimerRef = useRef<number | null>(null);
 
   const handleHawkEyeTrigger = (data: HawkEyeData) => {
@@ -3164,7 +3188,8 @@ export default function CraneTennis() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0, zIndex: 10 }}>
       <Canvas
-        shadows
+        shadows={graphicsDetail >= 0.45}
+        dpr={canvasDpr}
         camera={{ position: [-24, 16.0, 0], fov: 45 }}
         style={{ width: '100%', height: '100%', outline: 'none', touchAction: 'none' }}
       >
@@ -3195,6 +3220,8 @@ export default function CraneTennis() {
           manualResetTrigger={manualResetTrigger}
           onDirectorInfoChange={setDirectorLiveInfo}
           onHawkEyeTrigger={handleHawkEyeTrigger}
+          graphicsDetail={graphicsDetail}
+          onPerfUpdate={setPerfMetrics}
         />
       </Canvas>
 
@@ -3236,6 +3263,160 @@ export default function CraneTennis() {
           </div>
         </div>
       )}
+
+      {/* 🖥️ ON-SCREEN GRAFIK-DETAILTREUE & GPU-BENCHMARK HUD (DIRECT VIEW) */}
+      <div style={{
+        position: 'absolute',
+        top: cameraMode === 'broadcast' ? '78px' : '20px',
+        left: '20px',
+        width: isGpuHudExpanded ? '310px' : 'auto',
+        background: 'rgba(11, 16, 28, 0.92)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid rgba(56, 189, 248, 0.40)',
+        borderRadius: '12px',
+        padding: isGpuHudExpanded ? '10px 14px' : '6px 12px',
+        color: '#e2e8f0',
+        zIndex: 40,
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.15)',
+        pointerEvents: 'auto',
+        fontFamily: 'Inter, system-ui, sans-serif',
+        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+      }}>
+        {/* Top Header Row (Always Visible) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '9px',
+              height: '9px',
+              borderRadius: '50%',
+              background: perfMetrics.qualityGrade === 'optimal' ? '#22c55e' : perfMetrics.qualityGrade === 'good' ? '#eab308' : '#ef4444',
+              boxShadow: `0 0 10px ${perfMetrics.qualityGrade === 'optimal' ? '#22c55e' : perfMetrics.qualityGrade === 'good' ? '#eab308' : '#ef4444'}`,
+              flexShrink: 0
+            }} />
+            <span style={{
+              fontSize: '12px',
+              fontWeight: 800,
+              fontFamily: 'monospace',
+              color: perfMetrics.qualityGrade === 'optimal' ? '#4ade80' : perfMetrics.qualityGrade === 'good' ? '#fde047' : '#f87171'
+            }}>
+              {perfMetrics.fps.toFixed(0)} FPS
+            </span>
+            <span style={{ color: '#64748b', fontSize: '10px' }}>•</span>
+            <span style={{ color: '#94a3b8', fontSize: '11px', fontFamily: 'monospace', fontWeight: 600 }}>
+              {perfMetrics.frameMs.toFixed(1)}ms
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 900,
+              fontFamily: 'monospace',
+              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(14, 165, 233, 0.35))',
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              color: '#38bdf8',
+              padding: '2px 7px',
+              borderRadius: '6px'
+            }}>
+              {Math.round(graphicsDetail * 100)}%
+            </span>
+
+            <button
+              onClick={() => setIsGpuHudExpanded(!isGpuHudExpanded)}
+              title={isGpuHudExpanded ? 'Schieberegler einklappen' : 'Grafik-Schieberegler ausklappen'}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#cbd5e1',
+                borderRadius: '6px',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                cursor: 'pointer',
+                padding: 0
+              }}
+            >
+              {isGpuHudExpanded ? '▲' : '▼'}
+            </button>
+          </div>
+        </div>
+
+        {/* Expanded Direct Slider Controls */}
+        {isGpuHudExpanded && (
+          <div style={{ marginTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🖥️ Grafik-Detailtreue:
+              </span>
+              <span style={{
+                fontSize: '9.5px',
+                fontWeight: 800,
+                color: graphicsDetail >= 0.85 ? '#4ade80' : graphicsDetail >= 0.60 ? '#38bdf8' : graphicsDetail >= 0.35 ? '#facc15' : '#f87171'
+              }}>
+                {graphicsDetail >= 0.85 ? '👑 Ultra (4K Retina)' : graphicsDetail >= 0.60 ? '💎 High (1.5x HD)' : graphicsDetail >= 0.35 ? '⚡ Medium (1.0x FHD)' : '🥔 Potato (Max FPS)'}
+              </span>
+            </div>
+
+            {/* Direct Continuous Slider */}
+            <input
+              type="range"
+              min="0.10"
+              max="1.00"
+              step="0.05"
+              value={graphicsDetail}
+              onChange={(e) => setGraphicsDetail(parseFloat(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: '#38bdf8',
+                cursor: 'pointer',
+                margin: '2px 0 6px 0'
+              }}
+            />
+
+            {/* Quick Preset Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginTop: '4px' }}>
+              {[
+                { label: '🥔 25%', val: 0.25, title: 'Potato / Max FPS (0.75x DPR, No Shadows)' },
+                { label: '⚡ 50%', val: 0.50, title: 'Medium / FHD (1.0x DPR, Soft Shadows)' },
+                { label: '💎 75%', val: 0.75, title: 'High HD (1.5x DPR, 2K Shadows, Crowd)' },
+                { label: '👑 100%', val: 1.00, title: 'Ultra 4K (2.0x Retina, All Details)' }
+              ].map(p => {
+                const isSelected = Math.abs(graphicsDetail - p.val) < 0.08;
+                return (
+                  <button
+                    key={p.label}
+                    onClick={() => setGraphicsDetail(p.val)}
+                    title={p.title}
+                    style={{
+                      padding: '4px 2px',
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      borderRadius: '5px',
+                      border: `1px solid ${isSelected ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`,
+                      background: isSelected ? 'rgba(56,189,248,0.35)' : 'rgba(255,255,255,0.06)',
+                      color: isSelected ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 0 10px rgba(56,189,248,0.3)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 🦅 HAWK-EYE ELECTRONIC LINE CALLING (ELC) OVERLAY */}
       <TennisHawkEyeOverlay

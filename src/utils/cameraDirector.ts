@@ -30,15 +30,18 @@ export type FilmCameraPresetId =
   | 'free';       // 100% Freier interaktiver Orbit (OrbitControls)
 
 export type TennisBroadcastCameraId =
-  | 'broadcast'   // TV-Hauptkamera (Center Court High-Angle)
-  | 'portrait'    // Protagonisten-Portrait (Intimer Cine-Fokus auf Gesicht & Oberkörper)
-  | 'ball'        // Dynamische 3D-Ballverfolgungskamera
-  | 'crane1'      // Spieler 1 (Sinner) Kranspitzen-Nahaufnahme
-  | 'crane2'      // Spieler 2 (Alcaraz) Kranspitzen-Nahaufnahme
-  | 'umpire'      // Schiedsrichterstuhl & Entscheidungs-Perspektive
-  | 'spectator'   // Tribünen-Zuschauerperspektive (Courtside View)
-  | 'coach'       // Trainerbox & Emotionen
-  | 'free';       // Freie interaktive Benutzer-Kamera
+  | 'broadcast'         // TV-Hauptkamera (Center Court High-Angle)
+  | 'broadcast_south'   // TV-Totale von hinten Süd (3/4 Sinner-Seite)
+  | 'broadcast_north'   // TV-Totale von hinten Nord (3/4 Alcaraz-Seite)
+  | 'net'               // Netzkanten-Nahaufnahme (Net-Cord Macro Cam)
+  | 'portrait'          // Protagonisten-Portrait (Intimer Cine-Fokus auf Gesicht & Oberkörper)
+  | 'ball'              // Dynamische 3D-Ballverfolgungskamera
+  | 'crane1'            // Spieler 1 (Sinner) Kranspitzen-Nahaufnahme
+  | 'crane2'            // Spieler 2 (Alcaraz) Kranspitzen-Nahaufnahme
+  | 'umpire'            // Schiedsrichterstuhl & Entscheidungs-Perspektive
+  | 'spectator'         // Tribünen-Zuschauerperspektive (Courtside View)
+  | 'coach'             // Trainerbox & Emotionen
+  | 'free';             // Freie interaktive Benutzer-Kamera
 
 export type TallyState = 'off' | 'preview' | 'on_air' | 'cue';
 
@@ -206,6 +209,33 @@ export const TENNIS_CAMERA_PRESETS: Record<TennisBroadcastCameraId, DirectorShot
     category: 'broadcast',
     minHoldDuration: 3.5,
     preferredTransitions: ['smooth_lerp', 'cut']
+  },
+  broadcast_south: {
+    id: 'broadcast_south',
+    name: '3/4 Totale Süd (Sinner)',
+    desc: 'Leicht erhöhte TV-Einstellung von der Seite Sinners mit Blick auf beide Spieler',
+    icon: '🎥',
+    category: 'broadcast',
+    minHoldDuration: 3.5,
+    preferredTransitions: ['cut']
+  },
+  broadcast_north: {
+    id: 'broadcast_north',
+    name: '3/4 Totale Nord (Alcaraz)',
+    desc: 'Leicht erhöhte TV-Einstellung von der Seite Alcaraz mit Blick auf beide Spieler',
+    icon: '🎥',
+    category: 'broadcast',
+    minHoldDuration: 3.5,
+    preferredTransitions: ['cut']
+  },
+  net: {
+    id: 'net',
+    name: 'Netzkanten-Nahaufnahme',
+    desc: 'Intimes Macro-Close-Up an der Netzkante bei Netzfehlern und Netzrollern',
+    icon: '🕸️',
+    category: 'action',
+    minHoldDuration: 2.2,
+    preferredTransitions: ['cut']
   },
   portrait: {
     id: 'portrait',
@@ -470,12 +500,31 @@ export type PreServeDirectorStyle =
   | 'baseline_hero_jib'    // 🎬 Low-Angle Grundlinien Hero Jib (Aufschläger von schräg unten)
   | 'coach_box';           // 👥 Trainerbox beobachtet die Aufschlag-Positionierung
 
-export type PostPointDirectorStyle = 'portrait_winner' | 'portrait_loser' | 'coach_box' | 'spectator_crowd' | 'umpire_chair';
+export type PostPointDirectorStyle = 'portrait_winner' | 'portrait_loser' | 'coach_box' | 'spectator_crowd' | 'umpire_chair' | 'net_closeup';
+
+export type RallyDirectorCameraAngle = 'broadcast' | 'broadcast_south' | 'broadcast_north';
+
+export type PortraitAngleType = 'frontal' | 'three_quarter_left' | 'three_quarter_right' | 'low_hero' | 'high_dramatic';
+export type NetCamAngleType = 'left_post_macro' | 'right_post_macro' | 'frontal_mesh' | 'low_rebound';
+export type CoachAngleType = 'tight_coach' | 'two_shot_box' | 'low_angle_bench';
 
 export interface PointDirectorPlan {
   pointId: number;
   preServeStyle: PreServeDirectorStyle;
   postPointStyle: PostPointDirectorStyle;
+  rallyCameraAngle: RallyDirectorCameraAngle;
+  // 🎬 Close-Up Variation Engine (Timing, Winkel, Zoom/Distanz & FOV):
+  portraitAngle: PortraitAngleType;
+  portraitDistance: number;      // 1.55m (Tight Close-Up) bis 2.85m (Medium Cowboy Shot)
+  portraitElevation: number;     // -0.35m (Hero Low-Angle) bis +0.45m (High-Angle)
+  portraitLateralOffset: number; // -1.1m (3/4 Left) bis +0.8m (3/4 Right)
+  portraitFov: number;           // 35° (85mm Telephoto) bis 48° (Standard)
+  netCamAngle: NetCamAngleType;
+  netCamDistance: number;        // 1.5m bis 2.8m
+  netCamFov: number;             // 38° bis 52°
+  coachAngle: CoachAngleType;
+  coachDistance: number;         // 3.8m bis 6.2m
+  closeUpStage1Duration: number; // 1.9s bis 3.5s variable Hold-Dauer
 }
 
 /**
@@ -484,7 +533,7 @@ export interface PointDirectorPlan {
  */
 export function generatePointDirectorPlan(
   pointId: number,
-  _server?: 1 | 2,
+  server?: 1 | 2,
   lastPlan?: PointDirectorPlan | null
 ): PointDirectorPlan {
   const preServeStyles: PreServeDirectorStyle[] = [
@@ -501,20 +550,101 @@ export function generatePointDirectorPlan(
     'portrait_loser',
     'coach_box',
     'spectator_crowd',
-    'umpire_chair'
+    'umpire_chair',
+    'net_closeup'
   ];
+
+  const portraitAngles: PortraitAngleType[] = ['frontal', 'three_quarter_left', 'three_quarter_right', 'low_hero', 'high_dramatic'];
+  const netCamAngles: NetCamAngleType[] = ['left_post_macro', 'right_post_macro', 'frontal_mesh', 'low_rebound'];
+  const coachAngles: CoachAngleType[] = ['tight_coach', 'two_shot_box', 'low_angle_bench'];
 
   // Filter out the last point's styles to guarantee high visual variety
   const availPre = preServeStyles.filter(s => s !== lastPlan?.preServeStyle);
   const availPost = postStyles.filter(s => s !== lastPlan?.postPointStyle);
+  const availPortrait = portraitAngles.filter(s => s !== lastPlan?.portraitAngle);
 
   const preServeStyle = availPre[Math.floor(Math.random() * availPre.length)] || 'portrait_tight_face';
   const postPointStyle = availPost[Math.floor(Math.random() * availPost.length)] || 'portrait_winner';
+  const portraitAngle = availPortrait[Math.floor(Math.random() * availPortrait.length)] || 'three_quarter_left';
+  const netCamAngle = netCamAngles[Math.floor(Math.random() * netCamAngles.length)];
+  const coachAngle = coachAngles[Math.floor(Math.random() * coachAngles.length)];
+
+  // 🎾 Dynamische Auswahl der Totale für den Ballwechsel (55% Center Gantry, 45% Totale von hinten Süd/Nord)
+  const rallyRoll = Math.random();
+  let rallyCameraAngle: RallyDirectorCameraAngle = 'broadcast';
+  if (rallyRoll < 0.28) {
+    rallyCameraAngle = server === 2 ? 'broadcast_north' : 'broadcast_south'; // Totale von hinten (Aufschläger-Rücken)
+  } else if (rallyRoll < 0.45) {
+    rallyCameraAngle = server === 2 ? 'broadcast_south' : 'broadcast_north'; // Totale von hinten (Rückschläger-Rücken)
+  } else {
+    rallyCameraAngle = 'broadcast'; // Klassische Seitentotale (Wimbledon High-Centre Gantry)
+  }
+
+  // Nicht 2x hintereinander exakt die gleiche Totale von hinten erzwingen
+  if (lastPlan && lastPlan.rallyCameraAngle !== 'broadcast' && rallyCameraAngle === lastPlan.rallyCameraAngle) {
+    rallyCameraAngle = 'broadcast';
+  }
+
+  // 🎬 Zufällige Zoom-, Distanz-, Elevations- und FOV-Variationen für Nahaufnahmen:
+  let portraitDistance = 2.10;
+  let portraitElevation = 0.05;
+  let portraitFov = 44;
+  let portraitLateralOffset = -0.68;
+
+  switch (portraitAngle) {
+    case 'frontal':
+      portraitDistance = 1.65 + Math.random() * 0.45; // 1.65m - 2.10m (Intimes Frontal-Close-Up)
+      portraitElevation = 0.02 + Math.random() * 0.10;
+      portraitFov = 38 + Math.random() * 5; // 38° - 43° Telephoto-Crop
+      portraitLateralOffset = -0.10 + (Math.random() - 0.5) * 0.20;
+      break;
+    case 'three_quarter_left':
+      portraitDistance = 1.95 + Math.random() * 0.65; // 1.95m - 2.60m
+      portraitElevation = 0.08 + Math.random() * 0.18;
+      portraitFov = 42 + Math.random() * 5;
+      portraitLateralOffset = -0.82 - Math.random() * 0.30; // Versetzt nach links
+      break;
+    case 'three_quarter_right':
+      portraitDistance = 1.85 + Math.random() * 0.60;
+      portraitElevation = 0.06 + Math.random() * 0.16;
+      portraitFov = 40 + Math.random() * 5;
+      portraitLateralOffset = 0.45 + Math.random() * 0.35; // Versetzt nach rechts
+      break;
+    case 'low_hero':
+      portraitDistance = 1.70 + Math.random() * 0.55;
+      portraitElevation = -0.28 - Math.random() * 0.20; // Hero-Untersicht von schräg unten
+      portraitFov = 46 + Math.random() * 5;
+      portraitLateralOffset = -0.60 - Math.random() * 0.25;
+      break;
+    case 'high_dramatic':
+      portraitDistance = 2.20 + Math.random() * 0.65;
+      portraitElevation = 0.40 + Math.random() * 0.22; // Dramatische Aufsicht von oben
+      portraitFov = 39 + Math.random() * 5;
+      portraitLateralOffset = -0.45 + (Math.random() - 0.5) * 0.35;
+      break;
+  }
+
+  const netCamDistance = 1.65 + Math.random() * 0.85; // 1.65m - 2.50m
+  const netCamFov = 40 + Math.random() * 8;
+  const coachDistance = 4.2 + Math.random() * 1.6;
+  const closeUpStage1Duration = 2.0 + Math.random() * 1.4; // 2.0s - 3.4s variable Hold-Dauer
 
   return {
     pointId,
     preServeStyle,
-    postPointStyle
+    postPointStyle,
+    rallyCameraAngle,
+    portraitAngle,
+    portraitDistance,
+    portraitElevation,
+    portraitLateralOffset,
+    portraitFov,
+    netCamAngle,
+    netCamDistance,
+    netCamFov,
+    coachAngle,
+    coachDistance,
+    closeUpStage1Duration
   };
 }
 
@@ -547,6 +677,8 @@ export function evaluateDynamicTennisDirectorDecision(
       isNetError?: boolean;
       isOutError?: boolean;
       isNetCord?: boolean;
+      isFault?: boolean;
+      netHeight?: number;
       shooter: 1 | 2;
       progress: number;
     };
@@ -628,8 +760,19 @@ export function evaluateDynamicTennisDirectorDecision(
     const winnerEmotion = winner === 1 ? activeEmotionP1 : activeEmotionP2;
     const loserEmotion = loser === 1 ? activeEmotionP1 : activeEmotionP2;
 
-    // 🎭 STUFE 1: UNMITTELBARE SIEGER- / VERLIERER-EMOTION (0.0s bis ca. 3.2s)
-    if (elapsed < 3.2) {
+    // 🎭 STUFE 1: UNMITTELBARE SIEGER- / VERLIERER-EMOTION (Variable Dauer: 1.9s bis 3.5s)
+    const stage1Dur = plan.closeUpStage1Duration || 2.8;
+    if (elapsed < stage1Dur) {
+      // 🕸️ GELEGENTLICHES NETZKANTEN-CLOSE-UP BEI NETZFEHLERN / NETZROLLERN
+      const isNetBall = shot.isNetError || shot.isNetCord || (shot.isServe && shot.isFault && (shot.netHeight ?? 1.0) <= 1.0);
+      if (isNetBall && plan.postPointStyle === 'net_closeup') {
+        return {
+          targetCam: 'net',
+          label: '🕸️ NETZKANTEN-NAHAUFNAHME',
+          reason: 'Macro-Close-Up an der Netzkante • Ball trifft das Netzband & rollt ab'
+        };
+      }
+
       if (winnerEmotion === 'ear_cup_celebration') {
         return {
           targetCam: 'portrait',
@@ -825,15 +968,37 @@ export function evaluateDynamicTennisDirectorDecision(
   // 4. 📺 DER AUFSCHLAG & LIVE-BALLWECHSEL (AB BALLWURF & BALLFLUG)
   // Sobald der Ballwurf / die Aufschlag-Bewegung beginnt (shot.isServe && shot.progress >= readyFraction)
   // sowie während des gesamten anschließenden Ballwechsels:
-  // ➜ IMMER 'broadcast' (Wimbledon High-Centre Gantry)!
-  // Der Zuschauer sieht die gesamte Aufschlagbewegung, den Treffpunkt, den Ballflug über das Netz und den Return!
-  return {
-    targetCam: 'broadcast',
-    label: '📺 High-Centre Gantry',
-    reason: isServing 
-      ? `🎾 Aufschlag-Bewegung & Ballflug • Volle Spielfeld-Sicht`
-      : `Live-Ballwechsel (${rallyCount > 0 ? `${rallyCount}. Schlag` : 'Ball im Spiel'}) • Volle Übersicht`
-  };
+  // ➜ Variiert dynamisch zwischen:
+  //    1. 'broadcast' (Center Court High-Centre Gantry)
+  //    2. 'broadcast_south' (Totale von hinten Süd / End-to-End hinter Süd-Grundlinie)
+  //    3. 'broadcast_north' (Totale von hinten Nord / End-to-End hinter Nord-Grundlinie)
+  const rallyCam = plan.rallyCameraAngle || 'broadcast';
+
+  if (rallyCam === 'broadcast_south') {
+    return {
+      targetCam: 'broadcast_south',
+      label: '🎥 3/4 Totale Süd (Sinner)',
+      reason: isServing
+        ? '🎾 Aufschlag-Perspektive von Sinner-Seite • Volle Sicht auf beide Spieler'
+        : `Live-Ballwechsel von Sinner-Seite (${rallyCount > 0 ? `${rallyCount}. Schlag` : 'Ball im Spiel'}) • Beide Spieler im Blick`
+    };
+  } else if (rallyCam === 'broadcast_north') {
+    return {
+      targetCam: 'broadcast_north',
+      label: '🎥 3/4 Totale Nord (Alcaraz)',
+      reason: isServing
+        ? '🎾 Aufschlag-Perspektive von Alcaraz-Seite • Volle Sicht auf beide Spieler'
+        : `Live-Ballwechsel von Alcaraz-Seite (${rallyCount > 0 ? `${rallyCount}. Schlag` : 'Ball im Spiel'}) • Beide Spieler im Blick`
+    };
+  } else {
+    return {
+      targetCam: 'broadcast',
+      label: '📺 High-Centre Gantry',
+      reason: isServing 
+        ? `🎾 Aufschlag-Bewegung & Ballflug • Volle Spielfeld-Sicht`
+        : `Live-Ballwechsel (${rallyCount > 0 ? `${rallyCount}. Schlag` : 'Ball im Spiel'}) • Volle Übersicht`
+    };
+  }
 }
 
 /**

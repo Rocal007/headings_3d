@@ -1,5 +1,4 @@
 import { useMemo, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { type MatchScore, getTennisPointsLabel, formatMatchTime } from './TennisScoreboardHUD';
 
@@ -301,15 +300,10 @@ export default function TennisStadiumScoreboard({
   rotation = [0, 0, 0],
   scale = 1.0
 }: TennisStadiumScoreboardProps) {
-  // Initiale Erstellung & Update bei Zustandswechsel
+  // Update bei Punktestand-/Zustandswechsel
   useEffect(() => {
     updateSharedTexture(matchScore, performance.now());
   }, [matchScore]);
-
-  // Sanfte periodische Aktualisierung für Uhrzeit/Pulse (max 4x pro Sekunde)
-  useFrame((state) => {
-    updateSharedTexture(matchScore, state.clock.elapsedTime * 1000);
-  });
 
   const texture = useMemo(() => {
     return updateSharedTexture(matchScore, performance.now());

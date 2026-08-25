@@ -10,15 +10,16 @@ import * as THREE from 'three';
  */
 
 export interface TennisUmpireProps {
-  ballPos: THREE.Vector3;
+  ballPos?: THREE.Vector3 | React.MutableRefObject<THREE.Vector3>;
 }
 
 export function TennisUmpire({ ballPos }: TennisUmpireProps) {
   const headRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
-    if (headRef.current) {
-      const angle = THREE.MathUtils.clamp(-ballPos.z * 0.065, -0.9, 0.9);
+    if (headRef.current && ballPos) {
+      const z = 'current' in ballPos ? ballPos.current.z : ballPos.z;
+      const angle = THREE.MathUtils.clamp(-z * 0.065, -0.9, 0.9);
       headRef.current.rotation.y = THREE.MathUtils.lerp(headRef.current.rotation.y, angle, 0.12);
     }
   });

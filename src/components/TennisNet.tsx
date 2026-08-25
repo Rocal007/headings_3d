@@ -358,6 +358,8 @@ export default function TennisNet({
       }
     }
 
+    if (!hasActiveImpulse) return;
+
     let vIdx = 0;
     for (let j = 0; j <= SEGMENTS_Y; j++) {
       const v = j / SEGMENTS_Y;

@@ -29,6 +29,7 @@ graph TD
     Tennis --> TennisEmotions[18. tennis_emotions<br/>Player Psychology, Celebrations & Drama]
     Orchestrator --> Architect[19. software_architect<br/>Architecture, R3F Performance & Governance]
     Orchestrator --> Director[20. camera_director<br/>Automated Cinematography & Broadcast Regie]
+    Tennis --> BallDeployment[21. ball_crane_deployment<br/>Tennis Ball Deployment, Hopper & Cannon Launcher]
 ```
 
 ---
@@ -305,6 +306,24 @@ graph TD
   * **5. Viewfinder HUD, Tally Lights & Framing Guides**:
     * ARRI Master Viewfinder Overlays: Anamorphic 2.39:1, Academy 1.85:1, Broadcast 16:9 und Social 9:16 Safe-Title-Rahmen.
     * Tally-Signal-Matrix: Live On-Air (Rot), Preview/Cued (Gelb) und Standby (Grün).
+
+### 21. `ball_crane_deployment` (Tennis Ball Deployment, Pneumatic Serve Ball-Tube & Ball Cannon Engine)
+* **Dateien**: [`src/utils/ballDeployment.ts`](file:///e:/3D-headings/src/utils/ballDeployment.ts), [`src/components/tennis/TennisBallDeployment.tsx`](file:///e:/3D-headings/src/components/tennis/TennisBallDeployment.tsx), [`src/components/CraneTennis.tsx`](file:///e:/3D-headings/src/components/CraneTennis.tsx), [`src/components/tennis/TennisControlDrawer.tsx`](file:///e:/3D-headings/src/components/tennis/TennisControlDrawer.tsx)
+* **Zuständigkeit**:
+  * **1. Transparentes Ballrohr & Vakuum-Ansaugung (Pre-Serve Tube Suction nach den Gewichten)**:
+    * Längliches, hochtransparentes Polycarbonat-Ballrohr ($L = 2.20\,\text{m}$), montiert oben auf dem Kranausleger (Beam 1) direkt nach dem Verfahrweg der Gegengewichte ($Z = -1.18\,\text{m}$ bis $-3.38\,\text{m}$).
+    * Lückenlose Füllung mit bis zu 14 sichtbaren 3D-Tennisbällen (gelber Filz + weiße Naht), gesichert durch 5x Carbon-Sattelhalterungen an den Auslegerschienen.
+    * **Kein Boden-Aufprellen mehr**: Der Ball wird vor dem Aufschlag per Vakuum mit schlagtyp-spezifischer Geschwindigkeit durch das Rohr nach vorne in die Mündungskammer gesaugt (Flat: High-Speed Snap, Kick: progressiver Anstieg, Slice: laminarer Gleitlauf).
+  * **2. Pneumatischer Aufschlag-Toss Werfer (Druckluft-Schuss in Höhe & Winkel)**:
+    * Hochpräziser Druckluft-Impuls aus der vorderen Rohrmündung ($72^\circ$ Elevation), der den Ball direkt in die optimale Aufschlag-Treffpunkthöhe ($Y \approx 3.55\,\text{m}$) vor das Schlägerblatt schießt.
+    * Mündungsfeuer / Glow-Effekt, Druckluft-Schockwellenring und Live-Druckanzeige am digitalen Manometer ($8.4\,\text{Bar}$).
+  * **3. Ballkinder-Zuspiel & Nachladetrichter (`BallBoyFeed`)**:
+    * Authentische 3D-Bodenroll- und Handwurf-Parabeln von den 4 Courtside-Ballkindern direkt in den hinteren Einfülltrichter des Ausleger-Ballrohrs bei $Z = -1.18\,\text{m}$.
+    * Automatischer und manueller Nachladevorgang über UI-Trigger.
+  * **4. Autonome Trainings-Drills & Multiball-Physik**:
+    * Runge-Kutta 4. Ordnung (RK4) Trajektorien-Solver für Vorhand/Rückhand/Smash-Zuspiele und Repetier-Drills.
+  * **5. Sicherheits-Guardrails & Drucküberwachung**:
+    * Druckbegrenzung ($4.0 - 12.0\,\text{Bar}$) und Mindestsicherheitsradius (`CANNON_SAFE_CLEARANCE = 1.2m`).
 
 ---
 

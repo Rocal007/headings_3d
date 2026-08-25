@@ -1,13 +1,14 @@
 import type { CourtSurface } from './TennisArena';
+import type { BallHopperState, TrainingDrillPreset } from '../../utils/ballDeployment';
 
 /**
  * ============================================================================
- * TENNIS CONTROL DRAWER (AGENT 13)
- * 2D DOM Steuerungs-Panel (Rechte Seitenleiste) für Schläge, Beläge, Kameras
+ * TENNIS CONTROL DRAWER (AGENT 13 / 21)
+ * 2D DOM Steuerungs-Panel (Rechte Seitenleiste) für Schläge, Beläge, Kameras & Ball-Kran Deployment
  * ============================================================================
  */
 
-export type TennisCameraMode = 'broadcast' | 'portrait' | 'ball' | 'crane1' | 'crane2' | 'umpire' | 'spectator' | 'coach' | 'free';
+export type TennisCameraMode = 'broadcast' | 'broadcast_south' | 'broadcast_north' | 'net' | 'portrait' | 'ball' | 'crane1' | 'crane2' | 'umpire' | 'spectator' | 'coach' | 'free';
 
 export interface TennisControlDrawerProps {
   isControlsOpen: boolean;
@@ -43,6 +44,10 @@ export interface TennisControlDrawerProps {
   setManualNetErrorTrigger: React.Dispatch<React.SetStateAction<number>>;
   setManualOutErrorTrigger: React.Dispatch<React.SetStateAction<number>>;
   setManualServiceWinnerTrigger: React.Dispatch<React.SetStateAction<number>>;
+  hopperStateP1?: BallHopperState;
+  hopperStateP2?: BallHopperState;
+  onTriggerCannonDrill?: (preset: TrainingDrillPreset) => void;
+  onTriggerBallBoyFeed?: (server: 1 | 2) => void;
 }
 
 export function TennisControlDrawer({
@@ -78,7 +83,11 @@ export function TennisControlDrawer({
   setManualVolleyTrigger,
   setManualNetErrorTrigger,
   setManualOutErrorTrigger,
-  setManualServiceWinnerTrigger
+  setManualServiceWinnerTrigger,
+  hopperStateP1,
+  hopperStateP2,
+  onTriggerCannonDrill,
+  onTriggerBallBoyFeed
 }: TennisControlDrawerProps) {
   if (!isControlsOpen) {
     return (
@@ -258,6 +267,9 @@ export function TennisControlDrawer({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
           {[
             { id: 'broadcast' as const, label: '📺 TV Broadcast (Auto-Regie)', special: true },
+            { id: 'broadcast_south' as const, label: '🎥 3/4 Totale Süd (Sinner)' },
+            { id: 'broadcast_north' as const, label: '🎥 3/4 Totale Nord (Alcaraz)' },
+            { id: 'net' as const, label: '🕸️ Netzkanten-Cam' },
             { id: 'portrait' as const, label: '👤 Protagonisten-Portrait' },
             { id: 'ball' as const, label: '⚡ Ball-Tracking' },
             { id: 'crane1' as const, label: '🇮🇹 Sinner Hero (Kran 1)' },
@@ -528,6 +540,139 @@ export function TennisControlDrawer({
             <span style={{ fontSize: '9px', color: '#fde047' }}>Return-Fehler</span>
           </button>
         </div>
+      </div>
+
+      {/* 🎾 BALL-KRAN DEPLOYMENT & CANNON LAUNCHER (AGENT 21: ball_crane_deployment) */}
+      <div style={{
+        marginBottom: '14px',
+        background: 'linear-gradient(135deg, rgba(14,165,233,0.18), rgba(99,102,241,0.15))',
+        padding: '10px',
+        borderRadius: '8px',
+        border: '1px solid rgba(56,189,248,0.45)'
+      }}>
+        <div style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>🎾 Top-Boom Ballrohr (nach den Gewichten)</span>
+          <span style={{ fontSize: '9px', background: '#0284c7', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontWeight: 900 }}>
+            {hopperStateP1 ? `${hopperStateP1.loadedCount}/6` : '6/6'} • {hopperStateP2 ? `${hopperStateP2.loadedCount}/6 BÄLLE` : '6/6 BÄLLE'}
+          </span>
+        </div>
+
+        {/* Status Indicators: Tube Magazine & Pressure */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px', fontSize: '10px' }}>
+          <div style={{ background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '6px', padding: '6px' }}>
+            <div style={{ color: '#94a3b8', fontSize: '9px' }}>Pneumatik-Vakuum:</div>
+            <div style={{ fontWeight: 800, color: '#38bdf8', fontSize: '11px' }}>
+              {hopperStateP1 ? `${hopperStateP1.pressureBar.toFixed(1)} Bar` : '8.4 Bar'} <span style={{ fontSize: '8px', color: '#22c55e' }}>● SUCTION BEREIT</span>
+            </div>
+          </div>
+          <div style={{ background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(250,204,21,0.3)', borderRadius: '6px', padding: '6px' }}>
+            <div style={{ color: '#94a3b8', fontSize: '9px' }}>Rohr-Ansaugung:</div>
+            <div style={{ fontWeight: 800, color: '#facc15', fontSize: '11px' }}>
+              Dynamisch <span style={{ fontSize: '8px', color: '#38bdf8' }}>nach Schlagtyp</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Autonomous Practice Training Drills */}
+        <div style={{ fontSize: '10px', fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>
+          🎯 Pneumatische Trainings-Drills:
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '8px' }}>
+          <button
+            onClick={() => onTriggerCannonDrill && onTriggerCannonDrill('topspin_cross')}
+            style={{
+              padding: '5px 6px',
+              fontSize: '9px',
+              fontWeight: 800,
+              borderRadius: '5px',
+              border: '1px solid rgba(245,158,11,0.6)',
+              background: 'rgba(245,158,11,0.2)',
+              color: '#fef3c7',
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
+          >
+            <div>🌪️ Topspin-Cross</div>
+            <div style={{ fontSize: '8px', color: '#94a3b8' }}>178 km/h • 3.4k RPM</div>
+          </button>
+
+          <button
+            onClick={() => onTriggerCannonDrill && onTriggerCannonDrill('backhand_laser')}
+            style={{
+              padding: '5px 6px',
+              fontSize: '9px',
+              fontWeight: 800,
+              borderRadius: '5px',
+              border: '1px solid rgba(56,189,248,0.6)',
+              background: 'rgba(56,189,248,0.2)',
+              color: '#e0f2fe',
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
+          >
+            <div>⚡ Laser-Return</div>
+            <div style={{ fontSize: '8px', color: '#94a3b8' }}>205 km/h • Flat</div>
+          </button>
+
+          <button
+            onClick={() => onTriggerCannonDrill && onTriggerCannonDrill('smash_overhead')}
+            style={{
+              padding: '5px 6px',
+              fontSize: '9px',
+              fontWeight: 800,
+              borderRadius: '5px',
+              border: '1px solid rgba(239,68,68,0.6)',
+              background: 'rgba(239,68,68,0.2)',
+              color: '#fee2e2',
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
+          >
+            <div>🛡️ Smash-Feeder</div>
+            <div style={{ fontSize: '8px', color: '#94a3b8' }}>68° Apex-Bogen</div>
+          </button>
+
+          <button
+            onClick={() => onTriggerCannonDrill && onTriggerCannonDrill('rapid_fire_rally')}
+            style={{
+              padding: '5px 6px',
+              fontSize: '9px',
+              fontWeight: 800,
+              borderRadius: '5px',
+              border: '1px solid rgba(168,85,247,0.6)',
+              background: 'rgba(168,85,247,0.2)',
+              color: '#f3e8ff',
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
+          >
+            <div>🚀 Rapid-Fire</div>
+            <div style={{ fontSize: '8px', color: '#94a3b8' }}>6 Bälle Repetierfeuer</div>
+          </button>
+        </div>
+
+        {/* Ball Boy Feed Button */}
+        <button
+          onClick={() => onTriggerBallBoyFeed && onTriggerBallBoyFeed(1)}
+          style={{
+            width: '100%',
+            padding: '6px 8px',
+            fontSize: '10px',
+            fontWeight: 800,
+            borderRadius: '6px',
+            border: '1px solid rgba(34,197,94,0.6)',
+            background: 'linear-gradient(135deg, rgba(34,197,94,0.3), rgba(16,185,129,0.15))',
+            color: '#86efac',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          <span>🎾</span>
+          <span>Ballkind-Zuspiel in Ladetrichter (Reload)</span>
+        </button>
       </div>
 
       {/* 🎭 SPIELER-PSYCHOLOGIE & EMOTIONEN (AGENT 18: tennis_emotions) */}
