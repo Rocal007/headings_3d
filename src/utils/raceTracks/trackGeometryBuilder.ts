@@ -3,6 +3,8 @@ import type { CircuitDefinition, TrackMeshesResult } from './trackTypes';
 import {
   createAsphaltBumpTexture,
   createRoadMarkingsTexture,
+  createGrassTexture,
+  createGrassBumpTexture,
 } from '../../materials/truckTextures';
 
 /**
@@ -437,6 +439,10 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
       group.add(tracksideMesh);
     }
   }
+
+  // 8. 🏔️ 3D-Topographisches Gelände (folgt den Höhenunterschieden und Bergen der Strecke)
+  const terrainMesh = createCircuitTerrainMesh(trackCurve, disposables);
+  group.add(terrainMesh);
 
   // Rekursives Erfassen aller GPU-Ressourcen für 100% Zero-Leak Garantie (Säule 2.1)
   group.traverse((obj) => {
@@ -932,4 +938,111 @@ function createTracksideCameraMesh(
   }
 
   return root;
+}
+
+/**
+ * 🏔️ Erzeugt das vollständige 3D-Gelände (Topographisches Höhenfeld),
+ * das den Höhenunterschieden und Bergen der jeweiligen Rennstrecke nahtlos folgt.
+ */
+function createCircuitTerrainMesh(
+  trackCurve: THREE.CatmullRomCurve3,
+  disposables: {
+    geometries: THREE.BufferGeometry[];
+    materials: THREE.Material[];
+    textures: THREE.Texture[];
+  }
+): THREE.Mesh {
+  // 1. Dichtes Abtasten des 3D-Streckenverlaufs für schnelle Höhen-Interpolation
+  const sampleCount = 240;
+  const samples: { x: number; y: number; z: number }[] = [];
+  for (let s = 0; s < sampleCount; s++) {
+    const pt = trackCurve.getPointAt(s / sampleCount);
+    samples.push({ x: pt.x, y: pt.y, z: pt.z });
+  }
+
+  // 2. Erstellen eines 3D-Terrain-Gitters (1600m x 1600m)
+  const size = 1600;
+  const segments = 160; // 161x161 = 25.921 Scheitelpunkte
+  const terrainGeo = new THREE.PlaneGeometry(size, size, segments, segments);
+  terrainGeo.rotateX(-Math.PI * 0.5);
+
+  const posAttr = terrainGeo.attributes.position;
+  const count = posAttr.count;
+
+  for (let i = 0; i < count; i++) {
+    const gx = posAttr.getX(i);
+    const gz = posAttr.getZ(i);
+
+    // Finde Distanzen zu allen Strecken-Punkten & berechne gewichtete Höhen-Topographie
+    let minDistSq = Infinity;
+    let weightSum = 0;
+    let heightSum = 0;
+
+    for (let s = 0; s < sampleCount; s++) {
+      const sp = samples[s];
+      const dx = gx - sp.x;
+      const dz = gz - sp.z;
+      const distSq = dx * dx + dz * dz;
+      if (distSq < minDistSq) {
+        minDistSq = distSq;
+      }
+      // Gauß-ähnliche Gewichtung für sanften Höhenübergang
+      const w = 1.0 / (distSq + 350.0);
+      weightSum += w;
+      heightSum += sp.y * w;
+    }
+
+    const minDist = Math.sqrt(minDistSq);
+    const trackInterpolatedY = heightSum / Math.max(weightSum, 0.0001);
+
+    // Organische Landschafts-Hügel (Wellung der Umgebung)
+    const h1 = Math.sin(gx * 0.007 + gz * 0.005) * 5.5;
+    const h2 = Math.cos(gx * 0.004 - gz * 0.006) * 7.0;
+    const h3 = Math.sin((gx + gz) * 0.014) * 2.2;
+    const regionalHills = h1 + h2 + h3;
+
+    // Nähe-Faktor zur Strecke:
+    // Direkt an der Strecke (minDist < 14m) schmiegt sich das Gelände exakt an die Böschung
+    // Weiter draußen entfaltet sich die volle Hügellandschaft
+    const blendFactor = THREE.MathUtils.clamp((minDist - 14.0) / 45.0, 0.0, 1.0);
+    let finalY = trackInterpolatedY + blendFactor * regionalHills;
+
+    // Sanftes Ausklingen am extremen Horizontrand (ab 550m Distanz vom Zentrum)
+    const distCenter = Math.hypot(gx, gz);
+    if (distCenter > 550.0) {
+      const fade = THREE.MathUtils.clamp((800.0 - distCenter) / 250.0, 0.0, 1.0);
+      finalY = finalY * fade;
+    }
+
+    posAttr.setY(i, Math.max(0.0, finalY - 0.04));
+  }
+
+  terrainGeo.computeVertexNormals();
+
+  // 3. PBR Gras- & Rasenmaterial
+  const grassColorTex = createGrassTexture();
+  grassColorTex.repeat.set(220, 220);
+  const grassBumpTex = createGrassBumpTexture();
+  grassBumpTex.repeat.set(220, 220);
+
+  disposables.textures.push(grassColorTex, grassBumpTex);
+
+  const terrainMat = new THREE.MeshStandardMaterial({
+    color: '#345e28',
+    map: grassColorTex,
+    bumpMap: grassBumpTex,
+    bumpScale: 0.035,
+    roughness: 0.94,
+    metalness: 0.0,
+    polygonOffset: true,
+    polygonOffsetFactor: 4,
+    polygonOffsetUnits: 4,
+  });
+
+  disposables.materials.push(terrainMat);
+  disposables.geometries.push(terrainGeo);
+
+  const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+  terrainMesh.receiveShadow = true;
+  return terrainMesh;
 }
