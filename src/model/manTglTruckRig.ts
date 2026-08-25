@@ -1129,20 +1129,7 @@ export function createManTglTruckRig(): ManTglTruckRig {
   truck.add(createMirror(1.15, 'left'));
   truck.add(createMirror(-1.15, 'right'));
 
-  // Rampenspiegel (Kerb Mirror) beifahrerseitig oben
-  const kerbMirrorGroup = new THREE.Group();
-  const kerbArm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.35, 8), darkTrimMat);
-  kerbArm.position.set(0, 0, 0.12);
-  kerbArm.rotation.x = Math.PI / 4;
-  const kerbHead = new THREE.Mesh(new RoundedBoxGeometry(0.18, 0.12, 0.22, 3, 0.02), darkTrimMat);
-  kerbHead.position.set(0, -0.10, 0.25);
-  kerbHead.rotation.x = 0.55;
-  const kerbGlass = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.10, 0.20), glassMat);
-  kerbGlass.position.set(0, -0.10, 0.24);
-  kerbGlass.rotation.x = 0.55;
-  kerbMirrorGroup.add(kerbArm, kerbHead, kerbGlass);
-  kerbMirrorGroup.position.set(-1.18, 3.25, 3.95);
-  truck.add(kerbMirrorGroup);
+
 
   // Front-Anfahrspiegel
   const frontMirrorGroup = new THREE.Group();
