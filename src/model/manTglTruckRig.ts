@@ -10,10 +10,10 @@ import {
   createWindshieldTexture,
   createCurvedWindshieldGeometry,
   createTailLiftTexture,
-  createKofferSideTexture,
   createManRearLightTexture,
   createSideMarkerTexture,
 } from '../materials/truckTextures';
+import { createTruckBoxBody } from './truckBoxBody';
 
 export interface ManTglTruckRig {
   truck: THREE.Group;
@@ -67,22 +67,6 @@ export function createManTglTruckRig(): ManTglTruckRig {
     clearcoatRoughness: 0.04
   });
   
-  const kofferSideTex = createKofferSideTexture();
-  const boxMat = new THREE.MeshPhysicalMaterial({ 
-    color: '#f8f9fa', 
-    roughness: 0.1, 
-    metalness: 0.05,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.2
-  });
-  const boxSideMat = new THREE.MeshPhysicalMaterial({ 
-    map: kofferSideTex, 
-    roughness: 0.1, 
-    metalness: 0.05,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.2
-  });
-  
   const plasticMat = new THREE.MeshStandardMaterial({ color: '#16191d', roughness: 0.85, metalness: 0.1 });
   const darkTrimMat = new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.9, metalness: 0.05 });
   const chassisMat = new THREE.MeshStandardMaterial({ color: '#111111', roughness: 0.9 });
@@ -122,27 +106,38 @@ export function createManTglTruckRig(): ManTglTruckRig {
   
   const tailLiftTex = createTailLiftTexture();
   const tailLiftMat = new THREE.MeshStandardMaterial({ map: tailLiftTex, roughness: 0.4, metalness: 0.1 });
-  const invisibleMat = new THREE.MeshBasicMaterial({ visible: false });
-  // Faces: [+x, -x, +y, -y, +z (front), -z (back - offener Innenraum)]
-  const kofferMaterials = [boxSideMat, boxSideMat, boxMat, boxMat, boxMat, invisibleMat]; 
 
-  // --- Geometrie Parameter (Echte Maße: Datenblatt MAN TGL 10.250 / 12.250) ---
-  // Reifen 265/70R17.5 → Ø 815mm → r=0.408m
-  // Radstand: 5550mm, Koffer Innen: 8050x2470x2580mm
-  // Ladekantenhöhe: 1020mm, Ladebordwand: 2500x2000mm
-  const kofferLength = 8.25;  // Außen (~8050 + 2x100mm Wand)
-  const kofferWidth = 2.57;   // Außen (~2470 + 2x50mm Wand)
-  const kofferHeight = 2.68;  // Außen (~2580 + 100mm Boden/Dach)
-  const loadEdgeHeight = 1.02; // Ladekantenhöhe
-  const kofferY = loadEdgeHeight + kofferHeight / 2; // Unterkante auf 1.02m
+  // 1. Fahrgestell-Grundparameter (Echte Maße: Datenblatt MAN TGL 12.250)
   const wheelbase = 5.55;     // Radstand
   const frontAxleZ = 3.5;
   const rearAxleZ = frontAxleZ - wheelbase; // = -2.05
-  const kofferFrontZ = frontAxleZ - 1.2; // Koffer beginnt kurz hinter der Vorderachse
-  const kofferZ = kofferFrontZ - kofferLength / 2; // Center
 
-  // 1. Chassis Frame (Langer Hauptträger)
-  const kofferBackZ = kofferZ - kofferLength / 2;
+  // =========================================================================
+  // 📦 Subagent 22.3: `truck_box_body` - HOHLRAUM-KOFFERAUFBAU & LADERAUM
+  // =========================================================================
+  const boxBodyResult = createTruckBoxBody({
+    wheelbase,
+    frontAxleZ,
+    loadEdgeHeight: 1.02,
+    paintMat,
+    chassisMat,
+    plasticMat,
+    silverMat,
+    darkTrimMat,
+    interiorMat,
+  });
+  truck.add(boxBodyResult.boxGroup);
+
+  const {
+    kofferWidth,
+    kofferHeight,
+    loadEdgeHeight,
+    kofferY,
+    kofferBackZ,
+    topFlapGroup,
+  } = boxBodyResult;
+
+  // 2. Chassis Frame (Langer Hauptträger)
   const chassisLength = 3.5 - kofferBackZ; // Von unter der Kabine bis exakt ans Heck
   const chassisCenterZ = kofferBackZ + chassisLength / 2;
 
@@ -175,100 +170,6 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const sidePlate = new THREE.Mesh(smallPlateGeo, new THREE.MeshStandardMaterial({color: '#ffd700', roughness: 0.3, metalness: 0.5}));
   sidePlate.position.set(1.24, 0.55, 1.60);
   truck.add(sidePlate);
-
-  // 2. Kofferaufbau (Echte Maße, leicht gerundet)
-  const kofferGeo = new RoundedBoxGeometry(kofferWidth, kofferHeight, kofferLength, 4, 0.06);
-  const koffer = new THREE.Mesh(kofferGeo, kofferMaterials);
-  koffer.position.set(0, kofferY, kofferZ);
-  koffer.castShadow = true;
-  koffer.receiveShadow = true;
-  truck.add(koffer);
-
-  // Koffer Frame Edges (Alu-Leisten - saubere Einfassung ohne Z-Fighting)
-  const edgeGeo = new THREE.BoxGeometry(kofferWidth + 0.04, kofferHeight + 0.04, 0.12);
-  const frontEdge = new THREE.Mesh(edgeGeo, silverMat);
-  frontEdge.position.set(0, kofferY, kofferZ + kofferLength/2 - 0.05);
-  const backEdge = new THREE.Mesh(edgeGeo, silverMat);
-  backEdge.position.set(0, kofferY, kofferZ - kofferLength/2 + 0.05);
-  truck.add(frontEdge, backEdge);
-
-  // =========================================================================
-  // 📦 22.10 `truck_tailgate_kinematics` - LADEBORDWAND & HECKKINEMATIK
-  // =========================================================================
-
-  // 1. Laderaum-Innenraum (Sichtbare Supertechno 50 Fracht bei geöffneter Heckklappe)
-  const cargoGroup = new THREE.Group();
-
-  // Laderaum-Boden (Multiplex-Sperrholz & Aluminium)
-  const cargoFloorGeo = new THREE.BoxGeometry(kofferWidth - 0.12, 0.03, 4.5);
-  const cargoFloor = new THREE.Mesh(cargoFloorGeo, interiorMat);
-  cargoFloor.position.set(0, loadEdgeHeight + 0.035, kofferBackZ + 2.25);
-
-  // Laderaum-Innenwände
-  const interiorWallMat = new THREE.MeshStandardMaterial({ color: '#2a3441', roughness: 0.85 });
-  const wallLeftGeo = new THREE.BoxGeometry(0.04, kofferHeight - 0.1, 4.5);
-  const wallLeft = new THREE.Mesh(wallLeftGeo, interiorWallMat);
-  wallLeft.position.set(kofferWidth / 2 - 0.04, kofferY, kofferBackZ + 2.25);
-  const wallRight = wallLeft.clone();
-  wallRight.position.set(-kofferWidth / 2 + 0.04, kofferY, kofferBackZ + 2.25);
-
-  // Zurrleisten / Airlineschienen an den Wänden
-  const lashingRailGeo = new THREE.BoxGeometry(0.02, 0.06, 4.4);
-  const lashingL = new THREE.Mesh(lashingRailGeo, silverMat);
-  lashingL.position.set(kofferWidth / 2 - 0.06, kofferY, kofferBackZ + 2.25);
-  const lashingR = new THREE.Mesh(lashingRailGeo, silverMat);
-  lashingR.position.set(-kofferWidth / 2 + 0.06, kofferY, kofferBackZ + 2.25);
-
-  // Heckportal-Rahmen (Alu-Portalprofil um die Ladeöffnung)
-  const portalPostL = new THREE.Mesh(new THREE.BoxGeometry(0.08, kofferHeight, 0.08), silverMat);
-  portalPostL.position.set(kofferWidth / 2 - 0.04, kofferY, kofferBackZ);
-  const portalPostR = new THREE.Mesh(new THREE.BoxGeometry(0.08, kofferHeight, 0.08), silverMat);
-  portalPostR.position.set(-kofferWidth / 2 + 0.04, kofferY, kofferBackZ);
-  const portalTop = new THREE.Mesh(new THREE.BoxGeometry(kofferWidth, 0.08, 0.08), silverMat);
-  portalTop.position.set(0, kofferY + kofferHeight / 2 - 0.04, kofferBackZ);
-  const portalSill = new THREE.Mesh(new THREE.BoxGeometry(kofferWidth - 0.04, 0.04, 0.08), silverMat);
-  portalSill.position.set(0, loadEdgeHeight + 0.02, kofferBackZ);
-
-  // Flightcases (Aluminium-Kugelecken & schwarzes Plywood)
-  const caseGeo = new THREE.BoxGeometry(0.75, 0.65, 1.10);
-  const caseMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.7, metalness: 0.3 });
-  const case1 = new THREE.Mesh(caseGeo, caseMat);
-  case1.position.set(0.60, loadEdgeHeight + 0.35, kofferBackZ + 1.20);
-  const case2 = new THREE.Mesh(caseGeo, caseMat);
-  case2.position.set(-0.60, loadEdgeHeight + 0.35, kofferBackZ + 1.20);
-  const case3 = new THREE.Mesh(new THREE.BoxGeometry(1.40, 0.55, 0.85), caseMat);
-  case3.position.set(0, loadEdgeHeight + 0.30, kofferBackZ + 2.80);
-
-  // Supertechno 50 Teleskopschienen auf dem Ladeboden
-  const railTrackGeo = new THREE.BoxGeometry(0.08, 0.06, 3.20);
-  const railTrackL = new THREE.Mesh(railTrackGeo, silverMat);
-  railTrackL.position.set(0.40, loadEdgeHeight + 0.05, kofferBackZ + 1.80);
-  const railTrackR = new THREE.Mesh(railTrackGeo, silverMat);
-  railTrackR.position.set(-0.40, loadEdgeHeight + 0.05, kofferBackZ + 1.80);
-
-  // Laderaum-Deckenbeleuchtung (White LED Strip)
-  const cargoCeilLight = new THREE.PointLight('#e0f2fe', 3.0, 8.0, 2);
-  cargoCeilLight.position.set(0, kofferY + kofferHeight / 2 - 0.20, kofferBackZ + 2.0);
-
-  cargoGroup.add(
-    cargoFloor, wallLeft, wallRight, lashingL, lashingR,
-    portalPostL, portalPostR, portalTop, portalSill,
-    case1, case2, case3, railTrackL, railTrackR, cargoCeilLight
-  );
-  truck.add(cargoGroup);
-
-  // 2. Obere Heckportal-Klappe (Top Flap / Roller Shutter)
-  const topFlapGroup = new THREE.Group();
-  topFlapGroup.position.set(0, kofferY + kofferHeight / 2 - 0.05, kofferBackZ);
-  const topFlapMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(kofferWidth - 0.08, 0.62, 0.05),
-    paintMat
-  );
-  topFlapMesh.position.set(0, -0.31, 0);
-  const topFlapHandle = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 0.03), darkTrimMat);
-  topFlapHandle.position.set(0, -0.58, 0.035);
-  topFlapGroup.add(topFlapMesh, topFlapHandle);
-  truck.add(topFlapGroup);
 
   // 3. Hydraulische Ladebordwand (Dautel Cargolift Plattform)
   const tailgateBlinkerMat = new THREE.MeshStandardMaterial({ color: '#ff9900', emissive: '#ff9900', emissiveIntensity: 0.0, roughness: 0.2 });
@@ -1335,7 +1236,7 @@ export function createManTglTruckRig(): ManTglTruckRig {
       tglBadgeTex,
       dashTex,
       windshieldTex,
-      kofferSideTex,
+      ...boxBodyResult.disposables.textures,
       tailLiftTex,
       rearLightTexL,
       rearLightTexR,

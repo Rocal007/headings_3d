@@ -368,12 +368,24 @@ graph TD
   * **Seiten-Unterfahrschutz**: Silberne Aluminium-Schutzprofile ($L = 3.95\,\text{m}$) an beiden Fahrzeugflanken mit gelben "LAIMER NUTZFAHRZEUGE" Typenschildern.
   * **Staukästen & Druckluftkessel**: Seitliche Kunststoff-Werkzeugkästen vor der Hinterachse für Spanngurte und Krangezubehör.
 
-#### 22.3 `truck_box_body` (Kofferaufbau & Hydraulische Ladebordwand)
+#### 22.3 `truck_box_body` (📦 Hohlraum-Kofferaufbau & Laderaum Master)
+* **Dateien**: [`src/model/truckBoxBody.ts`](file:///e:/3D-headings/src/model/truckBoxBody.ts), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts)
 * **Zuständigkeit**:
-  * **Plywood/Alu Kofferaufbau**: Maßgetreuer Kofferaufbau nach realem MAN TGL Datenblatt ($L = 8.25\,\text{m}, B = 2.57\,\text{m}, H = 2.68\,\text{m}$, Ladekantenhöhe $1.02\,\text{m}$).
-  * **Koffer-Seitenwandtextur**: 2048×512 Textur mit warmweißer PBR-Oberfläche, 6 vertikalen Panel-Nähten mit Schatten-/Glanzkanten, Nietenreihen oben/unten und unterer Alu-Scheuerleiste.
-  * **Hydraulische Ladebordwand (Tail Lift)**: Dautel/Bär Cargolift Hebebühne mit 512×512 Textur, rot-weißer Warnschraffur, Gummilippe, vertikalen Versteifungsrippen und LAIMER Badge.
-  * **Heckunterbau & Hebelmechanik**: Heckstoßfänger ($2.4\,\text{m} \times 0.15\,\text{m} \times 0.3\,\text{m}$), zylindrische Unterfahrschutz-Querstange und Falt-Hydraulikarme.
+  * **Vollwertiger Hohlraum-Kofferaufbau (True Hollow Sandwich-Panel Body)**:
+    * Maßgetreuer Kofferaufbau nach MAN TGL 12.250 Datenblatt ($L = 8.25\,\text{m}, B = 2.57\,\text{m}, H = 2.68\,\text{m}$, Ladekantenhöhe $1.02\,\text{m}$, Innenvolumen ca. $51\,\text{m}^3$).
+    * 45mm GFK/Plywood-Sandwichpaneele mit Gelcoat-Hochglanzoberfläche, 6 vertikalen Paneelnähten mit Glanz-/Schattenfugen, doppelten Nietenreihen und 300mm Aluminium-Scheuerleisten.
+    * Umlaufende eloxierte Aluminium-Eckprofile mit gerundeten Gusskappen und Dachrahmen-Längsprofilen.
+  * **Begehbarer Laderaum-Innenraum (Hollow Interior)**:
+    * 27mm wasserfester Siebdruck-Multiplexboden mit Antirutsch-Beschichtung und Querträger-Unterbau.
+    * 2-reihige horizontale Airline-Zurrschienen (Höhe 800mm & 1600mm) an den Seitenwänden zur Ladungssicherung.
+    * Stoßfester Stirnwand-Aufprallschutz hinter dem Fahrerhaus.
+    * Decken-LED-Lichtbänder (`PointLight` + Emissive-Diffusoren) für homogene Studio- und Arbeitsausleuchtung.
+  * **Supertechno 50 Transportausrüstung**:
+    * 2x Präzisions-Schienenelemente des Krandollys auf dem Ladeboden verankert mit orangefarbenen Spanngurten.
+    * 4x Schwerlast-Flightcases mit Aluminium-Schutzkanten, Kugelecken und Butterfly-Verschlüssen (Cine Camera Head, Master Wheels & FIZ, Counterweights, Cine Lenses Rack).
+  * **Heckportal & Obere Klappe (Top Flap)**:
+    * Massives Aluminium-Portalrahmenprofil um die Ladeöffnung mit Dichtprofilen.
+    * Obere Heckklappe mit Gasdruckdämpfern und Griffstange für synchronisierte 3-Phasen-Ladekinematik.
 
 #### 22.4 `truck_wheels_suspension` (Räder, Radkästen & Fahrwerk)
 * **Zuständigkeit**:
