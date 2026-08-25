@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import './App.css';
 import Truck from './components/Truck';
+import TruckRace from './components/TruckRace';
 import Crane from './components/Crane';
 import SlopeCable from './components/SlopeCable';
 import CraneTennis from './components/CraneTennis';
@@ -15,7 +16,7 @@ function App() {
   const nebulaRef = useRef<HTMLDivElement>(null);
   const craneHudRef = useRef<HTMLDivElement>(null);
   const truckHudRef = useRef<HTMLDivElement>(null);
-  const [viewMode, setViewMode] = useState<'text' | 'truck' | 'crane' | 'cable' | 'tennis' | 'technocrane'>('text');
+  const [viewMode, setViewMode] = useState<'text' | 'truck' | 'race' | 'crane' | 'cable' | 'tennis' | 'technocrane'>('text');
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -503,14 +504,36 @@ function App() {
 
   if (viewMode === 'truck') {
     return (
-      <ErrorBoundary fallbackTitle="MAN TGL 12.250 LKW 3D Simulation">
+      <ErrorBoundary fallbackTitle="MAN TGL 12.250 LKW Showroom">
         <button 
           onClick={() => setViewMode('text')}
-          style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}
+          style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, padding: '10px 20px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
         >
-          Show 3D Text
+          ← Zurück zum 3D Text
         </button>
-        <Truck />
+        <Truck onOpenRace={() => setViewMode('race')} />
+      </ErrorBoundary>
+    );
+  }
+
+  if (viewMode === 'race') {
+    return (
+      <ErrorBoundary fallbackTitle="Grand Prix Rennstrecke & Supertechno 50 Trackside Kameras">
+        <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => setViewMode('text')}
+            style={{ padding: '10px 18px', cursor: 'pointer', background: '#ec4899', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 14px rgba(0,0,0,0.4)' }}
+          >
+            ← Zurück zum 3D Text
+          </button>
+          <button 
+            onClick={() => setViewMode('truck')}
+            style={{ padding: '10px 18px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+          >
+            🚚 Zum LKW Showroom
+          </button>
+        </div>
+        <TruckRace onOpenStudio={() => setViewMode('truck')} />
       </ErrorBoundary>
     );
   }
@@ -582,12 +605,18 @@ function App() {
   return (
     <div className="app-container">
       <div id="nebula-bg" ref={nebulaRef}></div>
-      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, display: 'flex', gap: '12px' }}>
+      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 100, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <button 
           onClick={() => setViewMode('truck')}
           style={{ padding: '10px 18px', cursor: 'pointer', background: '#e5c500', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
         >
-          Show LKW (MAN TGL)
+          🚚 Show LKW (MAN TGL)
+        </button>
+        <button 
+          onClick={() => setViewMode('race')}
+          style={{ padding: '10px 18px', cursor: 'pointer', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 800, boxShadow: '0 4px 16px rgba(236, 72, 153, 0.45)' }}
+        >
+          🏎️ Show Rennen (Grand Prix)
         </button>
         <button 
           onClick={() => setViewMode('crane')}
