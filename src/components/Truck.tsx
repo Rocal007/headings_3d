@@ -2,17 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import {
-  createGrillTexture,
-  createRibbedTexture,
-  createHeadlightTexture,
-  createDashboardTexture,
-  createWindshieldTexture,
-  createCurvedWindshieldGeometry,
-  createTailLiftTexture,
-  createKofferSideTexture,
-} from '../materials/truckTextures';
+import { createManTglTruckRig } from '../model/manTglTruckRig';
 
 export type TruckStudioCameraId = 'orbit' | 'cockpit' | 'hero' | 'tailgate' | 'side';
 
@@ -46,8 +36,8 @@ export const TRUCK_STUDIO_CAMERAS: Record<TruckStudioCameraId, TruckStudioCamera
     id: 'cockpit',
     name: 'Fahrerkabine & Cockpit',
     icon: '💺',
-    position: new THREE.Vector3(0.62, 2.38, 3.45),
-    target: new THREE.Vector3(0.62, 2.15, 6.5),
+    position: new THREE.Vector3(0.55, 2.22, 3.48),
+    target: new THREE.Vector3(0.55, 2.10, 6.5),
     fov: 65,
   },
   tailgate: {
@@ -198,248 +188,10 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     scene.add(floorSpot, floorSpot.target);
 
     // =========================================================================
-    // 🚚 MAN TGL 12.250 3D FAHRZEUG-AUFBAU (Subagenten 22.1 - 22.13)
+    // 🚚 VOLLSTÄNDIGER MAN TGL 12.250 3D LKW MIT ALLEN SUBAGENTEN-TEILEN
     // =========================================================================
-    const truck = new THREE.Group();
-    scene.add(truck);
-
-    // --- Materials (Realistic Car Paint with Clearcoat) ---
-    const paintMat = new THREE.MeshPhysicalMaterial({ 
-      color: '#f8f9fa', 
-      roughness: 0.1, 
-      metalness: 0.1,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.04
-    });
-    
-    const kofferSideTex = createKofferSideTexture();
-    const boxMat = new THREE.MeshPhysicalMaterial({ 
-      color: '#f8f9fa', 
-      roughness: 0.1, 
-      metalness: 0.05,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.2
-    });
-    const boxSideMat = new THREE.MeshPhysicalMaterial({ 
-      map: kofferSideTex, 
-      roughness: 0.1, 
-      metalness: 0.05,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.2
-    });
-    
-    const plasticMat = new THREE.MeshStandardMaterial({ color: '#16191d', roughness: 0.85, metalness: 0.1 });
-    const darkTrimMat = new THREE.MeshStandardMaterial({ color: '#0d0f12', roughness: 0.9, metalness: 0.05 });
-    const chassisMat = new THREE.MeshStandardMaterial({ color: '#111111', roughness: 0.9 });
-    const rimMat = new THREE.MeshStandardMaterial({ color: '#b0b8c0', roughness: 0.3, metalness: 0.8 });
-    const seatFabricMat = new THREE.MeshStandardMaterial({ color: '#272c35', roughness: 0.92, metalness: 0.02 });
-    
-    const grillTex = createGrillTexture();
-    const hlTex = createHeadlightTexture();
-    const dashTex = createDashboardTexture();
-    const windshieldTex = createWindshieldTexture();
-
-    const dashMat = new THREE.MeshStandardMaterial({ map: dashTex, roughness: 0.4, emissive: '#0284c7', emissiveIntensity: 0.4 });
-    const windshieldMat = new THREE.MeshPhysicalMaterial({ 
-      map: windshieldTex, 
-      color: '#ffffff', 
-      roughness: 0.03, 
-      metalness: 0.15, 
-      transmission: 0.75, 
-      ior: 1.52, 
-      thickness: 0.05, 
-      transparent: true, 
-      opacity: 0.96, 
-      clearcoat: 1.0, 
-      clearcoatRoughness: 0.02,
-      depthWrite: false
-    });
-
-    const grillMaterials = [plasticMat, plasticMat, plasticMat, plasticMat, new THREE.MeshStandardMaterial({ map: grillTex, roughness: 0.55, metalness: 0.2 }), plasticMat];
-    
-    const tailLiftTex = createTailLiftTexture();
-    const tailLiftMat = new THREE.MeshStandardMaterial({ map: tailLiftTex, roughness: 0.4, metalness: 0.1 });
-    const invisibleMat = new THREE.MeshBasicMaterial({ visible: false });
-    const kofferMaterials = [boxSideMat, boxSideMat, boxMat, boxMat, boxMat, invisibleMat]; 
-
-    const kofferLength = 8.25;
-    const kofferWidth = 2.57;
-    const kofferHeight = 2.68;
-    const loadEdgeHeight = 1.02;
-    const kofferY = loadEdgeHeight + kofferHeight / 2;
-    const wheelbase = 5.55;
-    const frontAxleZ = 3.5;
-    const rearAxleZ = frontAxleZ - wheelbase;
-    const kofferFrontZ = frontAxleZ - 1.2;
-    const kofferZ = kofferFrontZ - kofferLength / 2;
-
-    const kofferBackZ = kofferZ - kofferLength / 2;
-    const chassisLength = 3.5 - kofferBackZ;
-    const chassisCenterZ = kofferBackZ + chassisLength / 2;
-
-    // 1. Leiterrahmen & Unterbau
-    const chassisRailGeo = new THREE.BoxGeometry(0.12, 0.28, chassisLength);
-    const leftRail = new THREE.Mesh(chassisRailGeo, chassisMat);
-    leftRail.position.set(0.43, 0.72, chassisCenterZ);
-    const rightRail = new THREE.Mesh(chassisRailGeo, chassisMat);
-    rightRail.position.set(-0.43, 0.72, chassisCenterZ);
-    truck.add(leftRail, rightRail);
-
-    const crossMemberGeo = new THREE.BoxGeometry(0.74, 0.14, 0.12);
-    for (let z = kofferBackZ + 0.5; z <= 3.2; z += 1.3) {
-      const cross = new THREE.Mesh(crossMemberGeo, chassisMat);
-      cross.position.set(0, 0.72, z);
-      truck.add(cross);
-    }
-
-    // 2. Kofferaufbau (Subagent 22.3)
-    const kofferOuter = new THREE.Mesh(new THREE.BoxGeometry(kofferWidth, kofferHeight, kofferLength), kofferMaterials);
-    kofferOuter.position.set(0, kofferY, kofferZ);
-    kofferOuter.castShadow = true;
-    kofferOuter.receiveShadow = true;
-    truck.add(kofferOuter);
-
-    const wallThickness = 0.06;
-    const floorThickness = 0.10;
-    const woodFloorTex = createRibbedTexture();
-    const woodFloorMat = new THREE.MeshStandardMaterial({ map: woodFloorTex, roughness: 0.8, bumpScale: 0.05 });
-
-    const kofferFloor = new THREE.Mesh(new THREE.BoxGeometry(kofferWidth - 2 * wallThickness, floorThickness, kofferLength - wallThickness), woodFloorMat);
-    kofferFloor.position.set(0, loadEdgeHeight + floorThickness / 2, kofferZ + wallThickness / 2);
-    kofferFloor.receiveShadow = true;
-    truck.add(kofferFloor);
-
-    // 3. Supertechno 50 Flightcase-Beladung im Koffer (Subagent 22.5)
-    const cargoGroup = new THREE.Group();
-    cargoGroup.position.set(0, loadEdgeHeight + floorThickness, kofferZ);
-    
-    const flightcaseMat = new THREE.MeshStandardMaterial({ color: '#1a1f26', roughness: 0.6, metalness: 0.3 });
-    const aluEdgeMat = new THREE.MeshStandardMaterial({ color: '#c0c8d0', roughness: 0.25, metalness: 0.85 });
-    
-    const mainBox = new THREE.Mesh(new RoundedBoxGeometry(1.6, 1.2, 5.2, 3, 0.04), flightcaseMat);
-    mainBox.position.set(0, 0.6, 0.3);
-    mainBox.castShadow = true;
-    const boxAlu = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.08, 5.22), aluEdgeMat);
-    boxAlu.position.set(0, 0.6, 0.3);
-    cargoGroup.add(mainBox, boxAlu);
-    truck.add(cargoGroup);
-
-    // 4. Ladebordwand Kinematik (Subagent 22.10)
-    const tailgateHinge = new THREE.Group();
-    tailgateHinge.position.set(0, loadEdgeHeight, kofferBackZ);
-    
-    const tailgatePlatform = new THREE.Group();
-    const tailgatePlateGeo = new THREE.BoxGeometry(kofferWidth - 0.04, 0.08, 2.15);
-    const tailgatePlate = new THREE.Mesh(tailgatePlateGeo, tailLiftMat);
-    tailgatePlate.position.set(0, 0.04, -1.075);
-    tailgatePlate.castShadow = true;
-    tailgatePlatform.add(tailgatePlate);
-    tailgateHinge.add(tailgatePlatform);
-    truck.add(tailgateHinge);
-
-    // 5. MAN Fahrerkabine & Cockpit (Subagent 22.1)
-    const cabinGroup = new THREE.Group();
-    const cabinWidth = 2.34;
-    const cabinHeight = 2.15;
-    const cabinLength = 2.18;
-    const cabinBottomY = 1.08;
-    const cabinCenterZ = 4.22;
-
-    const cabinMainGeo = new RoundedBoxGeometry(cabinWidth, cabinHeight, cabinLength, 4, 0.08);
-    const cabinMain = new THREE.Mesh(cabinMainGeo, paintMat);
-    cabinMain.position.set(0, cabinBottomY + cabinHeight / 2, cabinCenterZ);
-    cabinMain.castShadow = true;
-    cabinGroup.add(cabinMain);
-
-    // Grill & MAN Emblem
-    const grillMesh = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.88, 0.12), grillMaterials);
-    grillMesh.position.set(0, 1.52, 5.32);
-    cabinGroup.add(grillMesh);
-
-    // Windschutzscheibe
-    const windshieldGeo = createCurvedWindshieldGeometry(2.18, 1.12, 32, 16, 0.18);
-    const windshield = new THREE.Mesh(windshieldGeo, windshieldMat);
-    windshield.position.set(0, 2.52, 5.08);
-    cabinGroup.add(windshield);
-
-    // Cockpit Innenraum
-    const dashMesh = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.55, 0.65), dashMat);
-    dashMesh.position.set(0, 2.12, 4.65);
-    cabinGroup.add(dashMesh);
-
-    const seatL = new THREE.Mesh(new RoundedBoxGeometry(0.58, 0.85, 0.58, 3, 0.05), seatFabricMat);
-    seatL.position.set(0.62, 1.85, 3.85);
-    const seatR = new THREE.Mesh(new RoundedBoxGeometry(0.58, 0.85, 0.58, 3, 0.05), seatFabricMat);
-    seatR.position.set(-0.62, 1.85, 3.85);
-    cabinGroup.add(seatL, seatR);
-
-    truck.add(cabinGroup);
-
-    // 6. Fahrertüren Hinge-Kinematik (Subagent 22.9)
-    const doorGeo = new RoundedBoxGeometry(0.14, 1.62, 1.35, 3, 0.04);
-    const leftDoorGroup = new THREE.Group();
-    leftDoorGroup.position.set(1.16, 1.08, 4.85);
-    const leftDoorPanel = new THREE.Mesh(doorGeo, paintMat);
-    leftDoorPanel.position.set(0, 0.81, -0.675);
-    leftDoorGroup.add(leftDoorPanel);
-
-    const rightDoorGroup = new THREE.Group();
-    rightDoorGroup.position.set(-1.16, 1.08, 4.85);
-    const rightDoorPanel = new THREE.Mesh(doorGeo, paintMat);
-    rightDoorPanel.position.set(0, 0.81, -0.675);
-    rightDoorGroup.add(rightDoorPanel);
-
-    truck.add(leftDoorGroup, rightDoorGroup);
-
-    // 7. Räder & Fahrwerk (265/70R17.5: r=0.408m)
-    const tireRadius = 0.408;
-    const tireWidth = 0.265;
-    const rimRadius = 0.222;
-    const wheelGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 32);
-    wheelGeo.rotateZ(Math.PI / 2);
-    const rimGeo = new THREE.CylinderGeometry(rimRadius, rimRadius, tireWidth + 0.02, 16);
-    rimGeo.rotateZ(Math.PI / 2);
-
-    const createWheel = (x: number, y: number, z: number, isRear = false) => {
-      const wGroup = new THREE.Group();
-      const tire = new THREE.Mesh(wheelGeo, plasticMat);
-      tire.castShadow = true;
-      const rim = new THREE.Mesh(rimGeo, rimMat);
-      if (isRear) rim.scale.set(1, 0.6, 1);
-      wGroup.add(tire, rim);
-      wGroup.position.set(x, y, z);
-      return wGroup;
-    };
-
-    truck.add(createWheel(1.1, tireRadius, frontAxleZ));
-    truck.add(createWheel(-1.1, tireRadius, frontAxleZ));
-    truck.add(createWheel(1.1, tireRadius, rearAxleZ, true));
-    truck.add(createWheel(-1.1, tireRadius, rearAxleZ, true));
-
-    // 8. Scheinwerfer & Spotlights (Subagent 22.13)
-    const hlGeo = new THREE.BoxGeometry(0.38, 0.22, 0.08);
-    const hlMat = new THREE.MeshStandardMaterial({ map: hlTex, roughness: 0.2, emissive: '#ffffff', emissiveIntensity: 2.2 });
-    const hlL = new THREE.Mesh(hlGeo, hlMat);
-    hlL.position.set(0.82, 1.25, 5.34);
-    const hlR = new THREE.Mesh(hlGeo, hlMat);
-    hlR.position.set(-0.82, 1.25, 5.34);
-    truck.add(hlL, hlR);
-
-    const spotlightL = new THREE.SpotLight(0xffffff, 4.5, 35, Math.PI / 6, 0.35);
-    spotlightL.position.set(0.82, 1.25, 5.35);
-    spotlightL.target.position.set(0.82, 0.2, 25);
-    const spotlightR = new THREE.SpotLight(0xffffff, 4.5, 35, Math.PI / 6, 0.35);
-    spotlightR.position.set(-0.82, 1.25, 5.35);
-    spotlightR.target.position.set(-0.82, 0.2, 25);
-    truck.add(spotlightL, spotlightL.target, spotlightR, spotlightR.target);
-
-    // Scheibenwischer
-    const wiperGeo = new THREE.BoxGeometry(0.02, 0.48, 0.02);
-    const wiperL = new THREE.Mesh(wiperGeo, darkTrimMat);
-    wiperL.position.set(0.35, 2.05, 5.22);
-    const wiperR = new THREE.Mesh(wiperGeo, darkTrimMat);
-    wiperR.position.set(-0.35, 2.05, 5.22);
-    truck.add(wiperL, wiperR);
+    const truckRig = createManTglTruckRig();
+    scene.add(truckRig.truck);
 
     // =========================================================================
     // 🔄 RENDER-LOOP MIT SMOOTH KINEMATIK
@@ -464,37 +216,41 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
 
       // 1. Auto-Rotate Drehteller
       if (autoRotateRef.current) {
-        truck.rotation.y += 0.25 * delta;
+        truckRig.truck.rotation.y += 0.25 * delta;
       }
 
-      // 2. Fahrertüren Kinematik
+      // 2. Fahrertüren Kinematik (68° Öffnungswinkel)
       const targetDoorAngle = doorsRef.current ? 1.18 : 0.0;
-      leftDoorGroup.rotation.y = THREE.MathUtils.lerp(leftDoorGroup.rotation.y, targetDoorAngle, 1 - Math.exp(-6.0 * delta));
-      rightDoorGroup.rotation.y = THREE.MathUtils.lerp(rightDoorGroup.rotation.y, -targetDoorAngle, 1 - Math.exp(-6.0 * delta));
+      truckRig.leftDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.leftDoorGroup.rotation.y, targetDoorAngle, 1 - Math.exp(-6.0 * delta));
+      truckRig.rightDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.rightDoorGroup.rotation.y, -targetDoorAngle, 1 - Math.exp(-6.0 * delta));
 
-      // 3. Ladebordwand 2-Stufen-Kinematik
+      // 3. Ladebordwand 3-Phasen Kinematik
       const targetFlap = tailgateRef.current ? 1.0 : 0.0;
       flapProgress = THREE.MathUtils.lerp(flapProgress, targetFlap, 1 - Math.exp(-4.5 * delta));
-      tailgateHinge.rotation.x = flapProgress * (Math.PI / 2);
+      truckRig.platformTiltGroup.rotation.x = -flapProgress * (Math.PI / 2);
+      truckRig.topFlapGroup.rotation.x = flapProgress * 1.95; // Obere Klappe öffnet sich nach oben
 
       const targetLower = platformLoweredRef.current ? 1.0 : 0.0;
       lowerProgress = THREE.MathUtils.lerp(lowerProgress, targetLower, 1 - Math.exp(-3.5 * delta));
-      tailgatePlatform.position.y = -lowerProgress * (loadEdgeHeight - 0.06);
+      truckRig.tailLiftAssembly.position.y = truckRig.loadEdgeHeight - lowerProgress * (truckRig.loadEdgeHeight - 0.06);
+      truckRig.platformTipGroup.rotation.x = lowerProgress * 0.065; // Spitzenneigung auf den Boden
 
       // 4. Scheinwerfer & Licht
       const isLights = headlightsRef.current;
-      hlMat.emissiveIntensity = isLights ? 2.8 : 0.0;
-      spotlightL.intensity = isLights ? 5.5 : 0.0;
-      spotlightR.intensity = isLights ? 5.5 : 0.0;
+      truckRig.biLedLensMat.emissiveIntensity = isLights ? 2.8 : 0.0;
+      truckRig.leftSpot.intensity = isLights ? 32 : 0.0;
+      truckRig.rightSpot.intensity = isLights ? 32 : 0.0;
 
       // 5. Scheibenwischer Kinematik
       if (wipersRef.current) {
-        const wiperSweep = (Math.sin(elapsedTime * 8.0) * 0.5 + 0.5) * 1.15;
-        wiperL.rotation.z = -0.3 + wiperSweep;
-        wiperR.rotation.z = -0.3 + wiperSweep;
+        const wiperSweep = (Math.sin(elapsedTime * 8.0) * 0.5 + 0.5) * 1.35;
+        truckRig.wipers.forEach(w => {
+          w.rotation.z = -0.35 + wiperSweep;
+        });
       } else {
-        wiperL.rotation.z = THREE.MathUtils.lerp(wiperL.rotation.z, -0.3, 1 - Math.exp(-6.0 * delta));
-        wiperR.rotation.z = THREE.MathUtils.lerp(wiperR.rotation.z, -0.3, 1 - Math.exp(-6.0 * delta));
+        truckRig.wipers.forEach(w => {
+          w.rotation.z = THREE.MathUtils.lerp(w.rotation.z, -0.35, 1 - Math.exp(-6.0 * delta));
+        });
       }
 
       // 6. Kamera-Fokus bei Preset-Umschaltung
