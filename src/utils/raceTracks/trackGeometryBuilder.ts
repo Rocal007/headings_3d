@@ -215,20 +215,23 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
       runOffRIndices.push(b + 1, b + 3, b + 2);
     }
 
-    // 5. 3D-Böschungsunterbau (Embankment) vom Außenrand zum Boden (Y = 0)
-    const embLx = roLx - normX * 1.5;
-    const embLz = roLz - normZ * 1.5;
-    const embRx = roRx + normX * 1.5;
-    const embRz = roRz + normZ * 1.5;
+    // 5. 3D-Böschungsunterbau (Embankment) vom Außenrand zum angrenzenden 3D-Gelände
+    const embLx = roLx - normX * 2.0;
+    const embLy = Math.max(0.0, roLy - 0.35);
+    const embLz = roLz - normZ * 2.0;
 
-    embankmentPos.push(embLx, 0.0, embLz);
+    const embRx = roRx + normX * 2.0;
+    const embRy = Math.max(0.0, roRy - 0.35);
+    const embRz = roRz + normZ * 2.0;
+
+    embankmentPos.push(embLx, embLy, embLz);
     embankmentUvs.push(0, u * 40);
     embankmentPos.push(roLx, roLy, roLz);
     embankmentUvs.push(1, u * 40);
 
     embankmentPos.push(roRx, roRy, roRz);
     embankmentUvs.push(0, u * 40);
-    embankmentPos.push(embRx, 0.0, embRz);
+    embankmentPos.push(embRx, embRy, embRz);
     embankmentUvs.push(1, u * 40);
 
     if (i < segments) {
@@ -1006,20 +1009,38 @@ function createCircuitTerrainMesh(
     // 3. Strenge Höhen-Guardrails zur Vermeidung jeglicher Strecken-Verschüttung:
     if (minDist <= 22.0) {
       // Unter und direkt neben der breiten Rennstrecke: Terrain liegt STRENG unter dem Asphalt & Randsteinen
-      finalY = localTrackY - 0.22 - (minDist / 22.0) * 0.28;
-    } else if (minDist <= 65.0) {
-      // Übergangszone: Sanfter Anstieg/Abfall in die Umgebung, gedeckelt unterhalb der Sichtlinie
-      const t = (minDist - 22.0) / 43.0;
-      const baseGround = localTrackY - 0.50;
-      const targetLandscape = localTrackY + regionalHills * 0.5;
+      finalY = localTrackY - 0.38 - (minDist / 22.0) * 0.22;
+    } else if (minDist <= 70.0) {
+      // Übergangszone: Sanfte Böschung in das Umland
+      const t = (minDist - 22.0) / 48.0;
+      const baseGround = localTrackY - 0.60;
+      const targetLandscape = localTrackY + regionalHills * 0.4;
       finalY = THREE.MathUtils.lerp(baseGround, targetLandscape, t * t);
-
-      // Harte Obergrenze: Darf die lokale Strecke im Nahbereich niemals überragen!
-      const maxCeiling = localTrackY - 0.15 + (minDist - 22.0) * 0.10;
-      finalY = Math.min(finalY, maxCeiling);
     } else {
       // Weite Umgebung: Volle Topographie
       finalY = localTrackY + regionalHills;
+    }
+
+    // 🛡️ GLOBALER SCHUTZ-ENVELOPE GEGENÜBER ALLEN STRECKENABSCHNITTEN
+    // Prüft alle Streckenpunkte im Umkreis von 120m, sodass benachbarte Haarnadeln,
+    // Schikanen oder Infield-Geraden NIEMALS von Hügeln verschüttet werden können!
+    for (let s = 0; s < sampleCount; s++) {
+      const sp = samples[s];
+      const dx = gx - sp.x;
+      const dz = gz - sp.z;
+      const dSq = dx * dx + dz * dz;
+      if (dSq < 14400.0) { // Umkreis 120m
+        const d = Math.sqrt(dSq);
+        let maxAllowedY: number;
+        if (d <= 22.0) {
+          maxAllowedY = sp.y - 0.35 - (d / 22.0) * 0.20;
+        } else {
+          maxAllowedY = (sp.y - 0.55) + (d - 22.0) * 0.085;
+        }
+        if (finalY > maxAllowedY) {
+          finalY = maxAllowedY;
+        }
+      }
     }
 
     // 4. Horizont-Randdämpfung
