@@ -46,6 +46,7 @@ graph TD
         LKW --> WheelArch[22.11 truck_front_wheel_arch<br/>🛞 Vordere Radkästen, Einstiegsstufen & Blinker]
         LKW --> RearLights[22.12 truck_rear_lights<br/>🚨 Heckleuchten-Cluster, Bremslicht & Blinker]
         LKW --> Headlights[22.13 truck_headlights<br/>💡 LED-Frontscheinwerfer, DRL & Nebellampen]
+        LKW --> Tracks[22.14 truck_race_tracks<br/>🏎️ Silverstone GP, Rennstrecken & FIA Kerbs]
     end
 ```
 
@@ -525,6 +526,23 @@ graph TD
     * 2x Spotlights ($32\,\text{cd}$, Reichweite $60\,\text{m}$, Öffnungswinkel $36^\circ$) mit asymmetrischem Ausleuchtungskegel auf der Fahrbahn.
   * **4. Dach-Begrenzungsleuchten (Roof Clearance Lights)**:
     * 2x weiße LED-Positionsleuchten an den oberen Ecken der Sonnenblende / Dachkante ($X = \pm 0.85\,\text{m}, Y = 3.42\,\text{m}, Z = 3.92\,\text{m}$).
+
+#### 22.14 `truck_race_tracks` (🏎️ Grand Prix Rennstrecken, Streckenlayouts, FIA Kerbs & Streckenkinematik)
+* **Dateien**: [`src/utils/silverstoneTrack.ts`](file:///e:/3D-headings/src/utils/silverstoneTrack.ts), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts)
+* **Zuständigkeit**:
+  * **1. FIA Grand Prix Strecken-Architektur & Spline-Modellierung**:
+    * Hochpräzise 3D Catmull-Rom Spline-Geometrien (`createSilverstoneSpline`) für authentische Rennstrecken (Silverstone GP, Monza, Spa-Francorchamps, Nürburgring).
+    * Maßstabstreue Dimensionierung ($5.0\times$ Streckenmaßstab, $570\,\text{m} \times 465\,\text{m}$ Ausdehnung, $\approx 1.9\,\text{km}$ Streckenlänge im 3D-Weltraum).
+    * **12.0m breite Asphalt-Hauptfahrbahn** mit nahtlosen Fahrbahnmarkierungen und $1.35\,\text{m}$ breiten angeschrägten rot-weißen FIA Kerbs.
+    * 4-reihiges Schachbrettmuster auf der Start-Ziel-Linie (Hamilton Straight).
+  * **2. Sektoren-, Kurven- & F1-Telemetrie-Mapping**:
+    * Vollständige 1:1 Abbildung des offiziellen FIA Formula 1 Streckenguides mit allen 18 Kurven (T1 Abbey bis T18 Club Corner).
+    * DRS-Zonen-Verwaltung (**DRS 1** auf Wellington Straight, **DRS 2** auf Hangar Straight) und DRS Detection Points (Village, Maggotts).
+    * Echtzeit-Telemetrie-Übertragung von F1-Referenzdaten (Topspeed, Gang, Fliehkräfte in g).
+  * **3. Physikalische Streckenkinematik & Kurvendynamik**:
+    * Vorausschauende Krümmungsanalyse (`lookaheadMeters = 18m`) zur dynamischen Geschwindigkeitsregulierung (Vollgas auf Geraden bis $88\,\text{km/h}$, Bremsen vor engen Scheiteln bis $28\,\text{km/h}$).
+    * Physikalisch exakte Weg-Zeit-Integration ($v = 20.8\,\text{m/s}$ bei $75\,\text{km/h}$) und schlupffreies Abrollen aller 6 Räder.
+    * 3D-Kollisions- und Fahrbahnbegrenzungsschutz.
 
 ---
 
