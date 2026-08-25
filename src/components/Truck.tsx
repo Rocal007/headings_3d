@@ -77,7 +77,7 @@ export default function Truck() {
     // Kein entfernungsabhängiger schwarzer Nebel mehr (Kameraabstand bleibt immer gleich hell)
     scene.fog = null;
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 300);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 2500);
     // Move camera out to see the long truck
     camera.position.set(18, 6, 20);
 
@@ -1414,11 +1414,11 @@ export default function Truck() {
 
     // 9. PBR Asphalt-Boden & Silverstone Grand Prix Rennstrecke (Subagent 11: scene_environment)
     const asphaltColorTex = createAsphaltTexture();
-    asphaltColorTex.repeat.set(32, 32);
+    asphaltColorTex.repeat.set(160, 160);
     const asphaltBumpTex = createAsphaltBumpTexture();
-    asphaltBumpTex.repeat.set(32, 32);
+    asphaltBumpTex.repeat.set(160, 160);
 
-    const planeGeo = new THREE.PlaneGeometry(320, 320, 32, 32);
+    const planeGeo = new THREE.PlaneGeometry(1600, 1600, 32, 32);
     const planeMat = new THREE.MeshStandardMaterial({ 
       color: '#282d35', 
       map: asphaltColorTex,
@@ -1436,12 +1436,13 @@ export default function Truck() {
     plane.receiveShadow = true;
     scene.add(plane);
 
-    // 9.1 Silverstone Grand Prix Strecken-Geometrie & FIA Kerbs
+    // 9.1 Silverstone Grand Prix Strecken-Geometrie & FIA Kerbs (12.0m Streckenbreite)
     const silverstoneCurve = createSilverstoneSpline();
-    const { trackGeo, kerbLeftGeo, kerbRightGeo, startFinishGeo } = createSilverstoneTrackGeometry(silverstoneCurve, 500, 8.2, 0.95);
+    const splineLength = silverstoneCurve.getLength();
+    const { trackGeo, kerbLeftGeo, kerbRightGeo, startFinishGeo } = createSilverstoneTrackGeometry(silverstoneCurve, 800, 12.0, 1.35);
 
     const roadMarkingsTex = createRoadMarkingsTexture();
-    roadMarkingsTex.repeat.set(1, 40);
+    roadMarkingsTex.repeat.set(1, 160);
 
     const trackMat = new THREE.MeshStandardMaterial({
       color: '#383e47',
@@ -1510,7 +1511,7 @@ export default function Truck() {
     let flapProgress = 0;   // 0 = zu, 1 = waagerecht offen an Ladekante
     let lowerProgress = 0;  // 0 = an Ladekante Y=1.02m, 1 = am Boden Y=0.06m
     let currentSteerAngle = 0; // Aktueller Lenkwinkel der Vorderräder
-    let currentSpeed = 0;      // Momentangeschwindigkeit in Einheiten/s
+    let currentSpeed = 0;      // Momentangeschwindigkeit in m/s
     let currentPitch = 0;      // Fahrgestell-Nickwinkel (Beschleunigen/Bremsen)
     let currentRoll = 0;       // Fahrgestell-Wankwinkel (Fliehkraft in Kurven)
     const wheelRadius = 0.408; // Match tireRadius
@@ -1521,7 +1522,6 @@ export default function Truck() {
 
       // Delta-Time Normalisierung für 60Hz / 120Hz / 144Hz (Säule 1.2)
       const delta = Math.min(clock.getDelta(), 0.1);
-      const timeScale = delta * 60; // 1.0 bei 60fps
 
       // =======================================================================
       // 🏎️ Silverstone Grand Prix Streckenkinematik & Kurvendynamik
@@ -1535,39 +1535,43 @@ export default function Truck() {
       // Ausrichtung des LKWs (Tangentenwinkel)
       const heading = Math.atan2(tangent.x, tangent.z);
 
-      // Streckenkrümmung vorausschauend analysieren (Telematik-Agent 22.6)
-      const duAhead = 0.006;
+      // Streckenkrümmung vorausschauend analysieren (18 Meter Vorausschau)
+      const lookaheadMeters = 18.0;
+      const duAhead = lookaheadMeters / splineLength;
       const nextTangent = silverstoneCurve.getTangentAt((currentU + duAhead) % 1.0);
       let dHeading = Math.atan2(nextTangent.x, nextTangent.z) - heading;
       if (dHeading > Math.PI) dHeading -= Math.PI * 2;
       if (dHeading < -Math.PI) dHeading += Math.PI * 2;
-      const curvature = Math.abs(dHeading / duAhead);
+      const curvature = Math.abs(dHeading) / lookaheadMeters; // 1/m
 
       // Aktueller Silverstone Streckenabschnitt
       const sector = getSilverstoneSector(currentU);
 
-      // Dynamisches Geschwindigkeitsprofil:
-      // Auf Vollgas-Geraden (Hangar/Wellington) beschleunigt der LKW, vor Kurvenscheiteln (The Loop/Vale) bremst er ab
-      const targetVelocity = drivingRef.current ? Math.max(0.14, sector.speedTarget - curvature * 0.032) : 0.0;
-      const accelRate = (targetVelocity > currentSpeed) ? 2.4 : 4.8; // Bremsen greift dynamischer als Beschleunigen
+      // Dynamisches Geschwindigkeitsprofil in km/h & m/s:
+      // Auf Vollgas-Geraden (Hangar/Wellington) beschleunigt der LKW auf bis zu 88 km/h,
+      // vor Kurvenscheiteln (The Loop/Vale) bremst er auf 28-36 km/h ab
+      const targetSpeedKmh = drivingRef.current ? Math.max(26.0, sector.speedTarget - curvature * 380.0) : 0.0;
+      const targetSpeedMps = targetSpeedKmh / 3.6;
+      const accelRate = (targetSpeedMps > currentSpeed) ? 1.8 : 3.8; // Bremsen greift dynamischer als Beschleunigen
       const prevSpeed = currentSpeed;
-      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetVelocity, 1 - Math.exp(-accelRate * delta));
-      const currentAccel = (currentSpeed - prevSpeed) / Math.max(delta, 0.001);
+      currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeedMps, 1 - Math.exp(-accelRate * delta));
+      const currentAccel = (currentSpeed - prevSpeed) / Math.max(delta, 0.001); // m/s^2
 
-      // Streckenfortschritt trackU fortschalten mit dynamischer Ist-Geschwindigkeit
-      trackU = (trackU + (currentSpeed / 220) * timeScale) % 1.0;
+      // Reale gefahrene Distanz & Streckenfortschritt trackU (Exakte physikalische Geschwindigkeit)
+      const distanceTravelled = currentSpeed * delta;
+      trackU = (trackU + distanceTravelled / splineLength) % 1.0;
 
       // 1. Nick-Dynamik (Chassis Pitch: Heck geht runter beim Gasgeben, Front taucht ein beim Bremsen)
-      const targetPitch = THREE.MathUtils.clamp(-currentAccel * 0.035, -0.045, 0.065);
+      const targetPitch = THREE.MathUtils.clamp(-currentAccel * 0.008, -0.045, 0.065);
       currentPitch = THREE.MathUtils.lerp(currentPitch, targetPitch, 1 - Math.exp(-8.0 * delta));
 
       // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft in Silverstone Kurven)
-      const lateralAccel = currentSpeed * (dHeading / duAhead);
-      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * 0.012, -0.065, 0.065);
+      const lateralAccel = (currentSpeed * currentSpeed) * (dHeading / lookaheadMeters); // m/s^2
+      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * 0.007, -0.065, 0.065);
       currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-6.0 * delta));
 
       // 3. Fahrbahn-Rumpeln & 6-Zylinder Diesel Motorvibration
-      const roadVibe = (currentSpeed > 0.01) ? (Math.sin(clock.getElapsedTime() * 45.0) * 0.0025 + Math.cos(clock.getElapsedTime() * 85.0) * 0.0012) * (currentSpeed / 0.38) : 0;
+      const roadVibe = (currentSpeed > 0.1) ? (Math.sin(clock.getElapsedTime() * 45.0) * 0.0025 + Math.cos(clock.getElapsedTime() * 85.0) * 0.0012) * Math.min(1.0, currentSpeed / 20.0) : 0;
       const engineIdle = Math.sin(clock.getElapsedTime() * 22.0) * 0.0008;
 
       truck.position.x = x;
@@ -1580,8 +1584,14 @@ export default function Truck() {
       truck.rotation.x = currentPitch;
       truck.rotation.z = currentRoll;
 
+      // Sonnenlicht folgt dem LKW für scharfe Schatten
+      dirLight.position.set(x + 20, 32, z + 24);
+      dirLight.target.position.set(x, 1.8, z);
+      dirLight.target.updateMatrixWorld();
+      fillLight.position.set(x - 18, 22, z - 20);
+
       // 4. Vorderräder lenken synchron mit der Kurvenfahrt (Ackermann-Geometrie)
-      const targetSteerAngle = (currentSpeed > 0.005) ? THREE.MathUtils.clamp((dHeading / duAhead) * 0.055, -0.44, 0.44) : 0;
+      const targetSteerAngle = (currentSpeed > 0.1) ? THREE.MathUtils.clamp((dHeading / lookaheadMeters) * 12.0, -0.44, 0.44) : 0;
       const steerDamp = 1 - Math.exp(-10 * delta);
       currentSteerAngle = THREE.MathUtils.lerp(currentSteerAngle, targetSteerAngle, steerDamp);
 
@@ -1593,45 +1603,43 @@ export default function Truck() {
       // Lenkrad im Cockpit dreht sich synchron mit
       steeringWheel.rotation.z = -currentSteerAngle * 3.5;
 
-      // 5. Räder drehen sich synchron zur echten Momentangeschwindigkeit
-      if (currentSpeed > 0.001) {
-        const dist = (currentSpeed / 60) * timeScale * 35.0;
+      // 5. Räder drehen sich synchron zur echten Momentangeschwindigkeit (Null Schlupf)
+      if (currentSpeed > 0.01) {
         wheels.forEach(w => {
-          w.children[0].rotation.x += dist / wheelRadius;
-          w.children[1].rotation.x += dist / wheelRadius;
-          w.children[2].rotation.x += dist / wheelRadius;
+          w.children[0].rotation.x += distanceTravelled / wheelRadius;
+          w.children[1].rotation.x += distanceTravelled / wheelRadius;
+          w.children[2].rotation.x += distanceTravelled / wheelRadius;
         });
       }
 
       // =======================================================================
       // 📡 Subagent 22.6: Live-Telemetrie-HUD Aktualisierung (60fps Zero-Garbage)
       // =======================================================================
-      const speedKmh = (currentSpeed / 0.36) * 78.0;
-      const accelG = currentAccel * 1.8;
+      const speedKmh = currentSpeed * 3.6;
+      const accelG = currentAccel / 9.81;
       const steerDeg = currentSteerAngle * (180 / Math.PI);
       const pitchDeg = currentPitch * (180 / Math.PI);
       const rollDeg = currentRoll * (180 / Math.PI);
-      const lateralG = lateralAccel * 0.45;
+      const lateralG = lateralAccel / 9.81;
       
       let rpm = 750;
       let gearName = 'N';
-      if (drivingRef.current && currentSpeed > 0.01) {
-        const normSpeed = Math.min(1.0, currentSpeed / 0.36);
-        if (normSpeed < 0.20) {
+      if (drivingRef.current && currentSpeed > 0.1) {
+        if (speedKmh < 18) {
           gearName = 'D1';
-          rpm = 800 + (normSpeed / 0.20) * 1100;
-        } else if (normSpeed < 0.40) {
+          rpm = 800 + (speedKmh / 18) * 1100;
+        } else if (speedKmh < 36) {
           gearName = 'D2';
-          rpm = 1000 + ((normSpeed - 0.20) / 0.20) * 1000;
-        } else if (normSpeed < 0.65) {
+          rpm = 1000 + ((speedKmh - 18) / 18) * 1000;
+        } else if (speedKmh < 54) {
           gearName = 'D3';
-          rpm = 1100 + ((normSpeed - 0.40) / 0.25) * 950;
-        } else if (normSpeed < 0.85) {
+          rpm = 1100 + ((speedKmh - 36) / 18) * 950;
+        } else if (speedKmh < 72) {
           gearName = 'D4';
-          rpm = 1200 + ((normSpeed - 0.65) / 0.20) * 900;
+          rpm = 1200 + ((speedKmh - 54) / 18) * 900;
         } else {
           gearName = 'D5';
-          rpm = 1300 + ((normSpeed - 0.85) / 0.15) * 800;
+          rpm = 1300 + ((speedKmh - 72) / 20) * 800;
         }
       }
 

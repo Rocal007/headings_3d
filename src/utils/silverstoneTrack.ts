@@ -75,34 +75,37 @@ const RAW_SILVERSTONE_COORDS: [number, number][] = [
   [-44, -36], // Club Corner Apex onto Hamilton Straight
 ];
 
-/** Silverstone Catmull-Rom 3D Spline Curve */
-export function createSilverstoneSpline(): THREE.CatmullRomCurve3 {
-  const points = RAW_SILVERSTONE_COORDS.map(([x, z]) => new THREE.Vector3(x, 0, z));
+/** Maßstabs-Faktor: 5.0 (Skaliert die Rennstrecke auf realistische ~1.9 km Länge & 570m x 465m Ausdehnung) */
+export const TRACK_SCALE = 5.0;
+
+/** Silverstone Catmull-Rom 3D Spline Curve im realistischen Maßstab */
+export function createSilverstoneSpline(scale: number = TRACK_SCALE): THREE.CatmullRomCurve3 {
+  const points = RAW_SILVERSTONE_COORDS.map(([x, z]) => new THREE.Vector3(x * scale, 0, z * scale));
   return new THREE.CatmullRomCurve3(points, true, 'centripetal', 0.5);
 }
 
 /** Streckenabschnitte, Kurven T1-T18 & Telemetriedaten exakt nach FIA Streckenguide */
 export const SILVERSTONE_SECTORS: TrackSectorInfo[] = [
-  { uStart: 0.00, uEnd: 0.07, turnNum: 0, name: 'HAMILTON STRAIGHT', code: 'S/F', f1Speed: 290, f1Gear: 7, f1GForce: 1.0, speedTarget: 0.38 },
-  { uStart: 0.07, uEnd: 0.12, turnNum: 1, name: 'T1 ABBEY', code: 'ABBEY', f1Speed: 290, f1Gear: 7, f1GForce: 4.0, speedTarget: 0.32 },
-  { uStart: 0.12, uEnd: 0.16, turnNum: 2, name: 'T2 FARM CURVE', code: 'FARM', f1Speed: 185, f1Gear: 4, f1GForce: 2.2, speedTarget: 0.28 },
-  { uStart: 0.16, uEnd: 0.20, turnNum: 3, name: 'T3 VILLAGE CORNER', code: 'VILLAGE', f1Speed: 95, f1Gear: 2, f1GForce: 2.0, drsZone: 'DRS Detection 1', speedTarget: 0.18 },
-  { uStart: 0.20, uEnd: 0.25, turnNum: 4, name: 'T4 THE LOOP', code: 'LOOP', f1Speed: 85, f1Gear: 2, f1GForce: 1.2, speedTarget: 0.14 },
-  { uStart: 0.25, uEnd: 0.28, turnNum: 5, name: 'T5 AINTREE', code: 'AINTREE', f1Speed: 140, f1Gear: 3, f1GForce: 1.5, speedTarget: 0.22 },
-  { uStart: 0.28, uEnd: 0.38, turnNum: 0, name: 'WELLINGTON STRAIGHT', code: 'WELLINGTON', f1Speed: 295, f1Gear: 8, f1GForce: 1.0, drsZone: 'DRS 1', speedTarget: 0.40 },
-  { uStart: 0.38, uEnd: 0.43, turnNum: 6, name: 'T6 BROOKLANDS', code: 'BROOKLANDS', f1Speed: 165, f1Gear: 2, f1GForce: 1.4, speedTarget: 0.20 },
-  { uStart: 0.43, uEnd: 0.50, turnNum: 7, name: 'T7 LUFFIELD', code: 'LUFFIELD', f1Speed: 120, f1Gear: 3, f1GForce: 2.2, speedTarget: 0.17 },
-  { uStart: 0.50, uEnd: 0.55, turnNum: 8, name: 'T8 WOODCOTE', code: 'WOODCOTE', f1Speed: 270, f1Gear: 8, f1GForce: 1.9, speedTarget: 0.34 },
-  { uStart: 0.55, uEnd: 0.62, turnNum: 9, name: 'T9 COPSE CORNER', code: 'COPSE', f1Speed: 300, f1Gear: 8, f1GForce: 4.5, speedTarget: 0.35 },
-  { uStart: 0.62, uEnd: 0.66, turnNum: 10, name: 'T10 MAGGOTTS', code: 'MAGGOTTS', f1Speed: 300, f1Gear: 8, f1GForce: 1.8, drsZone: 'DRS Detection 2', speedTarget: 0.33 },
-  { uStart: 0.66, uEnd: 0.70, turnNum: 11, name: 'T11 BECKETTS ENTRY', code: 'BECKETTS 1', f1Speed: 265, f1Gear: 7, f1GForce: 3.7, speedTarget: 0.27 },
-  { uStart: 0.70, uEnd: 0.74, turnNum: 12, name: 'T12 BECKETTS APEX (MAX-G)', code: 'BECKETTS 2', f1Speed: 235, f1Gear: 6, f1GForce: 5.0, speedTarget: 0.24 },
-  { uStart: 0.74, uEnd: 0.78, turnNum: 13, name: 'T13 CHAPEL', code: 'CHAPEL', f1Speed: 210, f1Gear: 5, f1GForce: 3.9, speedTarget: 0.29 },
-  { uStart: 0.78, uEnd: 0.87, turnNum: 0, name: 'HANGAR STRAIGHT (TOP SPEED)', code: 'HANGAR', f1Speed: 310, f1Gear: 8, f1GForce: 1.0, drsZone: 'DRS 2', speedTarget: 0.42 },
-  { uStart: 0.87, uEnd: 0.91, turnNum: 15, name: 'T15 STOWE CORNER', code: 'STOWE', f1Speed: 240, f1Gear: 6, f1GForce: 3.2, speedTarget: 0.26 },
-  { uStart: 0.91, uEnd: 0.94, turnNum: 16, name: 'T16 VALE CHICANE', code: 'VALE', f1Speed: 105, f1Gear: 2, f1GForce: 2.1, speedTarget: 0.15 },
-  { uStart: 0.94, uEnd: 0.97, turnNum: 17, name: 'T17 VALE EXIT', code: 'VALE OUT', f1Speed: 135, f1Gear: 2, f1GForce: 2.3, speedTarget: 0.20 },
-  { uStart: 0.97, uEnd: 1.00, turnNum: 18, name: 'T18 CLUB CORNER', code: 'CLUB', f1Speed: 225, f1Gear: 4, f1GForce: 3.2, speedTarget: 0.30 },
+  { uStart: 0.00, uEnd: 0.07, turnNum: 0, name: 'HAMILTON STRAIGHT', code: 'S/F', f1Speed: 290, f1Gear: 7, f1GForce: 1.0, speedTarget: 82.0 },
+  { uStart: 0.07, uEnd: 0.12, turnNum: 1, name: 'T1 ABBEY', code: 'ABBEY', f1Speed: 290, f1Gear: 7, f1GForce: 4.0, speedTarget: 70.0 },
+  { uStart: 0.12, uEnd: 0.16, turnNum: 2, name: 'T2 FARM CURVE', code: 'FARM', f1Speed: 185, f1Gear: 4, f1GForce: 2.2, speedTarget: 60.0 },
+  { uStart: 0.16, uEnd: 0.20, turnNum: 3, name: 'T3 VILLAGE CORNER', code: 'VILLAGE', f1Speed: 95, f1Gear: 2, f1GForce: 2.0, drsZone: 'DRS Detection 1', speedTarget: 36.0 },
+  { uStart: 0.20, uEnd: 0.25, turnNum: 4, name: 'T4 THE LOOP', code: 'LOOP', f1Speed: 85, f1Gear: 2, f1GForce: 1.2, speedTarget: 28.0 },
+  { uStart: 0.25, uEnd: 0.28, turnNum: 5, name: 'T5 AINTREE', code: 'AINTREE', f1Speed: 140, f1Gear: 3, f1GForce: 1.5, speedTarget: 48.0 },
+  { uStart: 0.28, uEnd: 0.38, turnNum: 0, name: 'WELLINGTON STRAIGHT', code: 'WELLINGTON', f1Speed: 295, f1Gear: 8, f1GForce: 1.0, drsZone: 'DRS 1', speedTarget: 85.0 },
+  { uStart: 0.38, uEnd: 0.43, turnNum: 6, name: 'T6 BROOKLANDS', code: 'BROOKLANDS', f1Speed: 165, f1Gear: 2, f1GForce: 1.4, speedTarget: 42.0 },
+  { uStart: 0.43, uEnd: 0.50, turnNum: 7, name: 'T7 LUFFIELD', code: 'LUFFIELD', f1Speed: 120, f1Gear: 3, f1GForce: 2.2, speedTarget: 34.0 },
+  { uStart: 0.50, uEnd: 0.55, turnNum: 8, name: 'T8 WOODCOTE', code: 'WOODCOTE', f1Speed: 270, f1Gear: 8, f1GForce: 1.9, speedTarget: 72.0 },
+  { uStart: 0.55, uEnd: 0.62, turnNum: 9, name: 'T9 COPSE CORNER', code: 'COPSE', f1Speed: 300, f1Gear: 8, f1GForce: 4.5, speedTarget: 74.0 },
+  { uStart: 0.62, uEnd: 0.66, turnNum: 10, name: 'T10 MAGGOTTS', code: 'MAGGOTTS', f1Speed: 300, f1Gear: 8, f1GForce: 1.8, drsZone: 'DRS Detection 2', speedTarget: 68.0 },
+  { uStart: 0.66, uEnd: 0.70, turnNum: 11, name: 'T11 BECKETTS ENTRY', code: 'BECKETTS 1', f1Speed: 265, f1Gear: 7, f1GForce: 3.7, speedTarget: 56.0 },
+  { uStart: 0.70, uEnd: 0.74, turnNum: 12, name: 'T12 BECKETTS APEX (MAX-G)', code: 'BECKETTS 2', f1Speed: 235, f1Gear: 6, f1GForce: 5.0, speedTarget: 48.0 },
+  { uStart: 0.74, uEnd: 0.78, turnNum: 13, name: 'T13 CHAPEL', code: 'CHAPEL', f1Speed: 210, f1Gear: 5, f1GForce: 3.9, speedTarget: 62.0 },
+  { uStart: 0.78, uEnd: 0.87, turnNum: 0, name: 'HANGAR STRAIGHT (TOP SPEED)', code: 'HANGAR', f1Speed: 310, f1Gear: 8, f1GForce: 1.0, drsZone: 'DRS 2', speedTarget: 88.0 },
+  { uStart: 0.87, uEnd: 0.91, turnNum: 15, name: 'T15 STOWE CORNER', code: 'STOWE', f1Speed: 240, f1Gear: 6, f1GForce: 3.2, speedTarget: 52.0 },
+  { uStart: 0.91, uEnd: 0.94, turnNum: 16, name: 'T16 VALE CHICANE', code: 'VALE', f1Speed: 105, f1Gear: 2, f1GForce: 2.1, speedTarget: 30.0 },
+  { uStart: 0.94, uEnd: 0.97, turnNum: 17, name: 'T17 VALE EXIT', code: 'VALE OUT', f1Speed: 135, f1Gear: 2, f1GForce: 2.3, speedTarget: 40.0 },
+  { uStart: 0.97, uEnd: 1.00, turnNum: 18, name: 'T18 CLUB CORNER', code: 'CLUB', f1Speed: 225, f1Gear: 4, f1GForce: 3.2, speedTarget: 64.0 },
 ];
 
 /** Ermittelt den aktuellen Streckenabschnitt basierend auf u in [0, 1) */
@@ -117,14 +120,14 @@ export function getSilverstoneSector(u: number): TrackSectorInfo {
 }
 
 /**
- * Erzeugt die 3D BufferGeometry für die 8.2m breite Silverstone-Asphaltrennstrecke
+ * Erzeugt die 3D BufferGeometry für die 12.0m breite Silverstone-Asphaltrennstrecke
  * inklusive rot-weißen FIA Kerbs (Randsteinen) und Start-Ziel-Markierung.
  */
 export function createSilverstoneTrackGeometry(
   curve: THREE.CatmullRomCurve3,
-  segments: number = 500,
-  trackWidth: number = 8.2,
-  kerbWidth: number = 0.95
+  segments: number = 800,
+  trackWidth: number = 12.0,
+  kerbWidth: number = 1.35
 ): {
   trackGeo: THREE.BufferGeometry;
   kerbLeftGeo: THREE.BufferGeometry;
@@ -157,16 +160,16 @@ export function createSilverstoneTrackGeometry(
     const normX = nx / len;
     const normZ = nz / len;
 
-    // 1. Asphalt-Hauptfahrbahn
+    // 1. Asphalt-Hauptfahrbahn (12.0m breit)
     const lx = pt.x - normX * halfW;
     const lz = pt.z - normZ * halfW;
     const rx = pt.x + normX * halfW;
     const rz = pt.z + normZ * halfW;
 
     trackPositions.push(lx, 0.003, lz);
-    trackUvs.push(0, u * 40);
+    trackUvs.push(0, u * 160);
     trackPositions.push(rx, 0.003, rz);
-    trackUvs.push(1, u * 40);
+    trackUvs.push(1, u * 160);
 
     if (i < segments) {
       const b = i * 2;
@@ -178,17 +181,17 @@ export function createSilverstoneTrackGeometry(
     const klx = pt.x - normX * (halfW + kerbWidth);
     const klz = pt.z - normZ * (halfW + kerbWidth);
     kLPositions.push(klx, 0.012, klz);
-    kLUvs.push(0, u * 120);
+    kLUvs.push(0, u * 480);
     kLPositions.push(lx, 0.004, lz);
-    kLUvs.push(1, u * 120);
+    kLUvs.push(1, u * 480);
 
     // 3. Rot-Weiße Kerbs rechts (Außenrand)
     const krx = pt.x + normX * (halfW + kerbWidth);
     const krz = pt.z + normZ * (halfW + kerbWidth);
     kRPositions.push(rx, 0.004, rz);
-    kRUvs.push(0, u * 120);
+    kRUvs.push(0, u * 480);
     kRPositions.push(krx, 0.012, krz);
-    kRUvs.push(1, u * 120);
+    kRUvs.push(1, u * 480);
 
     if (i < segments) {
       const b = i * 2;
@@ -227,7 +230,7 @@ export function createSilverstoneTrackGeometry(
   const sfnZ = sfNz / sfLen;
 
   const sfW = trackWidth;
-  const sfL = 2.2; // Länge des Schachbrettstreifens
+  const sfL = 3.6; // Länge des Schachbrettstreifens
   const sfP1 = [sfPt.x - sfnX * (sfW * 0.5) - sfTan.x * (sfL * 0.5), 0.006, sfPt.z - sfnZ * (sfW * 0.5) - sfTan.z * (sfL * 0.5)];
   const sfP2 = [sfPt.x + sfnX * (sfW * 0.5) - sfTan.x * (sfL * 0.5), 0.006, sfPt.z + sfnZ * (sfW * 0.5) - sfTan.z * (sfL * 0.5)];
   const sfP3 = [sfPt.x + sfnX * (sfW * 0.5) + sfTan.x * (sfL * 0.5), 0.006, sfPt.z + sfnZ * (sfW * 0.5) + sfTan.z * (sfL * 0.5)];
