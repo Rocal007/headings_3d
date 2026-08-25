@@ -5,11 +5,11 @@ Jede physikalische und logische Baugruppe des Krans wird von einem spezialisiert
 
 ---
 
-## 🤖 Übersicht der Kran-Spezialagenten
+## 🤖 Übersicht der Spezial- & Master-Agenten
 
 ```mermaid
 graph TD
-    Orchestrator[1. crane_orchestrator<br/>Master Kinematics & Scene] --> Dolly[2. truck_dolly<br/>Dolly Chassis & Rails]
+    Orchestrator[1. crane_orchestrator<br/>Master Kinematics & Scene] --> Dolly[2. crane_dolly<br/>Crane Dolly Chassis & Rails]
     Orchestrator --> Column[3. crane_column<br/>Hydraulic Lift Column & Slewing Ring]
     Column --> Fulcrum[4. crane_fulcrum<br/>Fulcrum Pivot & Yoke]
     Fulcrum --> Boom[5. telescopic_boom<br/>4-Stage Telescopic Beams 1-4]
@@ -30,6 +30,23 @@ graph TD
     Orchestrator --> Architect[19. software_architect<br/>Architecture, R3F Performance & Governance]
     Orchestrator --> Director[20. camera_director<br/>Automated Cinematography & Broadcast Regie]
     Tennis --> BallDeployment[21. ball_crane_deployment<br/>Tennis Ball Deployment, Hopper & Cannon Launcher]
+    Orchestrator --> LKW[22. man_tgl_truck<br/>🚚 LKW Logistics & Transport Master]
+    
+    subgraph LKW_Subsystem [🚚 MAN TGL 12.250 Subagenten-Ökosystem]
+        LKW --> Cabin[22.1 truck_cabin<br/>Fahrerkabine, Cockpit, Türen & MAN Grill]
+        LKW --> Chassis[22.2 truck_chassis<br/>Leiterrahmen, D08 Antrieb, Tank & Unterfahrschutz]
+        LKW --> BoxBody[22.3 truck_box_body<br/>Kofferaufbau, Plywood-Panels & Ladebordwand]
+        LKW --> Wheels[22.4 truck_wheels_suspension<br/>265/70R17.5 Räder, Radkästen & Einstieg]
+        LKW --> Cargo[22.5 truck_crane_cargo<br/>Supertechno 50 Ladungssicherung & Flightcases]
+        LKW --> Telematics[22.6 truck_telematics_physics<br/>Fahrdynamik, Spotlights, HUD & BSOD]
+        LKW --> Wipers[22.7 truck_windshield_wipers<br/>🌧️ Windschutzscheibe & Wischerkinematik]
+        LKW --> Plate[22.8 truck_license_plate<br/>🪪 Nummernschild & SUPERTECHNO Branding]
+        LKW --> Doors[22.9 truck_doors_kinematics<br/>🚪 Fahrertüren, Innenverkleidung & Kinematik]
+        LKW --> Tailgate[22.10 truck_tailgate_kinematics<br/>📦 Ladebordwand, Heckklappe & Hubkinematik]
+        LKW --> WheelArch[22.11 truck_front_wheel_arch<br/>🛞 Vordere Radkästen, Einstiegsstufen & Blinker]
+        LKW --> RearLights[22.12 truck_rear_lights<br/>🚨 Heckleuchten-Cluster, Bremslicht & Blinker]
+        LKW --> Headlights[22.13 truck_headlights<br/>💡 LED-Frontscheinwerfer, DRL & Nebellampen]
+    end
 ```
 
 ---
@@ -44,10 +61,10 @@ graph TD
   * Globale Parameter-Synchronisation: `dollyTrack`, `columnLift`, `basePan`, `boomTilt`, `teleExtension`, `headPan`, `headTilt`, `headRoll`.
   * HUD- und Telemetrie-Rendering (Ausfahrlänge, Neigungswinkel, Linsenhöhe über Grund, Bodenabstand).
 
-### 2. `truck_dolly` (Dolly Chassis & Schienen)
-* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx)
+### 2. `crane_dolly` (Kran-Dolly Chassis, Schienen & Outriggers)
+* **Dateien**: [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx), [`src/components/tennis/TennisMountedRig.tsx`](file:///e:/3D-headings/src/components/tennis/TennisMountedRig.tsx)
 * **Zuständigkeit**:
-  * Mobiles Chassis, 4x Doppel-Stahl-Schienenräder, Luftreifen für Studiobetrieb.
+  * Mobiles Kran-Chassis, 4x Doppel-Stahl-Schienenräder, Luftreifen für Studiobetrieb.
   * Hydraulische Nivellierstützen (Outriggers) und Wasserwaagen-Anzeigen.
   * Schienenführung (`CraneDollyRailTrack`), Schienenlänge, Anschlagpuffer.
 
@@ -297,6 +314,8 @@ graph TD
       - `full` (Rig Overview), `cinematic` (8-Stage Catmull-Rom Hollywood-Rundflug), `profile` (Flanken-Auszug), `top` (Blueprint Draufsicht), `head` (Macro Gyro Head), `weight` (Gegengewichtswagen), `cable` (Festoon-Kabeltrasse), `operator` (Kranführer Heck), `desk` (DoP Bodenpult), `dolly` (Schienen-Froschperspektive), `pov` (Angenieux Optimo Linse), `free` (100% Orbit).
     * **Tennis Grand Slam Broadcast (9 Perspektiven)**:
       - `broadcast` (Center High-Angle), `smash` (First-Person Schläger POV durch gespannte Saiten), `ball` (3D Ball-Follower), `crane1` (Jannik Sinner Hero), `crane2` (Carlos Alcaraz Hero), `umpire` (Chair Umpire), `spectator` (Tribünen-Atmo), `coach` (Trainerbox), `free` (Freie Steuerung).
+    * **MAN TGL 12.250 Truck & Logistik (10 Perspektiven & Auto-Regie)**:
+      - `follow` (3rd-Person Chase-Cam), `cockpit` (Fahrerkabine First-Person), `side_mirror` (Rückspiegel-Flanke), `wheel` (Radkasten Action-Cam), `tailgate` (Heck & Ladebordwand), `front_hero` (Front Low-Angle), `drone` (Vogelperspektive), `cinematic` (Hollywood 360° Rundflug), `auto_director` (Intelligenter TV-Live-Schnitt), `free` (Freier Orbit).
   * **3. Kinematische Kamera-Dämpfung & Übergänge**:
     * Framerate-unabhängige exponentielle Dämpfung (`dampCameraExp`) für butterweiche Übergänge bei 60/120 FPS ohne Ruckeln.
     * Unterstützung von harten Schnitten (`cut`), geschmeidigen Fahrten (`smooth_lerp`), Whip-Pans (`whip_pan`) und geschlossenen Spline-Flugbahnen (`spline_flow`).
@@ -310,13 +329,13 @@ graph TD
 ### 21. `ball_crane_deployment` (Tennis Ball Deployment, Pneumatic Serve Ball-Tube & Ball Cannon Engine)
 * **Dateien**: [`src/utils/ballDeployment.ts`](file:///e:/3D-headings/src/utils/ballDeployment.ts), [`src/components/tennis/TennisBallDeployment.tsx`](file:///e:/3D-headings/src/components/tennis/TennisBallDeployment.tsx), [`src/components/CraneTennis.tsx`](file:///e:/3D-headings/src/components/CraneTennis.tsx), [`src/components/tennis/TennisControlDrawer.tsx`](file:///e:/3D-headings/src/components/tennis/TennisControlDrawer.tsx)
 * **Zuständigkeit**:
-  * **1. Transparentes Ballrohr & Vakuum-Ansaugung (Pre-Serve Tube Suction nach den Gewichten)**:
-    * Längliches, hochtransparentes Polycarbonat-Ballrohr ($L = 2.20\,\text{m}$), montiert oben auf dem Kranausleger (Beam 1) direkt nach dem Verfahrweg der Gegengewichte ($Z = -1.18\,\text{m}$ bis $-3.38\,\text{m}$).
-    * Lückenlose Füllung mit bis zu 14 sichtbaren 3D-Tennisbällen (gelber Filz + weiße Naht), gesichert durch 5x Carbon-Sattelhalterungen an den Auslegerschienen.
-    * **Kein Boden-Aufprellen mehr**: Der Ball wird vor dem Aufschlag per Vakuum mit schlagtyp-spezifischer Geschwindigkeit durch das Rohr nach vorne in die Mündungskammer gesaugt (Flat: High-Speed Snap, Kick: progressiver Anstieg, Slice: laminarer Gleitlauf).
-  * **2. Pneumatischer Aufschlag-Toss Werfer (Druckluft-Schuss in Höhe & Winkel)**:
-    * Hochpräziser Druckluft-Impuls aus der vorderen Rohrmündung ($72^\circ$ Elevation), der den Ball direkt in die optimale Aufschlag-Treffpunkthöhe ($Y \approx 3.55\,\text{m}$) vor das Schlägerblatt schießt.
-    * Mündungsfeuer / Glow-Effekt, Druckluft-Schockwellenring und Live-Druckanzeige am digitalen Manometer ($8.4\,\text{Bar}$).
+  * **1. Transparentes Speicherrohr & Vertikale Abschussröhre (Vertical Tube & Pre-Serve Suction)**:
+    * Horizontales, transparentes Polycarbonat-Speicherrohr ($L = 2.00\,\text{m}$) auf Beam 1 (nach den Gegengewichten) mit bis zu 14 gelagerten Tennisbällen.
+    * 90°-Übergangsbogen an der Auslegerfront in die **vertikale transparente Abschussröhre** ($H = 0.76\,\text{m}$, Mündung bei $Y = 1.15\,\text{m}$).
+    * Vor dem Aufschlag wird der Ball per Vakuum mit schlagtyp-spezifischem Profil durch das horizontale Rohr in die vertikale Röhre gesaugt.
+  * **2. Senkrechter Druckluft-Toss & Realistische ATP-Schlagführung**:
+    * Druckluft-Stoß ($8.4\,\text{Bar}$) schießt den Ball aus der vertikalen Röhre senkrecht nach oben in die Floating-Apex-Höhe ($Y \approx 3.75\,\text{m}$).
+    * **Authentische ATP-Schlagführung**: Synchroner Säulenhub (Leg Drive), Heben in die Trophy Pose ($\beta = 45^\circ$), tiefer Racket Drop hinter den Rücken ($\beta = 68^\circ, \gamma = 52^\circ$), explosiver Handgelenks-Peitschenschlag mit voller Vorarm-Innenrotation (Pronation, $\gamma = -65^\circ$) und flüssiger Hüft-Ausschwung.
   * **3. Ballkinder-Zuspiel & Nachladetrichter (`BallBoyFeed`)**:
     * Authentische 3D-Bodenroll- und Handwurf-Parabeln von den 4 Courtside-Ballkindern direkt in den hinteren Einfülltrichter des Ausleger-Ballrohrs bei $Z = -1.18\,\text{m}$.
     * Automatischer und manueller Nachladevorgang über UI-Trigger.
@@ -324,6 +343,188 @@ graph TD
     * Runge-Kutta 4. Ordnung (RK4) Trajektorien-Solver für Vorhand/Rückhand/Smash-Zuspiele und Repetier-Drills.
   * **5. Sicherheits-Guardrails & Drucküberwachung**:
     * Druckbegrenzung ($4.0 - 12.0\,\text{Bar}$) und Mindestsicherheitsradius (`CANNON_SAFE_CLEARANCE = 1.2m`).
+
+### 22. `man_tgl_truck` (🚚 Master Logistics & Equipment Transporter Agent)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **Master-Koordination**: Gesamtfahrzeug-Simulation des **MAN TGL 12.250 / 10.250 Equipment Transporters** für den Transport des Supertechno 50 Krans, Schienen und Flightcases.
+  * **Szenen-Orchestrierung**: Eigenständige 3D-Präsentation mit `RoomEnvironment`, Schattensystem (`PCFSoftShadowMap`), Nebelsteuerung und interaktiven UI-Controls (Fahrt/Stopp, Türen, Crash-Diagnose).
+  * **Subagenten-Governance**: Überwachung und Führung der 10 spezialisierten LKW-Subagenten (`truck_cabin`, `truck_chassis`, `truck_box_body`, `truck_wheels_suspension`, `truck_crane_cargo`, `truck_telematics_physics`, `truck_windshield_wipers`, `truck_license_plate`, `truck_doors_kinematics`, `truck_tailgate_kinematics`).
+
+#### 22.1 `truck_cabin` (Fahrerkabine, Hohlraum-Architektur, Aerodynamik & MAN Styling)
+* **Zuständigkeit**:
+  * **Hohlraum-Karosseriestruktur**: Modulare Baugruppen bestehend aus Rückwand mit Innenpolster, aerodynamischer Dachschale mit Dachspoiler, Kabinenboden mit Motortunnel, A-/B-Säulen und Frontmaskenträger.
+  * **MAN Kühlergrill & Emblem**: Dynamische 512×256 Canvas-Textur mit verchromter Wabenleiste, markantem MAN Löwen-Emblem und weiß/grauem Farbverlauf.
+  * **Cockpit-Interieur**: Curved Dashboard mit beleuchtetem Instrumentencluster, MAN 3-Speichen-Lenkrad, ergonomischen Sitzen mit Kopfstützen, Pedalerie und Deckenbeleuchtung.
+  * **Bugspiegel-System**: Links/Rechts-Doppelspiegel mit Hauptspiegel, Weitwinkelspiegel, Rampenblick-Spiegel und Front-Anfahrspiegel.
+  * **Dachaufbauten**: Geschwungener Dachspoiler / Windleitkörper zur Kofferfront, Dachbegrenzungsleuchten (Orange) und Funkantenne.
+
+#### 22.2 `truck_chassis` (Fahrgestell, D08 Powertrain & Peripherie)
+* **Zuständigkeit**:
+  * **Leiterrahmen-Chassis**: Hochfester Stahlrahmen-Hauptträger über die gesamte Fahrzeuglänge ($3.5\,\text{m} - \text{kofferBackZ}$) auf Höhe $Y = 0.6\,\text{m}$.
+  * **D08 Powertrain & Getriebe**: MAN D08 4-Zylinder / 6-Zylinder Turbodiesel-Antriebsstrang (250 PS / 184 kW, 1050 Nm) mit automatisierter TipMatic 12-Gang Schaltung.
+  * **Kraftstofftank & AdBlue**: Prozedural gerippter Kraftstofftank ($0.5\,\text{m} \times 0.4\,\text{m} \times 1.2\,\text{m}$) mit Canvas-Rippentextur.
+  * **Seiten-Unterfahrschutz**: Silberne Aluminium-Schutzprofile ($L = 3.95\,\text{m}$) an beiden Fahrzeugflanken mit gelben "LAIMER NUTZFAHRZEUGE" Typenschildern.
+  * **Staukästen & Druckluftkessel**: Seitliche Kunststoff-Werkzeugkästen vor der Hinterachse für Spanngurte und Krangezubehör.
+
+#### 22.3 `truck_box_body` (Kofferaufbau & Hydraulische Ladebordwand)
+* **Zuständigkeit**:
+  * **Plywood/Alu Kofferaufbau**: Maßgetreuer Kofferaufbau nach realem MAN TGL Datenblatt ($L = 8.25\,\text{m}, B = 2.57\,\text{m}, H = 2.68\,\text{m}$, Ladekantenhöhe $1.02\,\text{m}$).
+  * **Koffer-Seitenwandtextur**: 2048×512 Textur mit warmweißer PBR-Oberfläche, 6 vertikalen Panel-Nähten mit Schatten-/Glanzkanten, Nietenreihen oben/unten und unterer Alu-Scheuerleiste.
+  * **Hydraulische Ladebordwand (Tail Lift)**: Dautel/Bär Cargolift Hebebühne mit 512×512 Textur, rot-weißer Warnschraffur, Gummilippe, vertikalen Versteifungsrippen und LAIMER Badge.
+  * **Heckunterbau & Hebelmechanik**: Heckstoßfänger ($2.4\,\text{m} \times 0.15\,\text{m} \times 0.3\,\text{m}$), zylindrische Unterfahrschutz-Querstange und Falt-Hydraulikarme.
+
+#### 22.4 `truck_wheels_suspension` (Räder, Radkästen & Fahrwerk)
+* **Zuständigkeit**:
+  * **Bereifung 265/70R17.5**: Ø 815 mm ($r = 0.408\,\text{m}$, Breite $265\,\text{mm}$) mit 32-Segment Gummiprofil, Tiefbettfelgen und Radnaben.
+  * **Zwillingsbereifung Heck**: Doppelräder an der Hinterachse ($Z = -2.05\,\text{m}$) mit Felgenskalierung für Tiefenversatz.
+  * **Vordere Radkasten-Architektur**: Halbkreisförmiger Wheel-Arch-Liner ($r = 0.58\,\text{m}$), Schmutzfänger, schwarzes Türunterpanel und integrierte Seitenblinker.
+  * **3-Stufiger Einstiegsblock**: Ergonomischer Trittstufenblock mit 3 geriffelten Aluminium-Trittstufen hinter dem Vorderrad.
+  * **Hintere Kotflügel & Mudflaps**: Halbkreis-Kotflügelschalen und breite Schmutzfänger hinter den Hinterrädern.
+
+#### 22.5 `truck_crane_cargo` (Laderaum-Ausstattung & Kran-Verzurrung)
+* **Zuständigkeit**:
+  * **Laderaum-Innenraum**: Antirutsch-Siebdruckboden, vertikale und horizontale Airline-Zurrschienen, Decken-LED-Lichtleisten.
+  * **Kran-Transportgestell**: Formschlüssige Schwerlast-Aufnahmen für den 4-Stufen-Teleskoparm des Supertechno 50.
+  * **Schienen-Racks**: Sichere Halterungen für 2.4m und 1.2m Präzisions-Schienenelemente des Krandollys.
+  * **Zubehör-Stauung**: Verzurrte Flightcases für Counterweights (Gegengewichtsplatten), Remote Camera Head, Master Wheels Flightcase und FIZ-Optik-Koffer.
+
+#### 22.6 `truck_telematics_physics` (🏎️ Fahrdynamik, Fahrwerksphysik, Beleuchtung & Telemetrie)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. Dynamisches Geschwindigkeitsprofil & Kurven-Anbremsen**:
+    * Achter-Kurvenfahrt (Lissajous-Trajektorie $x = \sin(t) \cdot 20\,\text{m}, z = \sin(2t) \cdot 10\,\text{m}$) mit dynamischer Tangenten-Ausrichtung (Heading).
+    * Adaptives Beschleunigungs- und Bremsprofil: Kraftvolles Herausbeschleunigen auf Geraden ($v = 0.36$), automatisches Anbremsen vor engen Kurvenscheiteln ($v = 0.15$) mit asymmetrischen Raten ($k_{\text{brake}} = 4.5, k_{\text{accel}} = 2.2$).
+  * **2. Fahrgestell-Nickdynamik (Chassis Pitch & Squat)**:
+    * Eintauchen der Front in die Vorderachsfedern beim Bremsen ($\theta_{\text{pitch}} > 0$) und Einfedern der Hinterachse beim Beschleunigen ($\theta_{\text{pitch}} < 0$).
+    * Pneumatisches Ausfedern (Pneumatic Rebound Settle) beim Stillstand.
+  * **3. Fliehkraft-Wankdynamik (Chassis Roll & YXZ-Euler)**:
+    * Neigung des $12\,\text{t}$ Kofferaufbaus nach kurvenaußen durch Fliehkräfte ($\theta_{\text{roll}}$ bis $\pm 3.4^\circ$).
+    * Entkoppelte `YXZ`-Euler-Rotationsreihenfolge (Heading $\to$ Pitch $\to$ Roll) gegen kardanische Achsen-Verdrehung.
+  * **4. Vorderrad-Lenkkinematik & Cockpit-Synchronisation**:
+    * Dynamische Berechnung der Kurventangente und des Ackermann-Lenkwinkels der Vorderräder bis $\pm 25^\circ$.
+    * Synchrone Drehung des MAN-Lenkrads im Cockpit mit $3.5\times$ Lenkgetriebe-Übersetzung.
+  * **5. Dynamische Raddrehzahl & Motor-/Fahrbahnpulsieren**:
+    * Radumdrehungen strikt proportional zur echten Momentangeschwindigkeit.
+    * Subtiles D08 6-Zylinder Dieselmotor-Pulsieren im Stand ($22\,\text{Hz}$) und geschwindigkeitsabhängiges Fahrbahnrumpeln bei Fahrt.
+  * **6. Beleuchtungssystem, Telemetrie-HUD & Resilienz**:
+    * 2x Front-Spotlights ($30\,\text{cd}$, $60\,\text{m}$, $36^\circ$) mit Asphalt-Lichtkegeln und LED-Rücklichter.
+    * Digitales Datenblatt-HUD (11.990 kg, 250 PS / 184 kW, 1050 Nm, Euro 6d).
+    * Simulierter Windows BSOD Crash-Screen (`CRITICAL_TRUCK_FAILURE` in `MAN_TGL.sys`) zur Verifikation der WebGL-Resilienz.
+
+#### 22.7 `truck_windshield_wipers` (🌧️ Windschutzscheibe, Wischerkinematik & Waschsystem)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. Verbundsicherheitsglas (VSG) & Optik-Shader**:
+    * Aerodynamisch geneigte Panorama-Frontscheibe ($2.26\,\text{m} \times 1.16\,\text{m}$) mit $85\%$ Metallizität, Transmission und Lichtreflexionen.
+    * Schwarzer Keramik-Siebdruckrand (Ceramic Frit Mask) und Tönungskeil (Sunstrip) an der Dachkante.
+    * Optischer Regensensor / Lichtsensor an der Innenseite hinter dem Spiegelfuß.
+  * **2. Wischer-Mechanik & Flachbalken-Technologie**:
+    * 2x Wischerarme aus mattschwarz lackiertem Federstahl mit Drehachsen an der Wischerwanne ($Y = 2.22\,\text{m}, Z = 4.28\,\text{m}$).
+    * Aerotwin Flachbalken-Wischerblätter ($L = 0.48\,\text{m}$) mit integriertem Windabweiser-Spoiler gegen Abhebe-Kräfte bei Fahrtwind.
+  * **3. Wischer-Kinematik & Animations-Engine**:
+    * Synchroner Wischzyklus (Gleichlauf-Pendelbewegung von Ruhelage $0^\circ$ bis zum Umkehrpunkt $75^\circ$).
+    * Intervall- und Dauerwisch-Modi im Render-Loop (`wipersActive`).
+  * **4. Waschsystem & Service-Peripherie**:
+    * Wet-Blade Direkteinspritz-Waschdüsen entlang der Wischerleiste.
+    * Beheiztes Scheibenruhefeld für Frostschutz im Winterbetrieb.
+    * Verchromte Service-Haltegriffe und Antirutsch-Standfläche im Stoßfänger für die manuelle Scheibenreinigung.
+
+#### 22.8 `truck_license_plate` (🪪 Kennzeichen-System, Typografie & Halterungen)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. Kennzeichen-Design & Typografie**:
+    * 512×128 / 1024×256 Canvas-Textur nach europäischem Standardformat ($520\,\text{mm} \times 110\,\text{mm}$).
+    * Blaues EU-Band links mit gelbem Europa-Sternenkranz (⭐ 12 Sterne) und Länderkennung **A** (Österreich).
+    * Geprägter, erhabener Schriftzug **`SUPERTECHNO`** in DIN 1451 / FE-Schrift mit 3D-Schlagschatten und Glanzkante.
+    * Wiener Landeswappen und amtliche Prüfplakette (Pickerl) vor dem Schriftzug.
+  * **2. Kennzeichenhalterung & Montage**:
+    * Mattschwarzer Kennzeichenverstärker / Rahmen mit unterer Werbeleiste ("SUPERTECHNO CINE CRANES • VIENNA").
+    * Frontmontage auf dem Stoßfänger ($Y = 0.48\,\text{m}, Z = 4.53\,\text{m}$).
+    * Heckmontage am Heckunterbau / Ladebordwand-Balken mit weißer LED-Kennzeichenbeleuchtung.
+  * **3. Shader & Materialeigenschaften**:
+    * Retroreflektierende weiße PBR-Oberfläche mit leichtem Glanz.
+
+#### 22.9 `truck_doors_kinematics` (🚪 Fahrertüren, Ergonomie, Innenverkleidung & Kinematik)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. MAN Stufenfenster-Architektur**:
+    * Spezifische MAN TGL Türfensterkontur mit dynamisch abgesenkter Fensterbrüstung nach vorne zur perfekten Spiegeleinsicht.
+    * Getönte Seitenscheiben mit Rahmenfalz.
+  * **2. Türaußenhaut & Beschläge**:
+    * Extrudierte Außenhaut mit Klarlack (`paintMat`).
+    * "TGL 12.250" Metallplakette mit Prägeeffekt.
+    * Aerodynamisch integrierte Griffmulden, Schlosszylinder und untere Kunststoff-Rammschutzbeplankung.
+  * **3. Tür-Innenverkleidung (Door Card)**:
+    * Formangepasste Innenverkleidung aus strapazierfähigem Strukturgewebe (`interiorMat`).
+    * Ergonomische Armauflage, Türöffner-Hebel, Fensterheberschalter und unteres Türenablagefach.
+  * **4. A-Säulen Scharnier- & Öffnungskinematik**:
+    * Drehachsen-Pivot an der A-Säule ($X = \pm 1.15\,\text{m}, Z = 4.22\,\text{m}$).
+    * Butterweiche $68^\circ$-Öffnungs- und Schließanimation im Render-Loop (`doorsOpen`).
+
+#### 22.10 `truck_tailgate_kinematics` (📦 Hydraulische Ladebordwand, Heckportal, Hubkinematik & Roll-Off Rampen)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. Dautel / Bär Cargolift Hebebühne (Ladebordwand)**:
+    * Hochfeste Aluminium-Plattform ($2.50\,\text{m} \times 2.05\,\text{m}$) mit rutschfester Querrillung, rot-weißen Warnfahnen/Schraffuren, Dautel-Branding und LAIMER-Badge.
+    * 2x blinkende orange LED-Sicherheits-Warnleuchten an den Plattform-Ecken.
+    * Fußtaster-Bedienung auf der Plattform und 4-Tasten-Außensteuerkasten am rechten Unterfahrschutz.
+  * **2. 2-Phasen Hub- & Neigekinematik (Kinematic State Machine)**:
+    * **Phase 1 (Aufrichten / Schließen)**: Vertikales Schließen der Plattform von $90^\circ$ waagerecht auf senkrecht an das Heckportal.
+    * **Phase 2 (Senken auf Bodenniveau)**: Horizontales Absenken der Plattform vom Ladekanten-Niveau ($Y = 1.02\,\text{m}$) bis auf den Boden ($Y = 0.05\,\text{m}$).
+    * **Phase 3 (Boden-Neigung / Roll-Off)**: Neigen der Plattformspitze um $6^\circ - 8^\circ$ nach unten zur Bildung einer befahrbaren Rampe für Dolly und Flightcases.
+  * **3. Hydraulik-Parallelogramm & Zylinder**:
+    * 2x Haupt-Hubzylinder (verchromte Kolbenstangen) und 2x Neigezylinder mit Schwenkarm-Führung unter dem Heckrahmen.
+    * Hydraulikleitungen und mechanische Abreißsicherung.
+  * **4. Oberes Heckportal & Rolltor / Überklappe (Top Flap / Roller Shutter)**:
+    * Gasfeder-gedämpfte obere Heckklappe / Rolltor oberhalb der Ladebordwand mit Griffmulde und Gummi-Dichtlippe.
+  * **5. Interaktive UI-Steuerung & Telemetrie**:
+    * Interaktiver UI-Button `📦 Ladebordwand öffnen/senken` mit sanfter Zustands-Interpolation und Status-Anzeige.
+
+#### 22.11 `truck_front_wheel_arch` (🛞 Vordere Radkästen, Einstiegswannen, Radhaus-Innenschalen, Schmutzfänger & Seitenblinker)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. MAN TGL Radhaus-Innenschalen (Wheelhouse Liners)**:
+    * Formangepasste, schmutzabweisende Innenkotflügel-Schale (`darkTrimMat`) passgenau um den 265/70R17.5 Vorderreifen ($r = 0.50\,\text{m}, X = \pm 0.85\,\text{m}$), formschlüssig entkoppelt von der äußeren Radkontur.
+    * Spritzwasserschutz-Geometrie und Schmutzfänger (`frontMudflap`) hinter dem Vorderrad.
+  * **2. Ergonomische 2-Stufen Einstiegswanne (Cab Entry Steps)**:
+    * Vorbildgetreue, tiefgezogene Einstiegswanne unterhalb der Fahrertür ($Z = 2.50\,\text{m} \dots 2.90\,\text{m}$).
+    * 2x rutschhemmende, gelochte Aluminium-Gitterrost-Trittstufen (`stepTreadGeo`, `silverMat`) auf $Y = 0.38\,\text{m}$ (untere Einstiegsstufe) und $Y = 0.68\,\text{m}$ (obere Stufe).
+    * Aerodynamische Überdeckung durch die verlängerte Tür-Schürze im geschlossenen Zustand.
+  * **3. Gelbe LED-Seitenmarkierungsleuchten (Side Marker Blinkers)**:
+    * Integrierte Seitenblinker (`blinkerGeo`, `blinkerMat` mit orangenem Glüheffekt auf $X = \pm 1.18\,\text{m}, Y = 0.95\,\text{m}, Z = 2.50\,\text{m}$).
+#### 22.12 `truck_rear_lights` (🚨 Heckleuchten-Cluster, 7-Kammer-Leuchten, Bremslicht, Blinker & Umrissleuchten)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. MAN 7-Kammer Heckleuchten-Cluster (Main Rear Light Clusters)**:
+    * Vorbildgetreue Rückleuchten-Baugruppen links und rechts am Heckunterbau ($X = \pm 0.88\,\text{m}, Y = 0.52\,\text{m}, Z = \text{kofferBackZ} - 0.05\,\text{m}$) mit schlagfestem Kunststoffgehäuse.
+    * **Kammer 1 (Blinker)**: Dynamische orangefarbene LED-Fahrtrichtungsanzeiger (`#ff9900`), die beim Einlenken und Kurvenfahren synchron pulsieren.
+    * **Kammer 2 (Schluss- & Bremslicht)**: Rote LED-Fläche (`#ff2200`), die im Normalbetrieb dezent leuchtet und bei Bremsvorgängen / Stillstand intensiv aufleuchtet ($3.5\times$ Emissive-Flare).
+    * **Kammer 3 (Rückfahrscheinwerfer)**: Kristallweiße LED-Rückfahrleuchte (`#ffffff`) mit hellem Ausleuchtungskegel.
+    * **Kammer 4 (Nebelschlussleuchte & Reflektor)**: Rote Nebelschlussleuchte und dreieckiger Rückstrahler nach ECE-R48.
+  * **2. 3. Bremsleuchte & Obere Umrissleuchten (High-Mounted Stop & Marker Lights)**:
+    * 3. LED-Bremsleuchtenleiste zentriert am oberen Heckportal-Rahmen ($X = 0, Y = \text{kofferY} + \text{kofferHeight}/2 - 0.04\,\text{m}$).
+    * 2x rot-weiße LED-Umrisspositionsleuchten an den oberen Heckkanten des Kofferaufbaus.
+  * **3. Plattform-Sicherheitswarnleuchten (Tail Lift Corner Blinkers)**:
+    * 2x blinkende orange Warn-LEDs an den äußeren Ecken der Ladebordwand-Plattform bei geöffneter Klappe.
+  * **4. Kennzeichenbeleuchtung & Nacht-Lichtreflexion**:
+    * Warmweiße LED-Ausleuchtung für das SUPERTECHNO-Kennzeichen.
+    * Boden-Lichtkegel und asphaltbezogene Bremslicht-Reflexionen im Render-Loop.
+
+#### 22.13 `truck_headlights` (💡 MAN LED-Frontscheinwerfer, Tagfahrlicht DRL, Nebelscheinwerfer & Lichtkegel)
+* **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. MAN TGL Scheinwerfer-Cluster (Headlight Clusters)**:
+    * Trapezförmige Scheinwerfer-Baugruppen im Stoßfänger ($X = \pm 0.82\,\text{m}, Y = 0.72\,\text{m}, Z = 4.54\,\text{m}$) mit Klarglasabdeckung und chrombedampfter Reflektorwanne.
+    * **Tagfahrlicht (LED DRL Signature)**: U-förmiges kaltweißes LED-Lichtband (`#e0f2fe`) mit markantem Tagfahrlicht-Blick.
+    * **Bi-LED Projektionslinse**: Hochleistungs-LED-Projektionsoptik (`#ffffff`, $1.5\times$ Emissive-Glühen) für das Abblend- und Fernlicht.
+    * **Front-Blinkerleiste**: Integrierte bernsteinfarbene LED-Blinkerleiste (`#ff8800`), synchronisiert mit Kurveneinschlag.
+  * **2. Untere Nebelscheinwerfer & Abbiegelicht (Fog Lamps & Cornering Lights)**:
+    * 2x runde Nebellampen in den unteren Stoßfängerecken ($X = \pm 0.88\,\text{m}, Y = 0.40\,\text{m}, Z = 4.52\,\text{m}$) mit Diamant-Glasreflektor.
+  * **3. Physikalische Asphalt-Spotlights (Photometric Spotlights)**:
+    * 2x Spotlights ($32\,\text{cd}$, Reichweite $60\,\text{m}$, Öffnungswinkel $36^\circ$) mit asymmetrischem Ausleuchtungskegel auf der Fahrbahn.
+  * **4. Dach-Begrenzungsleuchten (Roof Clearance Lights)**:
+    * 2x weiße LED-Positionsleuchten an den oberen Ecken der Sonnenblende / Dachkante ($X = \pm 0.85\,\text{m}, Y = 3.42\,\text{m}, Z = 3.92\,\text{m}$).
 
 ---
 

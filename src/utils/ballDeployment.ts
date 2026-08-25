@@ -385,8 +385,9 @@ export function clampCannonSafetyGuardrails(config: BallCannonConfig): BallCanno
 }
 
 /**
- * Calculates the exact 3D pneumatic serve toss trajectory from the dolly tube muzzle
- * to the optimal racket hitting apex (Trophy Stance strike point).
+ * Calculates the exact 3D pneumatic serve toss trajectory from the launch tube muzzle
+ * straight UPWARD into the air so that it reaches its absolute HOCHPUNKT (Apex, v_y = 0)
+ * precisely at p = 1.0 (tossEndTime) directly above the racket hitting sweet spot.
  */
 export function calculatePneumaticServeTossPosition(
   muzzlePos: THREE.Vector3,
@@ -394,24 +395,25 @@ export function calculatePneumaticServeTossPosition(
   tossProgress: number // 0.0 to 1.0
 ): THREE.Vector3 {
   const p = THREE.MathUtils.clamp(tossProgress, 0.0, 1.0);
-  const smoothP = THREE.MathUtils.smoothstep(p, 0.0, 1.0);
   
-  // Parabolic launch arc under gravity
-  const posX = THREE.MathUtils.lerp(muzzlePos.x, apexPos.x, smoothP);
-  const posZ = THREE.MathUtils.lerp(muzzlePos.z, apexPos.z, smoothP);
+  // Real vertical projectile deceleration under gravity:
+  // Parabolic ascent curve: f(p) = 1 - (1 - p)^2
+  // - Maximum launch velocity out of muzzle at p = 0: df/dp = 2
+  // - Smooth constant deceleration under gravity
+  // - Reaches exact vertical Hochpunkt (Apex) at p = 1.0: df/dp = 0 (velocity drops to 0 at strike point!)
+  const ascentCurve = 1.0 - (1.0 - p) * (1.0 - p);
   
-  // Height starts at muzzle and reaches apex with initial pneumatic speed deceleration
-  const arcBonus = Math.sin(p * Math.PI) * 0.25;
-  const posY = THREE.MathUtils.lerp(muzzlePos.y, apexPos.y, Math.sin(p * (Math.PI / 2))) + arcBonus;
+  const posX = THREE.MathUtils.lerp(muzzlePos.x, apexPos.x, ascentCurve);
+  const posY = THREE.MathUtils.lerp(muzzlePos.y, apexPos.y, ascentCurve);
+  const posZ = THREE.MathUtils.lerp(muzzlePos.z, apexPos.z, ascentCurve);
 
   return new THREE.Vector3(posX, posY, posZ);
 }
 
 /**
- * Calculates the exact 3D world position of a tennis ball being pneumatically sucked /
- * vacuum-accelerated forward through the top-boom transparent tube from the rear intake (z = -1.18m)
- * towards the front launch chamber (z = -3.38m) on Beam 1.
- * Speed curve & transit dynamics vary dynamically depending on the serve shot type.
+ * Calculates the exact 3D world position of a tennis ball being sucked / vacuum-accelerated
+ * through the horizontal top-boom storage tube and turning into the VERTICAL LAUNCH TUBE
+ * ready for the pneumatic upward launch.
  */
 export function calculatePneumaticTubeSuctionPosition(
   beamWorldPos: THREE.Vector3,
@@ -420,12 +422,12 @@ export function calculatePneumaticTubeSuctionPosition(
   serveType: string = 'flat'
 ): { pos: THREE.Vector3; suctionSpeedFactor: number; transitProgress: number } {
   // Tube local geometry coordinates on Beam 1:
-  // Rear intake funnel: Z = -1.18m
-  // Front launch chamber: Z = -3.38m
-  // Height above boom pivot axis: Y = 0.38m
+  // Horizontal tube: Z = -1.18m (rear intake) to Z = -3.05m (elbow base) at Y = 0.38m
+  // Vertical launch tube: Z = -3.05m, ascending from Y = 0.38m up to Y = 0.85m (ready chamber)
   const rearZ = -1.18;
-  const frontZ = -3.38;
-  const tubeY = 0.38;
+  const elbowZ = -3.05;
+  const horizontalY = 0.38;
+  const verticalChamberY = 0.85;
 
   const rawP = THREE.MathUtils.clamp(suctionProgress, 0.0, 1.0);
   
@@ -453,9 +455,20 @@ export function calculatePneumaticTubeSuctionPosition(
     speedFactor = 1.1;
   }
 
-  // Local position inside the top-boom transparent tube
-  const localZ = THREE.MathUtils.lerp(rearZ, frontZ, transitP);
-  const localPos = new THREE.Vector3(0, tubeY, localZ);
+  let localPos = new THREE.Vector3();
+
+  if (transitP < 0.78) {
+    // Stage 1: Gliding forward through the horizontal transparent tube
+    const horizT = transitP / 0.78;
+    const localZ = THREE.MathUtils.lerp(rearZ, elbowZ, horizT);
+    localPos.set(0, horizontalY, localZ);
+  } else {
+    // Stage 2: Turning into the vertical transparent tube and rising to the launch chamber
+    const vertT = (transitP - 0.78) / 0.22;
+    const smoothVertT = THREE.MathUtils.smoothstep(vertT, 0, 1);
+    const localY = THREE.MathUtils.lerp(horizontalY, verticalChamberY, smoothVertT);
+    localPos.set(0, localY, elbowZ);
+  }
 
   // Transform local tube position to 3D world space using the crane beam's current world transform
   const worldPos = localPos.clone().applyQuaternion(beamWorldQuat).add(beamWorldPos);
@@ -466,4 +479,5 @@ export function calculatePneumaticTubeSuctionPosition(
     transitProgress: transitP
   };
 }
+
 

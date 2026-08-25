@@ -287,50 +287,89 @@ export function TennisBallDeployment({
 
         {/* 
           ========================================================================
-          E. VORDERER PNEUMATISCHER VEREINZELUNGS- & WERFER-BLOCK (BEI Z = -3.38M)
+          E. VERTIKALE TRANSPARENTE DRUCKLUFT-ABSCHUSSRÖHRE (BEI Z = -3.05M)
+          Ball tritt von der horizontalen Röhre in die vertikale Röhre ein
+          und wird mit Druckluft senkrecht/angewinkelt nach oben geschossen!
           ========================================================================
         */}
-        <group position={[0, tubeY, tubeEndZ]}>
-          {/* Heavy Solenoid Valve Housing */}
-          <mesh castShadow material={matBrassPneumatic} position={[0, 0, -0.06]}>
-            <boxGeometry args={[0.16, 0.12, 0.14]} />
+        <group position={[0, 0, -3.05]} rotation={[-0.14, 0, 0]}>
+          {/* 90-Grad Übergangsbogen von horizontalem Speicherrohr in die vertikale Röhre */}
+          <group position={[0, tubeY, 0]}>
+            <mesh castShadow material={matDarkTitanium} position={[0, 0.04, 0.04]} rotation={[0, 0, 0]}>
+              <cylinderGeometry args={[0.054, 0.054, 0.08, 24]} />
+            </mesh>
+            <mesh castShadow material={matAnodizedTeam} position={[0, 0, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.055, 0.006, 8, 24]} />
+            </mesh>
+          </group>
+
+          {/* Basis-Ventilblock & Druckluftkammer */}
+          <mesh castShadow material={matBrassPneumatic} position={[0, 0.32, 0]}>
+            <boxGeometry args={[0.16, 0.12, 0.16]} />
           </mesh>
-          <mesh castShadow material={matDarkTitanium} position={[0, 0.06, -0.06]}>
-            <cylinderGeometry args={[0.058, 0.058, 0.04, 20]} />
+          <mesh castShadow material={matDarkTitanium} position={[0, 0.38, 0]}>
+            <cylinderGeometry args={[0.062, 0.062, 0.05, 24]} />
           </mesh>
 
-          {/* Angled Pneumatic Serve Toss Barrel (Pointing Upward & Forward at 72° Elevation) */}
-          <group ref={barrelPitchRef} position={[0, 0.06, -0.06]} rotation={[-THREE.MathUtils.degToRad(72), 0, 0]}>
-            {/* Titanium Launch Barrel */}
-            <mesh castShadow material={matDarkTitanium} position={[0, 0, 0.22]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.048, 0.054, 0.44, 24, 1, true]} />
+          {/* HAUPT-KÖRPER: VERTIKALES TRANSPARENTES POLYCARBONAT-ROHR (HÖHE 0.76M) */}
+          <group position={[0, 0.76, 0]}>
+            <mesh castShadow receiveShadow material={matTransparentTube}>
+              <cylinderGeometry args={[0.052, 0.052, 0.74, 28, 1, true]} />
             </mesh>
-            {/* Muzzle Collar */}
-            <mesh castShadow material={matAnodizedTeam} position={[0, 0, 0.44]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.058, 0.058, 0.05, 24]} />
-            </mesh>
-            <mesh castShadow material={matBrassPneumatic} position={[0, 0, 0.32]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.055, 0.055, 0.03, 24]} />
+            <mesh material={matTransparentTube}>
+              <cylinderGeometry args={[0.048, 0.048, 0.72, 20, 1, true]} />
             </mesh>
 
-            {/* Pneumatischer Druckluft-Schockring bei Toss-Abschuss */}
-            <mesh ref={shockRingRef} position={[0, 0, 0.48]} rotation={[Math.PI / 2, 0, 0]} visible={false}>
-              <ringGeometry args={[0.04, 0.12, 24]} />
-              <meshBasicMaterial color={teamColor} transparent opacity={0.65} side={THREE.DoubleSide} />
+            {/* Vertikale Carbon-Stützrippen */}
+            {[-0.054, 0.054].map((rx, idx) => (
+              <mesh key={`vert-strut-${idx}`} castShadow material={matCarbonFiber} position={[rx, 0, 0]}>
+                <cylinderGeometry args={[0.004, 0.004, 0.74, 12]} />
+              </mesh>
+            ))}
+            {[-0.054, 0.054].map((rz, idx) => (
+              <mesh key={`vert-strut-z-${idx}`} castShadow material={matCarbonFiber} position={[0, 0, rz]}>
+                <cylinderGeometry args={[0.004, 0.004, 0.74, 12]} />
+              </mesh>
+            ))}
+
+            {/* Mittlere Eloxal-Verstärkungsringe */}
+            {[-0.18, 0.18].map((ry, rIdx) => (
+              <mesh key={`vert-ring-${rIdx}`} castShadow material={matAnodizedTeam} position={[0, ry, 0]} rotation={[0, 0, 0]}>
+                <torusGeometry args={[0.054, 0.005, 8, 28]} />
+              </mesh>
+            ))}
+          </group>
+
+          {/* OBERE AUSSTOSSMÜNDUNG (SENKRECHT NACH OBEN GERICHTET) */}
+          <group position={[0, 1.15, 0]}>
+            <mesh castShadow material={matDarkTitanium}>
+              <cylinderGeometry args={[0.052, 0.056, 0.06, 24, 1, true]} />
+            </mesh>
+            <mesh castShadow material={matAnodizedTeam} position={[0, 0.03, 0]}>
+              <torusGeometry args={[0.056, 0.006, 10, 24]} />
+            </mesh>
+            <mesh castShadow material={matBrassPneumatic} position={[0, -0.03, 0]}>
+              <cylinderGeometry args={[0.058, 0.058, 0.02, 24]} />
             </mesh>
 
-            {/* Muzzle Flash & Light Source */}
+            {/* Pneumatischer Schockwellen-Ring beim vertikalen Druckluft-Ausstoß */}
+            <mesh ref={shockRingRef} position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+              <ringGeometry args={[0.04, 0.14, 28]} />
+              <meshBasicMaterial color={teamColor} transparent opacity={0.75} side={THREE.DoubleSide} />
+            </mesh>
+
+            {/* Mündungsblitz-Lichtquelle nach oben */}
             <pointLight
               ref={muzzleGlowRef}
-              position={[0, 0, 0.50]}
+              position={[0, 0.06, 0]}
               color={teamColor}
               intensity={0.6}
-              distance={2.4}
+              distance={2.8}
             />
           </group>
 
           {/* Digitales Druckluft-Manometer */}
-          <group position={[-0.14, 0.04, -0.06]} rotation={[0, -Math.PI / 2, 0]}>
+          <group position={[-0.13, 0.38, 0]} rotation={[0, -Math.PI / 2, 0]}>
             <mesh castShadow material={matDarkTitanium}>
               <cylinderGeometry args={[0.052, 0.052, 0.028, 20]} />
             </mesh>

@@ -1023,9 +1023,274 @@ export function validate180DegreeAxis(
 /**
  * Aspect Ratio & Safe Area Framing Guide Definitions for Director Viewfinder HUD
  */
+/**
+ * Aspect Ratio & Safe Area Framing Guide Definitions for Director Viewfinder HUD
+ */
 export const CINE_FRAMING_GUIDES = {
   anamorphic_239: { ratio: 2.39, name: '2.39:1 CinemaScope', safeArea: 0.90 },
   academy_185: { ratio: 1.85, name: '1.85:1 Flat Academy', safeArea: 0.90 },
   broadcast_169: { ratio: 16 / 9, name: '16:9 UHD Broadcast', safeArea: 0.92 },
   social_916: { ratio: 9 / 16, name: '9:16 Mobile Story/Reels', safeArea: 0.85 }
 };
+
+// ============================================================================
+// 🚚 TRUCK CAMERA DIRECTOR & CINEMATOGRAPHY ENGINE (Agent 20 / 22)
+// ============================================================================
+
+export type TruckCameraPresetId =
+  | 'free'          // Freier Orbit (User OrbitControls)
+  | 'follow'        // Dynamische 3rd-Person Verfolgerkamera (Chase-Cam)
+  | 'cockpit'       // Cockpit First-Person Sicht durch die Windschutzscheibe
+  | 'side_mirror'   // Rückspiegel-Blick entlang der Fahrzeugflanke
+  | 'wheel'         // Radkasten- & Lenkungs-Action-Cam (Tiefe Froschperspektive)
+  | 'tailgate'      // Heck- & Ladebordwand-Fokus (Frachtraum & Heckleuchten)
+  | 'front_hero'    // Front Low-Angle Hero-Perspektive
+  | 'drone'         // Vogelperspektive / Drone Overhead
+  | 'cinematic'     // Hollywood Catmull-Rom Rundflug
+  | 'auto_director';// Vollautomatischer intelligenter TV-Schnitt
+
+export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo> = {
+  free: {
+    id: 'free' as any,
+    name: 'Freier Orbit',
+    desc: 'Freies Drehen, Zoomen und Schwenken mit der Maus',
+    icon: '🖱️',
+    category: 'operator',
+    minHoldDuration: 0,
+    preferredTransitions: ['smooth_lerp']
+  },
+  follow: {
+    id: 'follow' as any,
+    name: 'Verfolger (Chase-Cam)',
+    desc: 'Dynamische 3rd-Person Kamera hinter dem fahrenden LKW',
+    icon: '🚘',
+    category: 'broadcast',
+    minHoldDuration: 3.0,
+    preferredTransitions: ['smooth_lerp', 'cut']
+  },
+  cockpit: {
+    id: 'cockpit' as any,
+    name: 'Fahrerhaus (Cockpit)',
+    desc: 'First-Person Blick vom Fahrersitz über Armaturenbrett & Straße',
+    icon: '💺',
+    category: 'action',
+    minHoldDuration: 3.5,
+    preferredTransitions: ['cut', 'smooth_lerp']
+  },
+  side_mirror: {
+    id: 'side_mirror' as any,
+    name: 'Rückspiegel (Flanke)',
+    desc: 'Blick vom Außenspiegel nach hinten entlang des Kofferaufbaus',
+    icon: '🪞',
+    category: 'cinematic',
+    minHoldDuration: 3.0,
+    preferredTransitions: ['cut', 'smooth_lerp']
+  },
+  wheel: {
+    id: 'wheel' as any,
+    name: 'Radkasten Action-Cam',
+    desc: 'Tiefe Froschperspektive auf das einlenkende Vorderrad',
+    icon: '🛞',
+    category: 'action',
+    minHoldDuration: 2.5,
+    preferredTransitions: ['cut', 'whip_pan']
+  },
+  tailgate: {
+    id: 'tailgate' as any,
+    name: 'Heck & Ladebordwand',
+    desc: 'Fokus auf Heckleuchten, Ladebordwand und Frachtraum',
+    icon: '📦',
+    category: 'technical',
+    minHoldDuration: 3.0,
+    preferredTransitions: ['smooth_lerp', 'cut']
+  },
+  front_hero: {
+    id: 'front_hero' as any,
+    name: 'Front Hero (Low-Angle)',
+    desc: 'Monumentale Froschperspektive von vorne auf Grill & Scheinwerfer',
+    icon: '🌟',
+    category: 'cinematic',
+    minHoldDuration: 3.0,
+    preferredTransitions: ['smooth_lerp', 'cut']
+  },
+  drone: {
+    id: 'drone' as any,
+    name: 'Drohnen-Übersicht',
+    desc: 'Weite 45° Vogelperspektive von schräg oben',
+    icon: '🛸',
+    category: 'broadcast',
+    minHoldDuration: 4.0,
+    preferredTransitions: ['smooth_lerp']
+  },
+  cinematic: {
+    id: 'cinematic' as any,
+    name: 'Hollywood Rundflug',
+    desc: 'Fließender kontinuierlicher 360° Kamera-Flug um den LKW',
+    icon: '🎬',
+    category: 'cinematic',
+    minHoldDuration: 6.0,
+    preferredTransitions: ['spline_flow']
+  },
+  auto_director: {
+    id: 'auto_director' as any,
+    name: 'Live Auto-Regie',
+    desc: 'Intelligenter automatischer TV-Schnitt basierend auf Fahrdynamik',
+    icon: '📡',
+    category: 'broadcast',
+    minHoldDuration: 3.0,
+    preferredTransitions: ['cut', 'smooth_lerp']
+  }
+};
+
+// Reusable scratch objects for zero GC in truck camera calculations
+const _tTruckPos = new THREE.Vector3();
+
+/**
+ * Calculates real-time 3D Camera & LookAt poses for the MAN TGL Truck
+ */
+export function calculateTruckCameraPose(
+  presetId: TruckCameraPresetId,
+  truckWorldPos: { x: number; y: number; z: number },
+  heading: number,
+  time: number
+): { position: THREE.Vector3; target: THREE.Vector3; fov: number } {
+  _tTruckPos.set(truckWorldPos.x, truckWorldPos.y, truckWorldPos.z);
+  
+  const cosH = Math.cos(heading);
+  const sinH = Math.sin(heading);
+
+  // Helper to transform local truck offset [lx, ly, lz] to world space
+  const localToWorld = (lx: number, ly: number, lz: number): THREE.Vector3 => {
+    // Local: +X is right, +Y is up, +Z is forward (cab direction)
+    const wx = _tTruckPos.x + (lx * cosH + lz * sinH);
+    const wy = _tTruckPos.y + ly;
+    const wz = _tTruckPos.z + (-lx * sinH + lz * cosH);
+    return new THREE.Vector3(wx, wy, wz);
+  };
+
+  switch (presetId) {
+    case 'follow': {
+      // Behind the truck (Z = -10.5m), elevated (Y = 3.6m)
+      const pos = localToWorld(0, 3.6, -10.5);
+      const tgt = localToWorld(0, 1.8, 1.5);
+      return { position: pos, target: tgt, fov: 48 };
+    }
+
+    case 'cockpit': {
+      // Driver's eye view: X = 0.55m (left side in Europe), Y = 2.35m, Z = 3.10m
+      const pos = localToWorld(0.55, 2.35, 3.10);
+      const tgt = localToWorld(0.55, 1.95, 35.0); // Looking far down the road
+      return { position: pos, target: tgt, fov: 62 };
+    }
+
+    case 'side_mirror': {
+      // Looking back from outer left mirror
+      const pos = localToWorld(1.35, 2.30, 4.10);
+      const tgt = localToWorld(1.15, 1.20, -12.0); // Looking back along the body
+      return { position: pos, target: tgt, fov: 52 };
+    }
+
+    case 'wheel': {
+      // Low angle beside front right wheel
+      const pos = localToWorld(1.65, 0.50, 3.60);
+      const tgt = localToWorld(0.80, 0.45, 3.20);
+      return { position: pos, target: tgt, fov: 58 };
+    }
+
+    case 'tailgate': {
+      // Focused on rear loading lift
+      const pos = localToWorld(0, 1.6, -9.5);
+      const tgt = localToWorld(0, 1.2, -5.2);
+      return { position: pos, target: tgt, fov: 46 };
+    }
+
+    case 'front_hero': {
+      // Low front angle facing the truck
+      const pos = localToWorld(2.4, 0.8, 8.8);
+      const tgt = localToWorld(0, 1.6, 3.5);
+      return { position: pos, target: tgt, fov: 44 };
+    }
+
+    case 'drone': {
+      // Overhead high-angle drone
+      const pos = localToWorld(11.0, 15.0, 12.0);
+      const tgt = localToWorld(0, 1.5, 0);
+      return { position: pos, target: tgt, fov: 40 };
+    }
+
+    case 'cinematic': {
+      // Smooth dynamic 360° circular trajectory around the truck
+      const orbitR = 14.0;
+      const angle = time * 0.25;
+      const ox = Math.cos(angle) * orbitR;
+      const oz = Math.sin(angle) * orbitR;
+      const oy = 2.8 + Math.sin(time * 0.4) * 1.5;
+      const pos = localToWorld(ox, oy, oz);
+      const tgt = localToWorld(0, 1.6, 0);
+      return { position: pos, target: tgt, fov: 45 };
+    }
+
+    case 'free':
+    default: {
+      // Free orbit around the truck center
+      const pos = new THREE.Vector3(_tTruckPos.x + 16, _tTruckPos.y + 6, _tTruckPos.z + 18);
+      const tgt = new THREE.Vector3(_tTruckPos.x, _tTruckPos.y + 1.8, _tTruckPos.z);
+      return { position: pos, target: tgt, fov: 45 };
+    }
+  }
+}
+
+/**
+ * Intelligent Auto-Director Cut Engine for the Truck
+ */
+export function evaluateAutoDirectorTruckCut(
+  currentCam: TruckCameraPresetId,
+  timeInCurrentShot: number,
+  speedKmh: number,
+  steerDeg: number,
+  isTailgateActive: boolean
+): { nextCam: TruckCameraPresetId; reason: string } {
+  // 1. High-Priority Event: Tailgate / Platform Action
+  if (isTailgateActive && currentCam !== 'tailgate') {
+    return {
+      nextCam: 'tailgate',
+      reason: '📦 Ladebordwand-Aktivität erkannt • Automatischer Heck-Fokus'
+    };
+  }
+
+  // 2. Minimum hold duration check (prevent jarring rapid cutting)
+  if (timeInCurrentShot < 3.8) {
+    return { nextCam: currentCam, reason: 'Kamera-Haltedauer aktiv' };
+  }
+
+  // 3. Dynamic Steering Curve Action: Cut to Wheel Cam or Side Mirror
+  if (Math.abs(steerDeg) > 12.0) {
+    const curveCams: TruckCameraPresetId[] = ['wheel', 'side_mirror', 'front_hero'];
+    const filtered = curveCams.filter(c => c !== currentCam);
+    const chosen = filtered[Math.floor(Math.random() * filtered.length)];
+    return {
+      nextCam: chosen,
+      reason: `🌀 Kurvenfahrt (${Math.abs(steerDeg).toFixed(1)}° Lenkeinschlag) • Dynamische Action-Perspektive`
+    };
+  }
+
+  // 4. High-Speed Cruising: Alternate between Follow, Cockpit, Front Hero, and Drone
+  if (speedKmh > 20.0) {
+    const cruiseCams: TruckCameraPresetId[] = ['follow', 'cockpit', 'front_hero', 'drone', 'cinematic'];
+    const filtered = cruiseCams.filter(c => c !== currentCam);
+    const chosen = filtered[Math.floor(Math.random() * filtered.length)];
+    return {
+      nextCam: chosen,
+      reason: `🚀 Schnelle Geradeausfahrt (${speedKmh.toFixed(0)} km/h) • Filmreifer Regie-Schnitt`
+    };
+  }
+
+  // 5. Default Periodic Rotation
+  const defaultCams: TruckCameraPresetId[] = ['follow', 'front_hero', 'cinematic', 'side_mirror'];
+  const filtered = defaultCams.filter(c => c !== currentCam);
+  const chosen = filtered[Math.floor(Math.random() * filtered.length)];
+  return {
+    nextCam: chosen,
+    reason: '🎬 Periodischer TV-Broadcast-Perspektivenwechsel'
+  };
+}

@@ -35,6 +35,15 @@ import {
   evaluateDynamicTennisDirectorDecision,
   type PointDirectorPlan
 } from '../utils/cameraDirector';
+import {
+  calculatePneumaticServeTossPosition,
+  calculatePneumaticTubeSuctionPosition
+} from '../utils/ballDeployment';
+
+// ⚡ ZERO-GC MODULE-LEVEL SCRATCH OBJECTS FOR SERVE KINEMATICS (Agent 21)
+const _beamWorldPosServe = new THREE.Vector3();
+const _beamWorldQuatServe = new THREE.Quaternion();
+const _muzzleWorldPosServe = new THREE.Vector3();
 
 export type { CourtSurface, TennisCameraMode };
 
@@ -1797,37 +1806,53 @@ function CraneTennisScene({
 
     if (shot.isServe) {
       const server = shot.shooter;
-      const isSinner = server === 1;
-      const readyEndTime = shot.serveReadyFraction ?? 0.44; // Dynamisch variierende Konzentrationsdauer (1.8s bis 6.2s)
-      const tossEndTime = shot.serveTossFraction ?? 0.68;  // Ballwurf in Trophy Pose (ca. 1.2s)
-      const bounceCount = shot.serveBounceCount ?? (isSinner ? 5 : 6);
+      const readyEndTime = shot.serveReadyFraction ?? 0.44; // Pneumatische Vakuum-Ansaugung durch horizontales Rohr in die vertikale Röhre
+      const tossEndTime = shot.serveTossFraction ?? 0.68;  // Senkrechter Druckluft-Toss nach oben in die Trophy Pose (ca. 1.2s)
       const serverRacketPos = (server === 1 ? racket1WorldPos.current : racket2WorldPos.current).clone();
       const kinServer = server === 1 ? kin1 : kin2;
       const kinReceiver = server === 1 ? kin2 : kin1;
       const rollDir = server === 1 ? 1 : -1;
-      const isP1South = p1IsSouthRef.current;
-      const serverZSign = (server === 1 && isP1South) || (server === 2 && !isP1South) ? -1 : 1;
+
+      // Server-Kran und Beam-Transform für das Ausleger-Ballrohr abrufen
+      const serverCrane = server === 1 ? crane1 : crane2;
+      let hasBeamTransform = false;
+      if (serverCrane && serverCrane.isLoaded && serverCrane.nodes.beams) {
+        serverCrane.nodes.beams.updateWorldMatrix(true, false);
+        serverCrane.nodes.beams.getWorldPosition(_beamWorldPosServe);
+        serverCrane.nodes.beams.getWorldQuaternion(_beamWorldQuatServe);
+        hasBeamTransform = true;
+      }
+
+      if (!hasBeamTransform) {
+        // Kinematischer Fallback
+        _beamWorldPosServe.set(kinServer.dollyTrack, kinServer.columnElevation ?? 1.72, shot.startPos.z);
+        _beamWorldQuatServe.setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(kinServer.boomTilt ?? 8.0));
+      }
 
       // Dolly bleibt stabil an der Grundlinie
       kinServer.dollyTrack = THREE.MathUtils.lerp(kinServer.dollyTrack, shot.startPos.x, dt * 6.0);
-      // Kranarm bleibt während des gesamten Aufschlags absolut eingefahren!
+      // Kranarm bleibt während des Aufschlags eingefahren für maximale Wucht & Kontrolle
       kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 0.0, dt * 10.0);
 
       if (p < readyEndTime) {
-        // 🎾 Phase 1: Ball bekommen, Konzentration & echtes physikalisches Ball-Dribbeln an der Grundlinie
-        const dribbleProgress = p / readyEndTime;
-        const dribbleAngle = dribbleProgress * bounceCount * Math.PI * 2;
-        const bounceParabola = Math.abs(Math.sin(dribbleAngle));
+        // 🎾 Phase 1: Ball wandert durch das horizontale Rohr nach vorne in die VERTIKALE RÖHRE (kein Dribbeln)
+        const suctionProgress = p / readyEndTime;
+        const suctionData = calculatePneumaticTubeSuctionPosition(
+          _beamWorldPosServe,
+          _beamWorldQuatServe,
+          suctionProgress,
+          shot.shotType
+        );
 
-        currentX = shot.startPos.x + (isSinner ? -0.28 : 0.28);
-        currentZ = shot.startPos.z + serverZSign * 0.85;
-        currentY = 0.065 + bounceParabola * 0.72; // Ball dotzt dynamisch bis auf 78cm Höhe
+        currentX = suctionData.pos.x;
+        currentY = suctionData.pos.y;
+        currentZ = suctionData.pos.z;
 
-        // 🎾 Der Schläger bleibt während der gesamten Konzentrationsphase absolut ruhig, waagerecht und stabil (kein Wackeln!)
-        kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 1.72, dt * 6.0);
+        // 🎾 Vorbereitungs-Stance: Kniebeugung / Spannen des Körpers, Schläger in lockerer Ausholposition
+        kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 1.62, dt * 6.0);
         kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 8.0, dt * 6.0);
-        kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, 6.0, dt * 6.0);
-        kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, 0.0, dt * 6.0);
+        kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, 10.0, dt * 6.0);
+        kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, -18.0 * rollDir, dt * 6.0);
         kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, 0.0, dt * 6.0);
 
         serveImpactPosRef.current.copy(serverRacketPos);
@@ -1840,29 +1865,59 @@ function CraneTennisScene({
         kinReceiver.headTilt = THREE.MathUtils.lerp(kinReceiver.headTilt, -8.0, dt * 6.0);
         kinReceiver.headRoll = THREE.MathUtils.lerp(kinReceiver.headRoll, 0.0, dt * 6.0);
       } else if (p < tossEndTime) {
-        // 🚀 Phase 2: Präziser, flüssiger Aufwurf direkt in den Sweet Spot des Schlägers (Trophy Stance)
+        // 🚀 Phase 2: DRUCKLUFT SCHIESST DEN BALL AUS DER VERTIKALEN RÖHRE SENKRECHT NACH OBEN!
+        // Der Schläger führt die realistische ATP-Aufschlagbewegung durch: Trophy Stance -> Tiefer Racket Drop hinter den Rücken
         const tossT = (p - readyEndTime) / (tossEndTime - readyEndTime);
-        const smoothToss = THREE.MathUtils.smoothstep(tossT, 0, 1);
-        const tossArc = Math.sin(smoothToss * Math.PI); // Parabelbogen
 
-        // Kran steigt synchron in die Trophy Pose
-        kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 2.50, dt * 9.0);
-        kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 24.0, dt * 9.0);
-        kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, 52.0, dt * 9.0);
-        kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, 32.0 * rollDir, dt * 9.0);
-        kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, -4.0 * rollDir, dt * 8.0);
+        // Mündungsposition der VERTIKALEN Röhre (z = -3.05m, y = 1.15m in Beam-Koordinaten)
+        _muzzleWorldPosServe.set(0, 1.15, -3.05).applyQuaternion(_beamWorldQuatServe).add(_beamWorldPosServe);
 
-        // Ball steigt aus der Hand direkt in den Schläger-Sweet-Spot auf
-        currentX = THREE.MathUtils.lerp(shot.startPos.x, serverRacketPos.x, smoothToss);
-        currentZ = THREE.MathUtils.lerp(shot.startPos.z + serverZSign * 0.60, serverRacketPos.z, smoothToss);
-        currentY = THREE.MathUtils.lerp(1.75, serverRacketPos.y, smoothToss) + tossArc * 0.40;
+        // Ziel-Apex des Ballwurfs liegt EXAKT im 3D-Sweet-Spot des Schlägerkopfes am Hochpunkt!
+        const targetApex = serverRacketPos.clone();
+
+        // Senkrechter/angewinkelter Druckluft-Toss nach oben mit physikalischer Schwerkraft-Verzögerung zum Hochpunkt
+        const tossBallPos = calculatePneumaticServeTossPosition(_muzzleWorldPosServe, targetApex, tossT);
+        currentX = tossBallPos.x;
+        currentY = tossBallPos.y;
+        currentZ = tossBallPos.z;
+
+        // 🎾 REALISTISCHE AUFSCHLAG-SCHLÄGERFÜHRUNG:
+        // 1. Leg Drive / Streckung des Krans direkt nach oben zum Ball
+        kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 2.65, dt * 8.5);
+        kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 27.5, dt * 8.5);
+
+        if (tossT < 0.42) {
+          // Teil 1: Klassische Trophy Pose (Ellenbogen oben, Racket steigt stabil nach oben/hinten)
+          const subT = tossT / 0.42;
+          const poseTilt = THREE.MathUtils.lerp(10.0, 42.0, subT);
+          const poseRoll = THREE.MathUtils.lerp(-18.0 * rollDir, 38.0 * rollDir, subT);
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, poseTilt, dt * 12.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, poseRoll, dt * 12.0);
+          kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, -4.0 * rollDir, dt * 8.0);
+        } else if (tossT < 0.78) {
+          // Teil 2: Tiefer Racket Drop ("Scratch the back", Schläger fällt tief hinter den Rücken)
+          const subT = (tossT - 0.42) / 0.36;
+          const dropTilt = THREE.MathUtils.lerp(42.0, 68.0, subT);
+          const dropRoll = THREE.MathUtils.lerp(38.0 * rollDir, 54.0 * rollDir, subT);
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, dropTilt, dt * 18.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, dropRoll, dt * 18.0);
+          kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, -16.0 * rollDir, dt * 14.0);
+        } else {
+          // Teil 3: Aufwärtsbeschleunigung zum Hochpunkt (Arm streckt sich senkrecht hinauf zum Ball)
+          const subT = (tossT - 0.78) / 0.22;
+          const strikePrepTilt = THREE.MathUtils.lerp(68.0, 24.0, subT);
+          const strikePrepRoll = THREE.MathUtils.lerp(54.0 * rollDir, 42.0 * rollDir, subT);
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, strikePrepTilt, dt * 28.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, strikePrepRoll, dt * 28.0);
+          kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, 4.0 * rollDir, dt * 24.0);
+        }
 
         // Kontinuierliche Speicherung des exakten Treffpunkts
-        serveImpactPosRef.current.copy(serverRacketPos);
+        serveImpactPosRef.current.copy(tossBallPos);
       } else {
-        // ⚡ Phase 3: Treffpunkt & butterweicher, harmonischer Ausschwung
+        // ⚡ Phase 3: EXPLOSIVER TREFFPUNKT AM HOCHPUNKT (APEX) & VOLLSTÄNDIGE PRONATION
         const flightT = (p - tossEndTime) / (1.0 - tossEndTime);
-        const impactPos = serveImpactPosRef.current; // Exakter 3D-Treffpunkt am Sweet Spot
+        const impactPos = serveImpactPosRef.current; // Exakter 3D-Treffpunkt am Sweet Spot am Hochpunkt
 
         const serveBounceT = shot.isFault ? 0.82 : 0.60;
         if (flightT < serveBounceT) {
@@ -1886,25 +1941,30 @@ function CraneTennisScene({
           }
         }
 
-        // Explosiver Peitschenschlag direkt durch den Ball mit maximaler Pronation
-        if (flightT < 0.28) {
-          const strikeT = THREE.MathUtils.smoothstep(flightT / 0.28, 0, 1);
-          const targetTilt = THREE.MathUtils.lerp(52.0, -56.0, strikeT);
-          const targetRoll = THREE.MathUtils.lerp(32.0 * rollDir, 84.0 * rollDir, strikeT);
+        // 💥 REALISTISCHE ATP PRONATION & AUSSCHWUNG-KINEMATIK AM HOCHPUNKT:
+        if (flightT < 0.18) {
+          // Treffpunkt am Hochpunkt: Explosiver Peitschenschlag nach vorne & Vorarm-Innenrotation (Pronation)
+          const strikeT = THREE.MathUtils.smoothstep(flightT / 0.18, 0, 1);
+          const targetTilt = THREE.MathUtils.lerp(24.0, -52.0, strikeT);
+          const targetRoll = THREE.MathUtils.lerp(42.0 * rollDir, -68.0 * rollDir, strikeT);
+          const targetPan = THREE.MathUtils.lerp(4.0 * rollDir, 18.0 * rollDir, strikeT);
 
-          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, targetTilt, dt * 26.0);
-          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, targetRoll, dt * 26.0);
-          kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 12.0, dt * 14.0);
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, targetTilt, dt * 32.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, targetRoll, dt * 32.0);
+          kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, targetPan, dt * 28.0);
+          kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 28.0, dt * 14.0);
           kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 0.0, dt * 10.0);
         } else {
-          // Harmonischer Ausschwung & Zurückgleiten in die Grundstellung
-          const recoveryT = THREE.MathUtils.smoothstep((flightT - 0.28) / 0.72, 0, 1);
-          const recTilt = THREE.MathUtils.lerp(-56.0, 0.0, recoveryT);
-          const recRoll = THREE.MathUtils.lerp(84.0 * rollDir, 0.0, recoveryT);
+          // Harmonischer Ausschwung an der linken/rechten Hüfte vorbei & Rückkehr in Bereitschaftsstellung
+          const recoveryT = THREE.MathUtils.smoothstep((flightT - 0.18) / 0.82, 0, 1);
+          const recTilt = THREE.MathUtils.lerp(-52.0, 0.0, recoveryT);
+          const recRoll = THREE.MathUtils.lerp(-68.0 * rollDir, 0.0, recoveryT);
+          const recPan = THREE.MathUtils.lerp(18.0 * rollDir, 0.0, recoveryT);
 
-          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, recTilt, dt * 8.0);
-          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, recRoll, dt * 8.0);
-          kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 4.2 * recoveryT, dt * 6.0);
+          kinServer.headTilt = THREE.MathUtils.lerp(kinServer.headTilt, recTilt, dt * 9.0);
+          kinServer.headRoll = THREE.MathUtils.lerp(kinServer.headRoll, recRoll, dt * 9.0);
+          kinServer.headPan = THREE.MathUtils.lerp(kinServer.headPan, recPan, dt * 9.0);
+          kinServer.teleExtension = THREE.MathUtils.lerp(kinServer.teleExtension, 3.8 * recoveryT, dt * 6.0);
           kinServer.boomTilt = THREE.MathUtils.lerp(kinServer.boomTilt, 10.0, dt * 6.0);
           kinServer.columnElevation = THREE.MathUtils.lerp(kinServer.columnElevation, 1.85, dt * 6.0);
         }

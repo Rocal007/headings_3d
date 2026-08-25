@@ -551,7 +551,7 @@ export function TennisControlDrawer({
         border: '1px solid rgba(56,189,248,0.45)'
       }}>
         <div style={{ fontSize: '11px', fontWeight: 800, color: '#38bdf8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>🎾 Top-Boom Ballrohr (nach den Gewichten)</span>
+          <span>🎾 Vertikale Aufschlag-Abschussröhre (Agent 21)</span>
           <span style={{ fontSize: '9px', background: '#0284c7', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontWeight: 900 }}>
             {hopperStateP1 ? `${hopperStateP1.loadedCount}/6` : '6/6'} • {hopperStateP2 ? `${hopperStateP2.loadedCount}/6 BÄLLE` : '6/6 BÄLLE'}
           </span>
@@ -560,15 +560,15 @@ export function TennisControlDrawer({
         {/* Status Indicators: Tube Magazine & Pressure */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px', fontSize: '10px' }}>
           <div style={{ background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '6px', padding: '6px' }}>
-            <div style={{ color: '#94a3b8', fontSize: '9px' }}>Pneumatik-Vakuum:</div>
+            <div style={{ color: '#94a3b8', fontSize: '9px' }}>Druckluft-Ausstoß:</div>
             <div style={{ fontWeight: 800, color: '#38bdf8', fontSize: '11px' }}>
-              {hopperStateP1 ? `${hopperStateP1.pressureBar.toFixed(1)} Bar` : '8.4 Bar'} <span style={{ fontSize: '8px', color: '#22c55e' }}>● SUCTION BEREIT</span>
+              {hopperStateP1 ? `${hopperStateP1.pressureBar.toFixed(1)} Bar` : '8.4 Bar'} <span style={{ fontSize: '8px', color: '#22c55e' }}>● VERTIKAL BEREIT</span>
             </div>
           </div>
           <div style={{ background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(250,204,21,0.3)', borderRadius: '6px', padding: '6px' }}>
-            <div style={{ color: '#94a3b8', fontSize: '9px' }}>Rohr-Ansaugung:</div>
+            <div style={{ color: '#94a3b8', fontSize: '9px' }}>Schlagführung:</div>
             <div style={{ fontWeight: 800, color: '#facc15', fontSize: '11px' }}>
-              Dynamisch <span style={{ fontSize: '8px', color: '#38bdf8' }}>nach Schlagtyp</span>
+              Realistisch <span style={{ fontSize: '8px', color: '#38bdf8' }}>ATP Pronation</span>
             </div>
           </div>
         </div>
