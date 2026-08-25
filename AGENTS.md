@@ -527,22 +527,26 @@ graph TD
   * **4. Dach-Begrenzungsleuchten (Roof Clearance Lights)**:
     * 2x weiße LED-Positionsleuchten an den oberen Ecken der Sonnenblende / Dachkante ($X = \pm 0.85\,\text{m}, Y = 3.42\,\text{m}, Z = 3.92\,\text{m}$).
 
-#### 22.14 `truck_race_tracks` (🏎️ Grand Prix Rennstrecken, Streckenlayouts, FIA Kerbs & Streckenkinematik)
-* **Dateien**: [`src/utils/silverstoneTrack.ts`](file:///e:/3D-headings/src/utils/silverstoneTrack.ts), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/materials/truckTextures.ts`](file:///e:/3D-headings/src/materials/truckTextures.ts)
+#### 22.14 `truck_race_tracks` (🏎️ Grand Prix Rennstrecken-Engine, 3D-Topographie, FIA Kerbs & Multi-Track Kinematik)
+* **Dateien**: [`src/utils/raceTracks/index.ts`](file:///e:/3D-headings/src/utils/raceTracks/index.ts), [`src/utils/raceTracks/trackTypes.ts`](file:///e:/3D-headings/src/utils/raceTracks/trackTypes.ts), [`src/utils/raceTracks/trackGeometryBuilder.ts`](file:///e:/3D-headings/src/utils/raceTracks/trackGeometryBuilder.ts), [`src/utils/raceTracks/silverstoneCircuit.ts`](file:///e:/3D-headings/src/utils/raceTracks/silverstoneCircuit.ts), [`src/utils/raceTracks/monzaCircuit.ts`](file:///e:/3D-headings/src/utils/raceTracks/monzaCircuit.ts), [`src/utils/raceTracks/spaCircuit.ts`](file:///e:/3D-headings/src/utils/raceTracks/spaCircuit.ts), [`src/utils/raceTracks/redBullRingCircuit.ts`](file:///e:/3D-headings/src/utils/raceTracks/redBullRingCircuit.ts), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx)
 * **Zuständigkeit**:
-  * **1. FIA Grand Prix Strecken-Architektur & Spline-Modellierung**:
-    * Hochpräzise 3D Catmull-Rom Spline-Geometrien (`createSilverstoneSpline`) für authentische Rennstrecken (Silverstone GP, Monza, Spa-Francorchamps, Nürburgring).
-    * Maßstabstreue Dimensionierung ($5.0\times$ Streckenmaßstab, $570\,\text{m} \times 465\,\text{m}$ Ausdehnung, $\approx 1.9\,\text{km}$ Streckenlänge im 3D-Weltraum).
-    * **12.0m breite Asphalt-Hauptfahrbahn** mit nahtlosen Fahrbahnmarkierungen und $1.35\,\text{m}$ breiten angeschrägten rot-weißen FIA Kerbs.
-    * 4-reihiges Schachbrettmuster auf der Start-Ziel-Linie (Hamilton Straight).
-  * **2. Sektoren-, Kurven- & F1-Telemetrie-Mapping**:
-    * Vollständige 1:1 Abbildung des offiziellen FIA Formula 1 Streckenguides mit allen 18 Kurven (T1 Abbey bis T18 Club Corner).
-    * DRS-Zonen-Verwaltung (**DRS 1** auf Wellington Straight, **DRS 2** auf Hangar Straight) und DRS Detection Points (Village, Maggotts).
-    * Echtzeit-Telemetrie-Übertragung von F1-Referenzdaten (Topspeed, Gang, Fliehkräfte in g).
-  * **3. Physikalische Streckenkinematik & Kurvendynamik**:
-    * Vorausschauende Krümmungsanalyse (`lookaheadMeters = 18m`) zur dynamischen Geschwindigkeitsregulierung (Vollgas auf Geraden bis $88\,\text{km/h}$, Bremsen vor engen Scheiteln bis $28\,\text{km/h}$).
-    * Physikalisch exakte Weg-Zeit-Integration ($v = 20.8\,\text{m/s}$ bei $75\,\text{km/h}$) und schlupffreies Abrollen aller 6 Räder.
-    * 3D-Kollisions- und Fahrbahnbegrenzungsschutz.
+  * **1. Multi-Circuit Grand Prix Strecken-Engine**:
+    * **🇬🇧 Silverstone GP (5.891 km, 18 Kurven)**: Hamilton Straight, Copse, Maggotts/Becketts/Chapel, Hangar Straight, Stowe, Vale, Club.
+    * **🇮🇹 Autodromo Nazionale Monza (5.793 km, 11 Kurven)**: Temple of Speed mit Variante del Rettifilo, Curva Grande, Lesmo 1 & 2, Variante Ascari und Curva Parabolica.
+    * **🇧🇪 Circuit de Spa-Francorchamps (7.004 km, 19 Kurven)**: Ardennen-Achterbahn mit **Eau Rouge / Raidillon 3D-Steigung (+24m Höhenanstieg, 4.5g)**, Kemmel-Gerade, Pouhon und Bus Stop Schikane.
+    * **🇦🇹 Red Bull Ring Spielberg (4.318 km, 10 Kurven)**: Alpine Berg-und-Talbahn mit **steilem +35m Bergauf-Sprint** zur Remus-Spitzkehre am Berggipfel und Rindt-Kurve.
+  * **2. 3D-Topographie, Querneigung (Camber) & Infrastruktur**:
+    * Echte 3D-Höhenprofile ($Y$-Elevation) und dynamische Kurvenüberhöhung (Banking $-4.5^\circ \dots +5.0^\circ$).
+    * 12.0m bis 13.0m breite Asphalt-Hauptfahrbahn mit Fahrbahnkrönung (Drainage Crown) und nahtlosen Markierungen.
+    * 3D-angeschrägte rot-weiße FIA Kerbs ($1.35\,\text{m}$ Breite) mit Kantenprofil.
+    * Realistische Kiesbett-Auslaufzonen (Gravel Traps) an Kurvenaußenseiten und Tarmac-Auslaufzonen in Bremszonen.
+    * 3D Start-Ziel-Gantry (Ampelbrücke) mit 5 roten LED-Startampeln und Start-Ziel-Schachbrettmarkierung.
+    * $150\,\text{m}$, $100\,\text{m}$, $50\,\text{m}$ Bremstafeln vor allen Haupt-Anbremspunkten.
+  * **3. Physikalische Streckenkinematik & Fahrzeug-Dynamik**:
+    * 3D-Geländeneigungs-Kopplung: LKW-Chassis neigt den Nickwinkel ($\theta_{\text{pitch}}$) an Steigungen und Gefälle (z.B. Eau Rouge Kompression / Kuppe) und den Wankwinkel ($\theta_{\text{roll}}$) an Kurvenüberhöhungen an.
+    * Vorausschauende Krümmungsanalyse (`lookaheadMeters = 18m`) zur dynamischen Geschwindigkeitsregulierung.
+    * Null Schlupf beim Abrollen aller 6 Räder und dynamischer LKW-folgender Sonnen-Schattenwurf.
+    * Dynamische Streckenumschaltung in Echtzeit über das Telematics HUD mit vollständigem Zero-Leak GPU Resource Disposing.
 
 ---
 

@@ -18,7 +18,6 @@ import {
   createSideMarkerTexture,
   createAsphaltTexture,
   createAsphaltBumpTexture,
-  createRoadMarkingsTexture,
 } from '../materials/truckTextures';
 import {
   TRUCK_CAMERA_PRESETS,
@@ -27,12 +26,12 @@ import {
 } from '../utils/cameraDirector';
 import type { TruckCameraPresetId } from '../utils/cameraDirector';
 import {
-  createSilverstoneSpline,
-  createSilverstoneTrackGeometry,
-  createSilverstoneKerbTexture,
-  createStartFinishTexture,
-  getSilverstoneSector,
-} from '../utils/silverstoneTrack';
+  CIRCUITS_LIST,
+  getCircuit,
+  getCircuitSector,
+  buildCircuit3D,
+} from '../utils/raceTracks';
+import type { CircuitId, TrackMeshesResult } from '../utils/raceTracks';
 
 export default function Truck() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,6 +45,10 @@ export default function Truck() {
   const activeCamRef = useRef<TruckCameraPresetId>('follow');
   const effectiveCamRef = useRef<TruckCameraPresetId>('follow');
   const timeInShotRef = useRef<number>(0);
+
+  const [selectedCircuit, setSelectedCircuit] = useState<CircuitId>('silverstone');
+  const selectedCircuitRef = useRef<CircuitId>('silverstone');
+  const circuitChangeTriggerRef = useRef<((id: CircuitId) => void) | null>(null);
 
   const drivingRef = useRef(true);
   const doorsRef = useRef(false);
@@ -1412,77 +1415,49 @@ export default function Truck() {
     truck.add(createRearMudguard(1.1, 0.45, rearAxleZ));
     truck.add(createRearMudguard(-1.1, 0.45, rearAxleZ));
 
-    // 9. PBR Asphalt-Boden & Silverstone Grand Prix Rennstrecke (Subagent 11: scene_environment)
+    // 9. PBR Asphalt-Boden & Grand Prix Rennstrecken-Engine (Subagent 22.14: truck_race_tracks)
     const asphaltColorTex = createAsphaltTexture();
-    asphaltColorTex.repeat.set(160, 160);
+    asphaltColorTex.repeat.set(180, 180);
     const asphaltBumpTex = createAsphaltBumpTexture();
-    asphaltBumpTex.repeat.set(160, 160);
+    asphaltBumpTex.repeat.set(180, 180);
 
-    const planeGeo = new THREE.PlaneGeometry(1600, 1600, 32, 32);
+    const planeGeo = new THREE.PlaneGeometry(1800, 1800, 32, 32);
     const planeMat = new THREE.MeshStandardMaterial({ 
-      color: '#282d35', 
+      color: '#242930', 
       map: asphaltColorTex,
       bumpMap: asphaltBumpTex,
       bumpScale: 0.022,
-      roughness: 0.85, 
+      roughness: 0.88, 
       metalness: 0.08,
       polygonOffset: true,
-      polygonOffsetFactor: 2,
-      polygonOffsetUnits: 2
+      polygonOffsetFactor: 3,
+      polygonOffsetUnits: 3
     });
     const plane = new THREE.Mesh(planeGeo, planeMat);
-    plane.position.y = 0;
+    plane.position.y = -0.01;
     plane.rotation.x = -Math.PI / 2;
     plane.receiveShadow = true;
     scene.add(plane);
 
-    // 9.1 Silverstone Grand Prix Strecken-Geometrie & FIA Kerbs (12.0m Streckenbreite)
-    const silverstoneCurve = createSilverstoneSpline();
-    const splineLength = silverstoneCurve.getLength();
-    const { trackGeo, kerbLeftGeo, kerbRightGeo, startFinishGeo } = createSilverstoneTrackGeometry(silverstoneCurve, 800, 12.0, 1.35);
+    // 9.1 Initialen Grand Prix Circuit aufbauen
+    let currentCircuitDef = getCircuit(selectedCircuitRef.current);
+    let currentCircuitResult: TrackMeshesResult = buildCircuit3D(currentCircuitDef);
+    scene.add(currentCircuitResult.group);
 
-    const roadMarkingsTex = createRoadMarkingsTexture();
-    roadMarkingsTex.repeat.set(1, 160);
+    // Dynamischer Strecken-Umschalter
+    circuitChangeTriggerRef.current = (newId: CircuitId) => {
+      // 1. Altes Streckennetz entfernen & GPU Memory freigeben
+      scene.remove(currentCircuitResult.group);
+      currentCircuitResult.disposables.geometries.forEach(g => g.dispose());
+      currentCircuitResult.disposables.materials.forEach(m => m.dispose());
+      currentCircuitResult.disposables.textures.forEach(t => t.dispose());
 
-    const trackMat = new THREE.MeshStandardMaterial({
-      color: '#383e47',
-      map: roadMarkingsTex,
-      bumpMap: asphaltBumpTex,
-      bumpScale: 0.018,
-      roughness: 0.78,
-      metalness: 0.06,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1
-    });
-    const trackMesh = new THREE.Mesh(trackGeo, trackMat);
-    trackMesh.receiveShadow = true;
-
-    const kerbTex = createSilverstoneKerbTexture();
-    const kerbMat = new THREE.MeshStandardMaterial({
-      map: kerbTex,
-      bumpMap: asphaltBumpTex,
-      bumpScale: 0.025,
-      roughness: 0.65,
-      metalness: 0.05,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2
-    });
-    const kerbLeftMesh = new THREE.Mesh(kerbLeftGeo, kerbMat);
-    const kerbRightMesh = new THREE.Mesh(kerbRightGeo, kerbMat);
-
-    const startFinishTex = createStartFinishTexture();
-    const startFinishMat = new THREE.MeshStandardMaterial({
-      map: startFinishTex,
-      roughness: 0.5,
-      polygonOffset: true,
-      polygonOffsetFactor: -3,
-      polygonOffsetUnits: -3
-    });
-    const startFinishMesh = new THREE.Mesh(startFinishGeo, startFinishMat);
-
-    scene.add(trackMesh, kerbLeftMesh, kerbRightMesh, startFinishMesh);
+      // 2. Neues Streckennetz aufbauen
+      currentCircuitDef = getCircuit(newId);
+      currentCircuitResult = buildCircuit3D(currentCircuitDef);
+      scene.add(currentCircuitResult.group);
+      trackU = 0.0;
+    };
 
     truck.rotation.y = 0;
     truck.position.set(0, 0, 0);
@@ -1507,7 +1482,7 @@ export default function Truck() {
     canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
 
     let animationId: number;
-    let trackU = 0.0; // Streckenfortschritt auf dem Silverstone Kurs [0.0, 1.0)
+    let trackU = 0.0; // Streckenfortschritt auf dem Kurs [0.0, 1.0)
     let flapProgress = 0;   // 0 = zu, 1 = waagerecht offen an Ladekante
     let lowerProgress = 0;  // 0 = an Ladekante Y=1.02m, 1 = am Boden Y=0.06m
     let currentSteerAngle = 0; // Aktueller Lenkwinkel der Vorderräder
@@ -1524,33 +1499,35 @@ export default function Truck() {
       const delta = Math.min(clock.getDelta(), 0.1);
 
       // =======================================================================
-      // 🏎️ Silverstone Grand Prix Streckenkinematik & Kurvendynamik
+      // 🏎️ Grand Prix Streckenkinematik, 3D-Höhenprofil & Kurvendynamik
       // =======================================================================
       const currentU = ((trackU % 1.0) + 1.0) % 1.0;
-      const pt = silverstoneCurve.getPointAt(currentU);
-      const tangent = silverstoneCurve.getTangentAt(currentU);
+      const pt = currentCircuitResult.trackCurve.getPointAt(currentU);
+      const tangent = currentCircuitResult.trackCurve.getTangentAt(currentU);
+      const splineLength = currentCircuitResult.splineLength;
       const x = pt.x;
+      const y = pt.y;
       const z = pt.z;
 
       // Ausrichtung des LKWs (Tangentenwinkel)
       const heading = Math.atan2(tangent.x, tangent.z);
+      // 3D-Geländeneigung (Nickwinkel bei Steigungen / Gefälle wie Eau Rouge / Schönberg)
+      const roadPitch = Math.atan2(-tangent.y, Math.hypot(tangent.x, tangent.z));
 
       // Streckenkrümmung vorausschauend analysieren (18 Meter Vorausschau)
       const lookaheadMeters = 18.0;
       const duAhead = lookaheadMeters / splineLength;
-      const nextTangent = silverstoneCurve.getTangentAt((currentU + duAhead) % 1.0);
+      const nextTangent = currentCircuitResult.trackCurve.getTangentAt((currentU + duAhead) % 1.0);
       let dHeading = Math.atan2(nextTangent.x, nextTangent.z) - heading;
       if (dHeading > Math.PI) dHeading -= Math.PI * 2;
       if (dHeading < -Math.PI) dHeading += Math.PI * 2;
       const curvature = Math.abs(dHeading) / lookaheadMeters; // 1/m
 
-      // Aktueller Silverstone Streckenabschnitt
-      const sector = getSilverstoneSector(currentU);
+      // Aktueller Streckenabschnitt der gewählten Rennstrecke
+      const sector = getCircuitSector(currentCircuitDef, currentU);
 
       // Dynamisches Geschwindigkeitsprofil in km/h & m/s:
-      // Auf Vollgas-Geraden (Hangar/Wellington) beschleunigt der LKW auf bis zu 88 km/h,
-      // vor Kurvenscheiteln (The Loop/Vale) bremst er auf 28-36 km/h ab
-      const targetSpeedKmh = drivingRef.current ? Math.max(26.0, sector.speedTarget - curvature * 380.0) : 0.0;
+      const targetSpeedKmh = drivingRef.current ? Math.max(24.0, sector.speedTarget - curvature * 360.0) : 0.0;
       const targetSpeedMps = targetSpeedKmh / 3.6;
       const accelRate = (targetSpeedMps > currentSpeed) ? 1.8 : 3.8; // Bremsen greift dynamischer als Beschleunigen
       const prevSpeed = currentSpeed;
@@ -1561,11 +1538,11 @@ export default function Truck() {
       const distanceTravelled = currentSpeed * delta;
       trackU = (trackU + distanceTravelled / splineLength) % 1.0;
 
-      // 1. Nick-Dynamik (Chassis Pitch: Heck geht runter beim Gasgeben, Front taucht ein beim Bremsen)
+      // 1. Nick-Dynamik (Chassis Pitch + 3D-Geländeneigung)
       const targetPitch = THREE.MathUtils.clamp(-currentAccel * 0.008, -0.045, 0.065);
       currentPitch = THREE.MathUtils.lerp(currentPitch, targetPitch, 1 - Math.exp(-8.0 * delta));
 
-      // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft in Silverstone Kurven)
+      // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft in Kurven)
       const lateralAccel = (currentSpeed * currentSpeed) * (dHeading / lookaheadMeters); // m/s^2
       const targetRoll = THREE.MathUtils.clamp(-lateralAccel * 0.007, -0.065, 0.065);
       currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-6.0 * delta));
@@ -1575,20 +1552,20 @@ export default function Truck() {
       const engineIdle = Math.sin(clock.getElapsedTime() * 22.0) * 0.0008;
 
       truck.position.x = x;
-      truck.position.y = roadVibe + engineIdle;
+      truck.position.y = y + roadVibe + engineIdle;
       truck.position.z = z;
 
-      // Ausrichtung mit YXZ-Euler-Ordnung (Heading + Nick + Wank)
+      // Ausrichtung mit YXZ-Euler-Ordnung (Heading + Nick + Geländeneigung + Wank)
       truck.rotation.order = 'YXZ';
       truck.rotation.y = heading;
-      truck.rotation.x = currentPitch;
+      truck.rotation.x = currentPitch + roadPitch;
       truck.rotation.z = currentRoll;
 
       // Sonnenlicht folgt dem LKW für scharfe Schatten
-      dirLight.position.set(x + 20, 32, z + 24);
-      dirLight.target.position.set(x, 1.8, z);
+      dirLight.position.set(x + 20, y + 32, z + 24);
+      dirLight.target.position.set(x, y + 1.8, z);
       dirLight.target.updateMatrixWorld();
-      fillLight.position.set(x - 18, 22, z - 20);
+      fillLight.position.set(x - 18, y + 22, z - 20);
 
       // 4. Vorderräder lenken synchron mit der Kurvenfahrt (Ackermann-Geometrie)
       const targetSteerAngle = (currentSpeed > 0.1) ? THREE.MathUtils.clamp((dHeading / lookaheadMeters) * 12.0, -0.44, 0.44) : 0;
@@ -1647,7 +1624,7 @@ export default function Truck() {
         telemetrySpeedRef.current.textContent = `${speedKmh.toFixed(1)} km/h`;
       }
       if (telemetrySpeedBarRef.current) {
-        telemetrySpeedBarRef.current.style.width = `${Math.min(100, (speedKmh / 80) * 100)}%`;
+        telemetrySpeedBarRef.current.style.width = `${Math.min(100, (speedKmh / 90) * 100)}%`;
       }
       if (telemetryAccelRef.current) {
         telemetryAccelRef.current.textContent = `${accelG >= 0 ? '+' : ''}${accelG.toFixed(2)} g`;
@@ -1829,12 +1806,12 @@ export default function Truck() {
         // Freie interaktive OrbitControls
         controls.enabled = true;
         if (drivingRef.current) {
-          controls.target.set(x, 1.8, z);
+          controls.target.set(x, y + 1.8, z);
         }
         controls.update();
       } else {
         controls.enabled = false;
-        const targetPose = calculateTruckCameraPose(effectiveCam, { x, y: 0, z }, heading, elapsedTime);
+        const targetPose = calculateTruckCameraPose(effectiveCam, { x, y, z }, heading, elapsedTime);
 
         if (isCut) {
           // ⚡ ECHTER BROADCAST-SCHNITT: 1-Frame Hard Cut (Keine interpolierende Kamerafahrt)
@@ -1910,9 +1887,10 @@ export default function Truck() {
       sideMarkerTex.dispose();
       asphaltColorTex.dispose();
       asphaltBumpTex.dispose();
-      roadMarkingsTex.dispose();
-      kerbTex.dispose();
-      startFinishTex.dispose();
+
+      currentCircuitResult.disposables.geometries.forEach(g => g.dispose());
+      currentCircuitResult.disposables.materials.forEach(m => m.dispose());
+      currentCircuitResult.disposables.textures.forEach(t => t.dispose());
     };
   }, []);
 
@@ -1952,7 +1930,7 @@ export default function Truck() {
           </span>
         </div>
 
-        {/* Silverstone Circuit Sector Display */}
+        {/* FIA Grand Prix Circuit Selector & Sector Display */}
         <div style={{
           background: 'rgba(0, 220, 255, 0.08)',
           border: '1px solid rgba(0, 220, 255, 0.22)',
@@ -1961,19 +1939,61 @@ export default function Truck() {
           marginBottom: 10,
           display: 'flex',
           flexDirection: 'column',
-          gap: 3
+          gap: 4
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#8899aa', fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>🏎️ SILVERSTONE GP:</span>
+            <span style={{ color: '#8899aa', fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>🏎️ FIA GRAND PRIX STRECKE:</span>
             <span ref={telemetryDrsRef} style={{ display: 'none', background: '#ffd700', color: '#000', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3 }}>
               DRS
             </span>
           </div>
-          <span ref={telemetrySectorRef} style={{ color: '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
-            HAMILTON STRAIGHT
-          </span>
-          <div ref={telemetryF1Ref} style={{ color: '#94a3b8', fontSize: 8, fontWeight: 600, fontFamily: 'monospace' }}>
-            F1 REF: 290 km/h • GANG 7 • 1.0 G
+
+          {/* Circuit Switcher Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 2 }}>
+            {CIRCUITS_LIST.map((c) => {
+              const isActive = selectedCircuit === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    if (selectedCircuit !== c.id) {
+                      setSelectedCircuit(c.id);
+                      selectedCircuitRef.current = c.id;
+                      if (circuitChangeTriggerRef.current) {
+                        circuitChangeTriggerRef.current(c.id);
+                      }
+                    }
+                  }}
+                  style={{
+                    padding: '4px 6px',
+                    borderRadius: 4,
+                    border: isActive ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.1)',
+                    background: isActive ? 'rgba(0, 220, 255, 0.22)' : 'rgba(0,0,0,0.35)',
+                    color: isActive ? '#00dcff' : '#94a3b8',
+                    fontFamily: 'inherit',
+                    fontSize: 9,
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span>{c.flag}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name.split(' ')[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <span ref={telemetrySectorRef} style={{ color: '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
+              HAMILTON STRAIGHT
+            </span>
+            <div ref={telemetryF1Ref} style={{ color: '#94a3b8', fontSize: 8, fontWeight: 600, fontFamily: 'monospace', marginTop: 2 }}>
+              F1 REF: 290 km/h • GANG 7 • 1.0 G
+            </div>
           </div>
         </div>
 
