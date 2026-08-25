@@ -1873,12 +1873,11 @@ export default function Truck() {
             camera.lookAt(controls.target);
           } else if (
             effectiveCam === 'cockpit' ||
-            effectiveCam === 'wheel' ||
             effectiveCam === 'side_mirror' ||
             effectiveCam === 'front_hero' ||
             effectiveCam === 'tailgate'
           ) {
-            // Cockpit, Spiegel, Radkasten, Front-Hero & Heck sind starr am LKW montiert (Zero-Lag)
+            // Cockpit, Spiegel, Front-Hero & Heck sind starr am LKW montiert (Zero-Lag)
             camera.position.copy(targetPose.position);
             controls.target.copy(targetPose.target);
             camera.lookAt(controls.target);

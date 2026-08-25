@@ -1040,7 +1040,6 @@ export type TruckCameraPresetId =
   | 'follow'        // Dynamische 3rd-Person Verfolgerkamera (Chase-Cam)
   | 'cockpit'       // Cockpit First-Person Sicht durch die Windschutzscheibe
   | 'side_mirror'   // Rückspiegel-Blick entlang der Fahrzeugflanke
-  | 'wheel'         // Radkasten- & Lenkungs-Action-Cam (Tiefe Froschperspektive)
   | 'tailgate'      // Heck- & Ladebordwand-Fokus (Frachtraum & Heckleuchten)
   | 'front_hero'    // Front Low-Angle Hero-Perspektive
   | 'drone'         // Vogelperspektive / Drone Overhead
@@ -1092,15 +1091,6 @@ export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo>
     category: 'cinematic',
     minHoldDuration: 3.0,
     preferredTransitions: ['cut', 'smooth_lerp']
-  },
-  wheel: {
-    id: 'wheel' as any,
-    name: 'Radkasten Action-Cam',
-    desc: 'Tiefe Froschperspektive auf das einlenkende Vorderrad',
-    icon: '🛞',
-    category: 'action',
-    minHoldDuration: 2.5,
-    preferredTransitions: ['cut', 'whip_pan']
   },
   tailgate: {
     id: 'tailgate' as any,
@@ -1255,14 +1245,6 @@ export function calculateTruckCameraPose(
       return _tPoseResult;
     }
 
-    case 'wheel': {
-      // Low angle beside front right wheel
-      setLocalToWorld(_tCamPos, 1.65, 0.50, 3.60);
-      setLocalToWorld(_tCamTgt, 0.80, 0.45, 3.20);
-      _tPoseResult.fov = 58;
-      return _tPoseResult;
-    }
-
     case 'tailgate': {
       // Focused on rear loading lift
       setLocalToWorld(_tCamPos, 0, 1.6, -9.5);
@@ -1334,9 +1316,9 @@ export function evaluateAutoDirectorTruckCut(
     return { nextCam: currentCam, reason: 'Kamera-Haltedauer aktiv' };
   }
 
-  // 3. Dynamic Steering Curve Action: Cut to Trackside TV, Wheel Cam or Side Mirror
+  // 3. Dynamic Steering Curve Action: Cut to Trackside TV, Side Mirror, or Front Hero
   if (Math.abs(steerDeg) > 12.0) {
-    const curveCams: TruckCameraPresetId[] = ['trackside_tv', 'wheel', 'side_mirror', 'front_hero'];
+    const curveCams: TruckCameraPresetId[] = ['trackside_tv', 'side_mirror', 'front_hero'];
     const filtered = curveCams.filter(c => c !== currentCam);
     const chosen = filtered[Math.floor(Math.random() * filtered.length)];
     return {
