@@ -49,8 +49,6 @@ export interface ManTglTruckRig {
   frontBlinkerMatR: THREE.MeshStandardMaterial;
   frontBlinkerLightL: THREE.PointLight;
   frontBlinkerLightR: THREE.PointLight;
-  frontCornerLightL: THREE.PointLight;
-  frontCornerLightR: THREE.PointLight;
   biLedLensMat: THREE.MeshPhysicalMaterial;
   loadEdgeHeight: number;
   kofferBackZ: number;
@@ -700,46 +698,6 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const roofMarkerMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 2.8, roughness: 0.2 });
   const drlMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#bae6fd', emissiveIntensity: 3.5, roughness: 0.1 });
 
-  // MAN Front-Eckblinker (Charakteristische Blinkleuchten an den vorderen Fahrerhaus-Ecken)
-  const createFrontCornerIndicator = (side: 'left' | 'right') => {
-    const g = new THREE.Group();
-    const s = side === 'left' ? 1 : -1;
-    const blinkerMat = side === 'left' ? frontBlinkerMatL : frontBlinkerMatR;
-
-    // Eckblinker-Gehäuse (abgewinkelt für optimale 180° Sichtbarkeit von vorn & seitlich)
-    const housingGeo = new RoundedBoxGeometry(0.12, 0.28, 0.16, 2, 0.02);
-    const housing = new THREE.Mesh(housingGeo, darkTrimMat);
-    g.add(housing);
-
-    // Verchromter Innenreflektor
-    const refGeo = new THREE.BoxGeometry(0.10, 0.25, 0.14);
-    const refMesh = new THREE.Mesh(refGeo, chromeMat);
-    refMesh.position.set(0.01 * s, 0, 0.01);
-    g.add(refMesh);
-
-    // Klares bernsteinfarbenes Glas-Prisma (strahlt intensiv nach vorne & zur Seite)
-    const lensGeo = new RoundedBoxGeometry(0.13, 0.29, 0.17, 2, 0.02);
-    const lensMesh = new THREE.Mesh(lensGeo, blinkerMat);
-    lensMesh.position.set(0.018 * s, 0, 0.018);
-    lensMesh.renderOrder = 5;
-    g.add(lensMesh);
-
-    // Horizontale MAN-Strukturippung
-    for (let y of [-0.08, 0, 0.08]) {
-      const ribGeo = new THREE.BoxGeometry(0.135, 0.014, 0.175);
-      const rib = new THREE.Mesh(ribGeo, darkTrimMat);
-      rib.position.set(0.018 * s, y, 0.018);
-      g.add(rib);
-    }
-
-    g.position.set(1.15 * s, 1.38, 4.34);
-    g.rotation.y = side === 'left' ? -0.38 : 0.38;
-    return g;
-  };
-
-  const frontCornerL = createFrontCornerIndicator('left');
-  const frontCornerR = createFrontCornerIndicator('right');
-
   const headlightLensMat = new THREE.MeshStandardMaterial({
     map: hlTex,
     roughness: 0.06,
@@ -815,15 +773,24 @@ export function createManTglTruckRig(): ManTglTruckRig {
     }
     g.add(outerLens);
 
-    // 5. LED DRL Lichtleiter-Streifen & Prominenter Front-Blinker (Oberes Scheinwerferband)
+    // 5. LED DRL Lichtleiter-Streifen
     const drlStrip = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.016, 0.015), drlMat);
     drlStrip.position.set(0, 0.118, 0.043);
 
-    const blinkerGeo = new THREE.BoxGeometry(0.46, 0.040, 0.025);
-    const blinker = new THREE.Mesh(blinkerGeo, blinkerMat);
-    blinker.position.set(0, 0.096, 0.048);
-    blinker.renderOrder = 5;
-    g.add(drlStrip, blinker);
+    // 6. MAN Scheinwerfer-Blinker: Oberes horizontales LED-Blinkerband
+    const topBlinkerGeo = new THREE.BoxGeometry(0.48, 0.042, 0.025);
+    const topBlinker = new THREE.Mesh(topBlinkerGeo, blinkerMat);
+    topBlinker.position.set(0, 0.096, 0.048);
+    topBlinker.renderOrder = 5;
+
+    // 7. MAN Scheinwerfer-Blinker: Äußere vertikale Blinker-Wange (Wrap-around)
+    const sideBlinkerGeo = new THREE.BoxGeometry(0.095, 0.22, 0.025);
+    const sideBlinker = new THREE.Mesh(sideBlinkerGeo, blinkerMat);
+    sideBlinker.position.set(0.21 * s, -0.01, 0.046);
+    sideBlinker.rotation.y = -0.25 * s;
+    sideBlinker.renderOrder = 5;
+
+    g.add(drlStrip, topBlinker, sideBlinker);
 
     g.position.set(0.82 * s, 0.72, 4.53);
     return g;
@@ -867,26 +834,18 @@ export function createManTglTruckRig(): ManTglTruckRig {
   headlightFlareR.position.set(-0.82, 0.72, 4.62);
 
   // Front-Blinker Streulichter (Amber PointLights für Frontscheinwerfer)
-  const frontBlinkerLightL = new THREE.PointLight('#ff8800', 0, 8.0, 2);
+  const frontBlinkerLightL = new THREE.PointLight('#ff8800', 0, 8.5, 2);
   frontBlinkerLightL.position.set(0.82, 0.72, 4.70);
-  const frontBlinkerLightR = new THREE.PointLight('#ff8800', 0, 8.0, 2);
+  const frontBlinkerLightR = new THREE.PointLight('#ff8800', 0, 8.5, 2);
   frontBlinkerLightR.position.set(-0.82, 0.72, 4.70);
-
-  // Front-Eckblinker Streulichter (Amber PointLights für obere Fahrerhaus-Ecken)
-  const frontCornerLightL = new THREE.PointLight('#ff8800', 0, 7.5, 2);
-  frontCornerLightL.position.set(1.18, 1.38, 4.45);
-  const frontCornerLightR = new THREE.PointLight('#ff8800', 0, 7.5, 2);
-  frontCornerLightR.position.set(-1.18, 1.38, 4.45);
 
   truck.add(
     frontHlLeft, frontHlRight,
-    frontCornerL, frontCornerR,
     leftFog, leftFogRing, rightFog, rightFogRing,
     roofMarkerL, roofMarkerR,
     leftSpot, leftSpot.target, rightSpot, rightSpot.target,
     headlightFlareL, headlightFlareR,
-    frontBlinkerLightL, frontBlinkerLightR,
-    frontCornerLightL, frontCornerLightR
+    frontBlinkerLightL, frontBlinkerLightR
   );
 
   // 3.8 Ergo-Cockpit Interieur
@@ -1303,8 +1262,6 @@ export function createManTglTruckRig(): ManTglTruckRig {
     frontBlinkerMatR,
     frontBlinkerLightL,
     frontBlinkerLightR,
-    frontCornerLightL,
-    frontCornerLightR,
     biLedLensMat,
     loadEdgeHeight,
     kofferBackZ,
