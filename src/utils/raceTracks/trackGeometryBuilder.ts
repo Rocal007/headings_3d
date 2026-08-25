@@ -299,8 +299,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.78,
     metalness: 0.06,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
   });
 
   const kerbMat = new THREE.MeshStandardMaterial({
@@ -310,8 +310,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.60,
     metalness: 0.05,
     polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
+    polygonOffsetFactor: -3,
+    polygonOffsetUnits: -3,
   });
 
   const runOffMat = new THREE.MeshStandardMaterial({
@@ -321,8 +321,8 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     roughness: 0.90,
     metalness: 0.02,
     polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 1,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
 
   const embankmentMat = new THREE.MeshStandardMaterial({
@@ -331,6 +331,9 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     bumpScale: 0.025,
     roughness: 0.94,
     metalness: 0.0,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
 
   disposables.materials.push(trackMat, kerbMat, runOffMat, embankmentMat);
@@ -942,7 +945,8 @@ function createTracksideCameraMesh(
 
 /**
  * 🏔️ Erzeugt das vollständige 3D-Gelände (Topographisches Höhenfeld),
- * das den Höhenunterschieden und Bergen der jeweiligen Rennstrecke nahtlos folgt.
+ * das den Höhenunterschieden und Bergen der jeweiligen Rennstrecke nahtlos folgt,
+ * mit strikten Sicherheits-Guardrails gegen jede Streckenverschüttung.
  */
 function createCircuitTerrainMesh(
   trackCurve: THREE.CatmullRomCurve3,
@@ -952,15 +956,15 @@ function createCircuitTerrainMesh(
     textures: THREE.Texture[];
   }
 ): THREE.Mesh {
-  // 1. Dichtes Abtasten des 3D-Streckenverlaufs für schnelle Höhen-Interpolation
-  const sampleCount = 240;
+  // 1. Dichtes Abtasten des 3D-Streckenverlaufs (400 Abtastpunkte)
+  const sampleCount = 400;
   const samples: { x: number; y: number; z: number }[] = [];
   for (let s = 0; s < sampleCount; s++) {
     const pt = trackCurve.getPointAt(s / sampleCount);
     samples.push({ x: pt.x, y: pt.y, z: pt.z });
   }
 
-  // 2. Erstellen eines 3D-Terrain-Gitters (1600m x 1600m)
+  // 2. Erstellen eines hochauflösenden 3D-Terrain-Gitters (1600m x 1600m)
   const size = 1600;
   const segments = 160; // 161x161 = 25.921 Scheitelpunkte
   const terrainGeo = new THREE.PlaneGeometry(size, size, segments, segments);
@@ -973,10 +977,9 @@ function createCircuitTerrainMesh(
     const gx = posAttr.getX(i);
     const gz = posAttr.getZ(i);
 
-    // Finde Distanzen zu allen Strecken-Punkten & berechne gewichtete Höhen-Topographie
+    // 1. Finde den allernächsten Streckenpunkt (exakte lokale Streckenhöhe)
     let minDistSq = Infinity;
-    let weightSum = 0;
-    let heightSum = 0;
+    let closestIndex = 0;
 
     for (let s = 0; s < sampleCount; s++) {
       const sp = samples[s];
@@ -985,36 +988,48 @@ function createCircuitTerrainMesh(
       const distSq = dx * dx + dz * dz;
       if (distSq < minDistSq) {
         minDistSq = distSq;
+        closestIndex = s;
       }
-      // Gauß-ähnliche Gewichtung für sanften Höhenübergang
-      const w = 1.0 / (distSq + 350.0);
-      weightSum += w;
-      heightSum += sp.y * w;
     }
 
     const minDist = Math.sqrt(minDistSq);
-    const trackInterpolatedY = heightSum / Math.max(weightSum, 0.0001);
+    const localTrackY = samples[closestIndex].y;
 
-    // Organische Landschafts-Hügel (Wellung der Umgebung)
+    // 2. Sanfte regionale Höhen-Wellen (Hügellandschaft außerhalb der Strecke)
     const h1 = Math.sin(gx * 0.007 + gz * 0.005) * 5.5;
-    const h2 = Math.cos(gx * 0.004 - gz * 0.006) * 7.0;
-    const h3 = Math.sin((gx + gz) * 0.014) * 2.2;
+    const h2 = Math.cos(gx * 0.004 - gz * 0.006) * 6.5;
+    const h3 = Math.sin((gx + gz) * 0.014) * 2.0;
     const regionalHills = h1 + h2 + h3;
 
-    // Nähe-Faktor zur Strecke:
-    // Direkt an der Strecke (minDist < 14m) schmiegt sich das Gelände exakt an die Böschung
-    // Weiter draußen entfaltet sich die volle Hügellandschaft
-    const blendFactor = THREE.MathUtils.clamp((minDist - 14.0) / 45.0, 0.0, 1.0);
-    let finalY = trackInterpolatedY + blendFactor * regionalHills;
+    let finalY = localTrackY;
 
-    // Sanftes Ausklingen am extremen Horizontrand (ab 550m Distanz vom Zentrum)
+    // 3. Strenge Höhen-Guardrails zur Vermeidung jeglicher Strecken-Verschüttung:
+    if (minDist <= 16.0) {
+      // Unter und direkt neben der Strecke: Terrain liegt STRENG unter dem Asphalt & Randsteinen
+      finalY = localTrackY - 0.22 - (minDist / 16.0) * 0.28;
+    } else if (minDist <= 55.0) {
+      // Übergangszone: Sanfter Anstieg/Abfall in die Umgebung, gedeckelt unterhalb der Sichtlinie
+      const t = (minDist - 16.0) / 39.0;
+      const baseGround = localTrackY - 0.50;
+      const targetLandscape = localTrackY + regionalHills * 0.5;
+      finalY = THREE.MathUtils.lerp(baseGround, targetLandscape, t * t);
+
+      // Harte Obergrenze: Darf die lokale Strecke im Nahbereich niemals überragen!
+      const maxCeiling = localTrackY - 0.15 + (minDist - 16.0) * 0.10;
+      finalY = Math.min(finalY, maxCeiling);
+    } else {
+      // Weite Umgebung: Volle Topographie
+      finalY = localTrackY + regionalHills;
+    }
+
+    // 4. Horizont-Randdämpfung
     const distCenter = Math.hypot(gx, gz);
     if (distCenter > 550.0) {
       const fade = THREE.MathUtils.clamp((800.0 - distCenter) / 250.0, 0.0, 1.0);
       finalY = finalY * fade;
     }
 
-    posAttr.setY(i, Math.max(0.0, finalY - 0.04));
+    posAttr.setY(i, Math.max(0.0, finalY));
   }
 
   terrainGeo.computeVertexNormals();
