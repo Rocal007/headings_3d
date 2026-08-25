@@ -33,6 +33,12 @@ import {
 } from '../utils/raceTracks';
 import type { CircuitId, TrackMeshesResult } from '../utils/raceTracks';
 
+// Module-level scratch objects for Zero-GC in Render-Loop (Säule 1.1 Architecture Standard)
+const _ptScratch = new THREE.Vector3();
+const _tangentScratch = new THREE.Vector3();
+const _nextTangentScratch = new THREE.Vector3();
+const _truckPosScratch = { x: 0, y: 0, z: 0 };
+
 export default function Truck() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDriving, setIsDriving] = useState(true);
@@ -1502,8 +1508,8 @@ export default function Truck() {
       // 🏎️ Grand Prix Streckenkinematik, 3D-Höhenprofil & Kurvendynamik
       // =======================================================================
       const currentU = ((trackU % 1.0) + 1.0) % 1.0;
-      const pt = currentCircuitResult.trackCurve.getPointAt(currentU);
-      const tangent = currentCircuitResult.trackCurve.getTangentAt(currentU);
+      const pt = currentCircuitResult.trackCurve.getPointAt(currentU, _ptScratch);
+      const tangent = currentCircuitResult.trackCurve.getTangentAt(currentU, _tangentScratch);
       const splineLength = currentCircuitResult.splineLength;
       const x = pt.x;
       const y = pt.y;
@@ -1517,7 +1523,7 @@ export default function Truck() {
       // Streckenkrümmung vorausschauend analysieren (18 Meter Vorausschau)
       const lookaheadMeters = 18.0;
       const duAhead = lookaheadMeters / splineLength;
-      const nextTangent = currentCircuitResult.trackCurve.getTangentAt((currentU + duAhead) % 1.0);
+      const nextTangent = currentCircuitResult.trackCurve.getTangentAt((currentU + duAhead) % 1.0, _nextTangentScratch);
       let dHeading = Math.atan2(nextTangent.x, nextTangent.z) - heading;
       if (dHeading > Math.PI) dHeading -= Math.PI * 2;
       if (dHeading < -Math.PI) dHeading += Math.PI * 2;
@@ -1811,7 +1817,10 @@ export default function Truck() {
         controls.update();
       } else {
         controls.enabled = false;
-        const targetPose = calculateTruckCameraPose(effectiveCam, { x, y, z }, heading, elapsedTime);
+        _truckPosScratch.x = x;
+        _truckPosScratch.y = y;
+        _truckPosScratch.z = z;
+        const targetPose = calculateTruckCameraPose(effectiveCam, _truckPosScratch, heading, elapsedTime);
 
         if (isCut) {
           // ⚡ ECHTER BROADCAST-SCHNITT: 1-Frame Hard Cut (Keine interpolierende Kamerafahrt)

@@ -1142,11 +1142,14 @@ export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo>
   }
 };
 
-// Reusable scratch objects for zero GC in truck camera calculations
+// Reusable scratch objects for zero GC in truck camera calculations (Säule 1.1)
 const _tTruckPos = new THREE.Vector3();
+const _tCamPos = new THREE.Vector3();
+const _tCamTgt = new THREE.Vector3();
+const _tPoseResult = { position: _tCamPos, target: _tCamTgt, fov: 48 };
 
 /**
- * Calculates real-time 3D Camera & LookAt poses for the MAN TGL Truck
+ * Calculates real-time 3D Camera & LookAt poses for the MAN TGL Truck (Zero-GC)
  */
 export function calculateTruckCameraPose(
   presetId: TruckCameraPresetId,
@@ -1159,63 +1162,70 @@ export function calculateTruckCameraPose(
   const cosH = Math.cos(heading);
   const sinH = Math.sin(heading);
 
-  // Helper to transform local truck offset [lx, ly, lz] to world space
-  const localToWorld = (lx: number, ly: number, lz: number): THREE.Vector3 => {
+  // Helper to transform local truck offset [lx, ly, lz] into target Vector3 without allocation
+  const setLocalToWorld = (target: THREE.Vector3, lx: number, ly: number, lz: number): void => {
     // Local: +X is right, +Y is up, +Z is forward (cab direction)
     const wx = _tTruckPos.x + (lx * cosH + lz * sinH);
     const wy = _tTruckPos.y + ly;
     const wz = _tTruckPos.z + (-lx * sinH + lz * cosH);
-    return new THREE.Vector3(wx, wy, wz);
+    target.set(wx, wy, wz);
   };
 
   switch (presetId) {
     case 'follow': {
       // Behind the truck (Z = -10.5m), elevated (Y = 3.6m)
-      const pos = localToWorld(0, 3.6, -10.5);
-      const tgt = localToWorld(0, 1.8, 1.5);
-      return { position: pos, target: tgt, fov: 48 };
+      setLocalToWorld(_tCamPos, 0, 3.6, -10.5);
+      setLocalToWorld(_tCamTgt, 0, 1.8, 1.5);
+      _tPoseResult.fov = 48;
+      return _tPoseResult;
     }
 
     case 'cockpit': {
       // Driver's eye view: X = 0.55m (left side in Europe), Y = 2.35m, Z = 3.10m
-      const pos = localToWorld(0.55, 2.35, 3.10);
-      const tgt = localToWorld(0.55, 1.95, 35.0); // Looking far down the road
-      return { position: pos, target: tgt, fov: 62 };
+      setLocalToWorld(_tCamPos, 0.55, 2.35, 3.10);
+      setLocalToWorld(_tCamTgt, 0.55, 1.95, 35.0); // Looking far down the road
+      _tPoseResult.fov = 62;
+      return _tPoseResult;
     }
 
     case 'side_mirror': {
       // Looking back from outer left mirror
-      const pos = localToWorld(1.35, 2.30, 4.10);
-      const tgt = localToWorld(1.15, 1.20, -12.0); // Looking back along the body
-      return { position: pos, target: tgt, fov: 52 };
+      setLocalToWorld(_tCamPos, 1.35, 2.30, 4.10);
+      setLocalToWorld(_tCamTgt, 1.15, 1.20, -12.0); // Looking back along the body
+      _tPoseResult.fov = 52;
+      return _tPoseResult;
     }
 
     case 'wheel': {
       // Low angle beside front right wheel
-      const pos = localToWorld(1.65, 0.50, 3.60);
-      const tgt = localToWorld(0.80, 0.45, 3.20);
-      return { position: pos, target: tgt, fov: 58 };
+      setLocalToWorld(_tCamPos, 1.65, 0.50, 3.60);
+      setLocalToWorld(_tCamTgt, 0.80, 0.45, 3.20);
+      _tPoseResult.fov = 58;
+      return _tPoseResult;
     }
 
     case 'tailgate': {
       // Focused on rear loading lift
-      const pos = localToWorld(0, 1.6, -9.5);
-      const tgt = localToWorld(0, 1.2, -5.2);
-      return { position: pos, target: tgt, fov: 46 };
+      setLocalToWorld(_tCamPos, 0, 1.6, -9.5);
+      setLocalToWorld(_tCamTgt, 0, 1.2, -5.2);
+      _tPoseResult.fov = 46;
+      return _tPoseResult;
     }
 
     case 'front_hero': {
       // Low front angle facing the truck
-      const pos = localToWorld(2.4, 0.8, 8.8);
-      const tgt = localToWorld(0, 1.6, 3.5);
-      return { position: pos, target: tgt, fov: 44 };
+      setLocalToWorld(_tCamPos, 2.4, 0.8, 8.8);
+      setLocalToWorld(_tCamTgt, 0, 1.6, 3.5);
+      _tPoseResult.fov = 44;
+      return _tPoseResult;
     }
 
     case 'drone': {
       // Overhead high-angle drone
-      const pos = localToWorld(11.0, 15.0, 12.0);
-      const tgt = localToWorld(0, 1.5, 0);
-      return { position: pos, target: tgt, fov: 40 };
+      setLocalToWorld(_tCamPos, 11.0, 15.0, 12.0);
+      setLocalToWorld(_tCamTgt, 0, 1.5, 0);
+      _tPoseResult.fov = 40;
+      return _tPoseResult;
     }
 
     case 'cinematic': {
@@ -1225,17 +1235,19 @@ export function calculateTruckCameraPose(
       const ox = Math.cos(angle) * orbitR;
       const oz = Math.sin(angle) * orbitR;
       const oy = 2.8 + Math.sin(time * 0.4) * 1.5;
-      const pos = localToWorld(ox, oy, oz);
-      const tgt = localToWorld(0, 1.6, 0);
-      return { position: pos, target: tgt, fov: 45 };
+      setLocalToWorld(_tCamPos, ox, oy, oz);
+      setLocalToWorld(_tCamTgt, 0, 1.6, 0);
+      _tPoseResult.fov = 45;
+      return _tPoseResult;
     }
 
     case 'free':
     default: {
       // Free orbit around the truck center
-      const pos = new THREE.Vector3(_tTruckPos.x + 16, _tTruckPos.y + 6, _tTruckPos.z + 18);
-      const tgt = new THREE.Vector3(_tTruckPos.x, _tTruckPos.y + 1.8, _tTruckPos.z);
-      return { position: pos, target: tgt, fov: 45 };
+      _tCamPos.set(_tTruckPos.x + 16, _tTruckPos.y + 6, _tTruckPos.z + 18);
+      _tCamTgt.set(_tTruckPos.x, _tTruckPos.y + 1.8, _tTruckPos.z);
+      _tPoseResult.fov = 45;
+      return _tPoseResult;
     }
   }
 }

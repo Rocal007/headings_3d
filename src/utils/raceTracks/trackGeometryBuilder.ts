@@ -296,6 +296,31 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     }
   }
 
+  // Rekursives Erfassen aller GPU-Ressourcen für 100% Zero-Leak Garantie (Säule 2.1)
+  group.traverse((obj) => {
+    if ((obj as THREE.Mesh).isMesh) {
+      const m = obj as THREE.Mesh;
+      if (m.geometry && !disposables.geometries.includes(m.geometry)) {
+        disposables.geometries.push(m.geometry);
+      }
+      if (m.material) {
+        const mats = Array.isArray(m.material) ? m.material : [m.material];
+        mats.forEach((mat) => {
+          if (!disposables.materials.includes(mat)) {
+            disposables.materials.push(mat);
+          }
+          const stdMat = mat as THREE.MeshStandardMaterial;
+          if (stdMat.map && !disposables.textures.includes(stdMat.map)) {
+            disposables.textures.push(stdMat.map);
+          }
+          if (stdMat.bumpMap && !disposables.textures.includes(stdMat.bumpMap)) {
+            disposables.textures.push(stdMat.bumpMap);
+          }
+        });
+      }
+    }
+  });
+
   return {
     group,
     trackCurve,
