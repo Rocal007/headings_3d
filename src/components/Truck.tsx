@@ -16,8 +16,8 @@ import {
   createKofferSideTexture,
   createManRearLightTexture,
   createSideMarkerTexture,
-  createAsphaltTexture,
-  createAsphaltBumpTexture,
+  createGrassTexture,
+  createGrassBumpTexture,
 } from '../materials/truckTextures';
 import {
   TRUCK_CAMERA_PRESETS,
@@ -1421,20 +1421,20 @@ export default function Truck() {
     truck.add(createRearMudguard(1.1, 0.45, rearAxleZ));
     truck.add(createRearMudguard(-1.1, 0.45, rearAxleZ));
 
-    // 9. PBR Asphalt-Boden & Grand Prix Rennstrecken-Engine (Subagent 22.14: truck_race_tracks)
-    const asphaltColorTex = createAsphaltTexture();
-    asphaltColorTex.repeat.set(180, 180);
-    const asphaltBumpTex = createAsphaltBumpTexture();
-    asphaltBumpTex.repeat.set(180, 180);
+    // 9. PBR Rasen-/Grasboden & Grand Prix Rennstrecken-Engine (Subagent 22.14: truck_race_tracks)
+    const grassColorTex = createGrassTexture();
+    grassColorTex.repeat.set(240, 240);
+    const grassBumpTex = createGrassBumpTexture();
+    grassBumpTex.repeat.set(240, 240);
 
     const planeGeo = new THREE.PlaneGeometry(1800, 1800, 32, 32);
     const planeMat = new THREE.MeshStandardMaterial({ 
-      color: '#242930', 
-      map: asphaltColorTex,
-      bumpMap: asphaltBumpTex,
-      bumpScale: 0.022,
-      roughness: 0.88, 
-      metalness: 0.08,
+      color: '#345e28', 
+      map: grassColorTex,
+      bumpMap: grassBumpTex,
+      bumpScale: 0.035,
+      roughness: 0.94, 
+      metalness: 0.0,
       polygonOffset: true,
       polygonOffsetFactor: 3,
       polygonOffsetUnits: 3
@@ -1894,8 +1894,8 @@ export default function Truck() {
       rearLightTexL.dispose();
       rearLightTexR.dispose();
       sideMarkerTex.dispose();
-      asphaltColorTex.dispose();
-      asphaltBumpTex.dispose();
+      grassColorTex.dispose();
+      grassBumpTex.dispose();
 
       currentCircuitResult.disposables.geometries.forEach(g => g.dispose());
       currentCircuitResult.disposables.materials.forEach(m => m.dispose());

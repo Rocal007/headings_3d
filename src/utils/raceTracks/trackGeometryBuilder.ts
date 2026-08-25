@@ -324,11 +324,11 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   });
 
   const embankmentMat = new THREE.MeshStandardMaterial({
-    color: '#1e232a',
+    color: '#26431f',
     bumpMap: asphaltBumpTex,
-    bumpScale: 0.02,
-    roughness: 0.92,
-    metalness: 0.05,
+    bumpScale: 0.025,
+    roughness: 0.94,
+    metalness: 0.0,
   });
 
   disposables.materials.push(trackMat, kerbMat, runOffMat, embankmentMat);

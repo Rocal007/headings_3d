@@ -955,3 +955,95 @@ export function createRoadMarkingsTexture(): THREE.CanvasTexture {
   tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }
+
+/** 16. PBR Rasen-/Grasboden-Textur für die Rennstrecken-Landschaft */
+export function createGrassTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 1024;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    // 1. Basis: Sattes Naturrasen-Grün mit organischem Farbverlauf
+    const baseGrad = ctx.createLinearGradient(0, 0, 1024, 1024);
+    baseGrad.addColorStop(0, '#2d5a27');
+    baseGrad.addColorStop(0.35, '#224a1e');
+    baseGrad.addColorStop(0.7, '#35682d');
+    baseGrad.addColorStop(1, '#264e20');
+    ctx.fillStyle = baseGrad;
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    // 2. Gröbere Erd- und Humusflecken (Subtle Soil/Patchiness)
+    for (let i = 0; i < 60; i++) {
+      const px = Math.random() * 1024;
+      const py = Math.random() * 1024;
+      const pr = Math.random() * 120 + 40;
+      const soilGrad = ctx.createRadialGradient(px, py, 10, px, py, pr);
+      soilGrad.addColorStop(0, 'rgba(40, 60, 25, 0.45)');
+      soilGrad.addColorStop(0.6, 'rgba(30, 48, 20, 0.25)');
+      soilGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = soilGrad;
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. Zehntausende feine Grashalme in verschiedenen Grüntönen
+    const grassHues = [
+      '#3b702f', '#2a5522', '#4c853b', '#20441a', 
+      '#569643', '#1b3b15', '#3f7832', '#62a84c'
+    ];
+
+    for (let i = 0; i < 45000; i++) {
+      const gx = Math.random() * 1024;
+      const gy = Math.random() * 1024;
+      const bladeLen = Math.random() * 14 + 6;
+      const bladeAngle = (Math.random() - 0.5) * 1.4;
+      const color = grassHues[Math.floor(Math.random() * grassHues.length)];
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.random() * 1.5 + 0.8;
+      ctx.beginPath();
+      ctx.moveTo(gx, gy);
+      ctx.lineTo(gx + Math.sin(bladeAngle) * bladeLen, gy - Math.cos(bladeAngle) * bladeLen);
+      ctx.stroke();
+    }
+
+    // 4. Feine Kleeblatt- und Moos-Akzente
+    for (let i = 0; i < 300; i++) {
+      const mx = Math.random() * 1024;
+      const my = Math.random() * 1024;
+      ctx.fillStyle = '#65a30d';
+      ctx.beginPath();
+      ctx.arc(mx, my, Math.random() * 2 + 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const tex = finalizeCanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/** 17. Gras Normal-/Bump-Map für reliefartige Halm- und Bodenstruktur */
+export function createGrassBumpTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 512;
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 30000; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const val = Math.floor(Math.random() * 140 + 60);
+      ctx.fillStyle = `rgb(${val},${val},${val})`;
+      ctx.fillRect(x, y, Math.random() * 2 + 1, Math.random() * 4 + 2);
+    }
+  }
+  const tex = finalizeCanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
