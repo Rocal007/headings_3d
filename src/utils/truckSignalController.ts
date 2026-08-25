@@ -96,7 +96,7 @@ export class TruckSignalController {
    */
   public updateRig(rig: ManTglTruckRig, elapsedTime: number, platformActive: boolean = false): BlinkerState {
     const state = this.evaluate(elapsedTime);
-    const emHigh = 3.6; // Kraftvoller LED-Blinker-Glow
+    const emHigh = 5.2; // Intensiver LED-Blinker-Glow
     const emLow = 0.0;
 
     // 1. Frontblinker & Radkasten-Seitenblinker
@@ -107,10 +107,18 @@ export class TruckSignalController {
     rig.rearBlinkerMatL.emissiveIntensity = state.isLeftOn ? emHigh : emLow;
     rig.rearBlinkerMatR.emissiveIntensity = state.isRightOn ? emHigh : emLow;
 
-    // 3. Sicherheits-Blinker an den Ecken der Ladebordwand
+    // 3. Dynamische Heckblinker-PointLights für sichtbare Umgebungs-Ausleuchtung
+    if (rig.rearBlinkerLightL) {
+      rig.rearBlinkerLightL.intensity = state.isLeftOn ? 6.0 : 0.0;
+    }
+    if (rig.rearBlinkerLightR) {
+      rig.rearBlinkerLightR.intensity = state.isRightOn ? 6.0 : 0.0;
+    }
+
+    // 4. Sicherheits-Blinker an den Ecken der Ladebordwand
     if (state.isHazardOn || platformActive) {
       const isPlatformBlink = (elapsedTime % 0.4) < 0.22; // Schnelleres Warnblinken an der Ladebordwand
-      rig.tailgateBlinkerMat.emissiveIntensity = isPlatformBlink ? 3.0 : 0.2;
+      rig.tailgateBlinkerMat.emissiveIntensity = isPlatformBlink ? 3.8 : 0.2;
     } else {
       rig.tailgateBlinkerMat.emissiveIntensity = 0.0;
     }

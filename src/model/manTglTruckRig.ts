@@ -43,6 +43,8 @@ export interface ManTglTruckRig {
   rearBrakeLightR: THREE.PointLight;
   rearBlinkerMatL: THREE.MeshStandardMaterial;
   rearBlinkerMatR: THREE.MeshStandardMaterial;
+  rearBlinkerLightL: THREE.PointLight;
+  rearBlinkerLightR: THREE.PointLight;
   frontBlinkerMatL: THREE.MeshStandardMaterial;
   frontBlinkerMatR: THREE.MeshStandardMaterial;
   biLedLensMat: THREE.MeshPhysicalMaterial;
@@ -371,17 +373,19 @@ export function createManTglTruckRig(): ManTglTruckRig {
     socket.position.set(-0.16 * s, -0.09, 0.01);
     clusterGroup.add(socket);
 
-    const blinkerGlow = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.13, 0.01), blinkerMat);
-    blinkerGlow.position.set(-0.16 * s, 0, 0.034);
+    // Blinker-Prismenlinse direkt auf der Linsenoberseite (voll sichtbar!)
+    const blinkerGlow = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.012), blinkerMat);
+    blinkerGlow.position.set(-0.16 * s, 0, 0.038);
+    blinkerGlow.renderOrder = 4;
 
     const brakeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.13, 0.01), rearBrakeLightMat);
-    brakeGlow.position.set(-0.02 * s, 0, 0.034);
+    brakeGlow.position.set(-0.02 * s, 0, 0.037);
 
     const reverseGlow = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.01), rearReverseMat);
-    reverseGlow.position.set(0.10 * s, 0, 0.034);
+    reverseGlow.position.set(0.10 * s, 0, 0.037);
 
     const fogGlow = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.01), rearFogMat);
-    fogGlow.position.set(0.19 * s, 0, 0.034);
+    fogGlow.position.set(0.19 * s, 0, 0.037);
 
     clusterGroup.add(blinkerGlow, brakeGlow, reverseGlow, fogGlow);
 
@@ -422,6 +426,12 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const rearBrakeLightR = new THREE.PointLight('#ff1100', 1.5, 8.0, 2);
   rearBrakeLightR.position.set(-0.90, 0.54, kofferBackZ - 0.40);
 
+  // Heck-Blinker Streulichter (Amber PointLights für Heckbeleuchtung)
+  const rearBlinkerLightL = new THREE.PointLight('#ff8800', 0, 7.0, 2);
+  rearBlinkerLightL.position.set(0.90, 0.54, kofferBackZ - 0.25);
+  const rearBlinkerLightR = new THREE.PointLight('#ff8800', 0, 7.0, 2);
+  rearBlinkerLightR.position.set(-0.90, 0.54, kofferBackZ - 0.25);
+
   const thirdBrakeGeo = new THREE.BoxGeometry(0.36, 0.035, 0.03);
   const thirdBrakeLight = new THREE.Mesh(thirdBrakeGeo, thirdBrakeLightMat);
   thirdBrakeLight.position.set(0, kofferY + kofferHeight / 2 - 0.04, kofferBackZ - 0.02);
@@ -436,6 +446,7 @@ export function createManTglTruckRig(): ManTglTruckRig {
   truck.add(
     leftRearCluster, rightRearCluster,
     rearBrakeLightL, rearBrakeLightR,
+    rearBlinkerLightL, rearBlinkerLightR,
     thirdBrakeLight, outlineL, outlineR
   );
   
@@ -1225,6 +1236,8 @@ export function createManTglTruckRig(): ManTglTruckRig {
     rearBrakeLightR,
     rearBlinkerMatL,
     rearBlinkerMatR,
+    rearBlinkerLightL,
+    rearBlinkerLightR,
     frontBlinkerMatL,
     frontBlinkerMatR,
     biLedLensMat,
