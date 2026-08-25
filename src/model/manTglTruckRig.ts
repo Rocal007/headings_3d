@@ -286,58 +286,121 @@ export function createManTglTruckRig(): ManTglTruckRig {
   const platEdgeR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.05, 0.06), silverMat);
   platEdgeR.position.set(-kofferWidth / 2 + 0.04, 1.025, -0.025);
 
+  // 2x Sicherheits-Warnblinker
   const platBlinkerGeo = new THREE.BoxGeometry(0.08, 0.08, 0.04);
   const blinkerL = new THREE.Mesh(platBlinkerGeo, tailgateBlinkerMat);
   blinkerL.position.set(kofferWidth / 2 - 0.12, 1.95, -0.05);
   const blinkerR = new THREE.Mesh(platBlinkerGeo, tailgateBlinkerMat);
   blinkerR.position.set(-kofferWidth / 2 + 0.12, 1.95, -0.05);
 
-  platformTipGroup.add(platformMesh, platEdgeL, platEdgeR, blinkerL, blinkerR);
+  // 2x Boden-Laufrollen (Steel Ground Castors) an der Plattform-Unterkante
+  const castorWheelGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.05, 16);
+  castorWheelGeo.rotateZ(Math.PI / 2);
+  const castorL = new THREE.Mesh(castorWheelGeo, silverMat);
+  castorL.position.set(0.65, 0.02, -0.04);
+  const castorR = new THREE.Mesh(castorWheelGeo, silverMat);
+  castorR.position.set(-0.65, 0.02, -0.04);
+
+  // 2x Plattform-Aufnahmelaschen (Bracket Ears) zur Verbindung mit den Hubarmen
+  const bracketGeo = new THREE.BoxGeometry(0.05, 0.16, 0.14);
+  const platBracketL = new THREE.Mesh(bracketGeo, chassisMat);
+  platBracketL.position.set(0.65, 0.06, -0.06);
+  const platBracketR = new THREE.Mesh(bracketGeo, chassisMat);
+  platBracketR.position.set(-0.65, 0.06, -0.06);
+
+  // 2x Abrollsicherungen (Flap-up Roll-Off Stops) auf der Plattform
+  const rollStopGeo = new THREE.BoxGeometry(0.55, 0.02, 0.04);
+  const rollStopL = new THREE.Mesh(rollStopGeo, silverMat);
+  rollStopL.position.set(0.65, 1.75, 0.01);
+  const rollStopR = new THREE.Mesh(rollStopGeo, silverMat);
+  rollStopR.position.set(-0.65, 1.75, 0.01);
+
+  platformTipGroup.add(platformMesh, platEdgeL, platEdgeR, blinkerL, blinkerR, castorL, castorR, platBracketL, platBracketR, rollStopL, rollStopR);
   platformTiltGroup.add(platformTipGroup);
   platformTiltGroup.rotation.x = 0;
   tailLiftAssembly.add(platformTiltGroup);
 
-  // 4. Mechanische Parallelogramm-Hubarme mit integrierten Hydraulikzylindern
-  const liftArmLGroup = new THREE.Group();
-  liftArmLGroup.position.set(0.65, 0.45, kofferBackZ + 0.25);
-  const liftArmRGroup = new THREE.Group();
-  liftArmRGroup.position.set(-0.65, 0.45, kofferBackZ + 0.25);
+  // 5. Vollständig artikulierte Parallelogramm-Hubschwingen & Zwillings-Hydraulikzylinder
+  const createArticulatedLiftArm = (xOffset: number) => {
+    const armRootGroup = new THREE.Group();
+    armRootGroup.position.set(xOffset, 0.45, kofferBackZ + 0.25);
 
-  const liftArmGeo = new THREE.BoxGeometry(0.06, 0.08, 0.72);
-  const liftArmMeshL = new THREE.Mesh(liftArmGeo, chassisMat);
-  liftArmMeshL.position.set(0, 0, -0.36);
-  liftArmLGroup.add(liftArmMeshL);
+    // Haupt-Hubschwinge (Heavy Reinforced I-Beam Profile, L = 0.65m)
+    const mainBeamGeo = new THREE.BoxGeometry(0.07, 0.10, 0.65);
+    const mainBeam = new THREE.Mesh(mainBeamGeo, chassisMat);
+    mainBeam.position.set(0, 0, -0.325);
 
-  const liftArmMeshR = new THREE.Mesh(liftArmGeo, chassisMat);
-  liftArmMeshR.position.set(0, 0, -0.36);
-  liftArmRGroup.add(liftArmMeshR);
+    // Oberer Parallellenker (Parallel Guidance Tube Ø 32mm)
+    const parTubeGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.65, 12);
+    parTubeGeo.rotateX(Math.PI / 2);
+    const parTube = new THREE.Mesh(parTubeGeo, silverMat);
+    parTube.position.set(0, 0.12, -0.325);
 
-  const cylBodyGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.38, 12);
-  cylBodyGeo.rotateX(Math.PI / 2);
-  const cylRodGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.42, 12);
-  cylRodGeo.rotateX(Math.PI / 2);
+    // Silberne Lagerbolzen mit Kronenmuttern an beiden Enden
+    const pinGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.09, 12);
+    pinGeo.rotateZ(Math.PI / 2);
+    const pinBaseMain = new THREE.Mesh(pinGeo, silverMat);
+    pinBaseMain.position.set(0, 0, 0);
+    const pinBasePar = new THREE.Mesh(pinGeo, silverMat);
+    pinBasePar.position.set(0, 0.12, 0);
+    const pinTipMain = new THREE.Mesh(pinGeo, silverMat);
+    pinTipMain.position.set(0, 0, -0.65);
+    const pinTipPar = new THREE.Mesh(pinGeo, silverMat);
+    pinTipPar.position.set(0, 0.12, -0.65);
 
-  const cylBodyL = new THREE.Mesh(cylBodyGeo, plasticMat);
-  cylBodyL.position.set(0, 0.08, -0.19);
-  const cylRodL = new THREE.Mesh(cylRodGeo, chromeMat);
-  cylRodL.position.set(0, 0.08, -0.48);
-  liftArmLGroup.add(cylBodyL, cylRodL);
+    // 1. Hydraulischer Hubzylinder (Anthrazit Zylinderkörper + Hochglanz-Chromkolben)
+    const cylBarrelGeo = new THREE.CylinderGeometry(0.038, 0.038, 0.35, 16);
+    cylBarrelGeo.rotateX(Math.PI / 2);
+    const cylBarrel = new THREE.Mesh(cylBarrelGeo, plasticMat);
+    cylBarrel.position.set(0.045, -0.06, -0.175);
 
-  const cylBodyR = new THREE.Mesh(cylBodyGeo, plasticMat);
-  cylBodyR.position.set(0, 0.08, -0.19);
-  const cylRodR = new THREE.Mesh(cylRodGeo, chromeMat);
-  cylRodR.position.set(0, 0.08, -0.48);
-  liftArmRGroup.add(cylBodyR, cylRodR);
+    const cylPistonGeo = new THREE.CylinderGeometry(0.024, 0.024, 0.40, 16);
+    cylPistonGeo.rotateX(Math.PI / 2);
+    const cylPiston = new THREE.Mesh(cylPistonGeo, chromeMat);
+    cylPiston.position.set(0.045, -0.06, -0.42);
 
+    // 2. Hydraulischer Kippzylinder (Oben)
+    const tiltCylBarrelGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.30, 12);
+    tiltCylBarrelGeo.rotateX(Math.PI / 2);
+    const tiltCylBarrel = new THREE.Mesh(tiltCylBarrelGeo, plasticMat);
+    tiltCylBarrel.position.set(-0.045, 0.06, -0.16);
+
+    const tiltCylPistonGeo = new THREE.CylinderGeometry(0.020, 0.020, 0.35, 12);
+    tiltCylPistonGeo.rotateX(Math.PI / 2);
+    const tiltCylPiston = new THREE.Mesh(tiltCylPistonGeo, chromeMat);
+    tiltCylPiston.position.set(-0.045, 0.06, -0.38);
+
+    // Hydraulikschläuche & Messingverschraubungen
+    const hoseGeo = new THREE.CylinderGeometry(0.007, 0.007, 0.45, 8);
+    hoseGeo.rotateX(Math.PI / 2);
+    const hose = new THREE.Mesh(hoseGeo, darkTrimMat);
+    hose.position.set(0.05, -0.09, -0.22);
+
+    armRootGroup.add(
+      mainBeam, parTube,
+      pinBaseMain, pinBasePar, pinTipMain, pinTipPar,
+      cylBarrel, cylPiston,
+      tiltCylBarrel, tiltCylPiston,
+      hose
+    );
+    return armRootGroup;
+  };
+
+  const liftArmLGroup = createArticulatedLiftArm(0.65);
+  const liftArmRGroup = createArticulatedLiftArm(-0.65);
+
+  // Hydraulik-Unterbau
   const tailBumperGeo = new THREE.BoxGeometry(2.4, 0.15, 0.3);
   const tailBumper = new THREE.Mesh(tailBumperGeo, chassisMat);
   tailBumper.position.set(0, 0.4, kofferBackZ + 0.15);
   
+  // Unterfahrschutz Stange (Under-run bar)
   const underrunGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.4);
   underrunGeo.rotateZ(Math.PI / 2);
   const underrun = new THREE.Mesh(underrunGeo, chassisMat);
   underrun.position.set(0, 0.25, kofferBackZ + 0.1);
 
+  // Heck-Kennzeichen "SUPERTECHNO" & LED-Kennzeichenleuchten
   const rearPlateGeo = new THREE.BoxGeometry(0.80, 0.18, 0.04);
   const rearPlate = new THREE.Mesh(rearPlateGeo, plateMaterials);
   rearPlate.position.set(0, 0.42, kofferBackZ + 0.31);

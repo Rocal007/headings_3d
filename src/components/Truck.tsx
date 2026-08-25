@@ -224,16 +224,43 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
       truckRig.leftDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.leftDoorGroup.rotation.y, -targetDoorAngle, 1 - Math.exp(-6.0 * delta));
       truckRig.rightDoorGroup.rotation.y = THREE.MathUtils.lerp(truckRig.rightDoorGroup.rotation.y, targetDoorAngle, 1 - Math.exp(-6.0 * delta));
 
-      // 3. Ladebordwand 3-Phasen Kinematik
-      const targetFlap = tailgateRef.current ? 1.0 : 0.0;
+      // 3. Dautel Cargolift Ladebordwand 3-Phasen Kinematik
+      const targetFlap = (tailgateRef.current || platformLoweredRef.current) ? 1.0 : 0.0;
       flapProgress = THREE.MathUtils.lerp(flapProgress, targetFlap, 1 - Math.exp(-4.5 * delta));
-      truckRig.platformTiltGroup.rotation.x = -flapProgress * (Math.PI / 2);
-      truckRig.topFlapGroup.rotation.x = flapProgress * 1.95; // Obere Klappe öffnet sich nach oben
+      truckRig.topFlapGroup.rotation.x = -flapProgress * (Math.PI * 0.48); // Obere Klappe öffnet sich nach oben
+      truckRig.platformTiltGroup.rotation.x = -flapProgress * (Math.PI * 0.5); // Plattform klappt waagerecht ab
 
-      const targetLower = platformLoweredRef.current ? 1.0 : 0.0;
+      // Absenken darf erst erfolgen wenn Plattform überwiegend abgeklappt ist (> 0.5)
+      const targetLower = (platformLoweredRef.current && flapProgress > 0.5) ? 1.0 : 0.0;
       lowerProgress = THREE.MathUtils.lerp(lowerProgress, targetLower, 1 - Math.exp(-3.5 * delta));
-      truckRig.tailLiftAssembly.position.y = truckRig.loadEdgeHeight - lowerProgress * (truckRig.loadEdgeHeight - 0.06);
-      truckRig.platformTipGroup.rotation.x = lowerProgress * 0.065; // Spitzenneigung auf den Boden
+
+      // Plattform-Position in Y und Z (Bogenbahn der Parallelogrammarme)
+      const platY = THREE.MathUtils.lerp(truckRig.loadEdgeHeight, 0.06, lowerProgress);
+      const platZ = THREE.MathUtils.lerp(truckRig.kofferBackZ, truckRig.kofferBackZ - 0.16, lowerProgress);
+      truckRig.tailLiftAssembly.position.y = platY;
+      truckRig.tailLiftAssembly.position.z = platZ;
+
+      // Mechanische Hubschwingen & Zwillingszylinder schwenken synchron mit
+      const traverseY = 0.45;
+      const traverseZ = truckRig.kofferBackZ + 0.25;
+      const dy = platY - traverseY;
+      const dz = traverseZ - platZ;
+      const armAngle = Math.atan2(dy, dz);
+
+      truckRig.liftArmLGroup.rotation.x = armAngle;
+      truckRig.liftArmRGroup.rotation.x = armAngle;
+
+      // Plattformspitze neigt sich als Auffahrrampe zum Boden wenn unten (> 0.75)
+      const tipTiltT = THREE.MathUtils.clamp((lowerProgress - 0.75) / 0.25, 0, 1);
+      truckRig.platformTipGroup.rotation.x = -tipTiltT * 0.065;
+
+      // Sicherheits-Blinker an den Plattformecken blinken bei Betrieb
+      if (flapProgress > 0.05 || lowerProgress > 0.05) {
+        const isBlink = Math.sin(elapsedTime * 12.0) > 0;
+        truckRig.tailgateBlinkerMat.emissiveIntensity = isBlink ? 2.5 : 0.2;
+      } else {
+        truckRig.tailgateBlinkerMat.emissiveIntensity = 0.0;
+      }
 
       // 4. Scheinwerfer & Licht
       const isLights = headlightsRef.current;
