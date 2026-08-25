@@ -2145,6 +2145,86 @@ export default function Truck() {
           </div>
         </div>
 
+        {/* 🎥 Kamera-Perspektiven Dropdown (Subagent 20: Broadcast Regie) */}
+        <div style={{
+          marginTop: 8,
+          padding: '8px 10px',
+          background: 'rgba(0, 220, 255, 0.06)',
+          border: '1px solid rgba(0, 220, 255, 0.25)',
+          borderRadius: 8,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ color: '#8899aa', fontSize: 8.5, fontWeight: 700, letterSpacing: 0.5 }}>🎥 KAMERA-PERSPEKTIVE:</span>
+            {activeCam === 'auto_director' && (
+              <span style={{
+                background: '#ef4444', color: '#fff', fontSize: 8, fontWeight: 800,
+                padding: '1px 5px', borderRadius: 3,
+              }}>
+                ● ON AIR
+              </span>
+            )}
+          </div>
+
+          <select
+            value={activeCam}
+            onChange={(e) => {
+              const nextCam = e.target.value as TruckCameraPresetId;
+              setActiveCam(nextCam);
+              activeCamRef.current = nextCam;
+              effectiveCamRef.current = nextCam;
+              timeInShotRef.current = 0;
+            }}
+            style={{
+              width: '100%',
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: activeCam === 'auto_director' ? '1px solid #ef4444' : '1px solid rgba(0, 220, 255, 0.4)',
+              background: activeCam === 'auto_director' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(10, 15, 25, 0.95)',
+              color: activeCam === 'auto_director' ? '#fca5a5' : '#00dcff',
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              outline: 'none',
+              boxShadow: activeCam === 'auto_director' ? '0 0 12px rgba(239, 68, 68, 0.3)' : 'none',
+            }}
+          >
+            {(Object.keys(TRUCK_CAMERA_PRESETS) as TruckCameraPresetId[]).map((presetKey) => {
+              const preset = TRUCK_CAMERA_PRESETS[presetKey];
+              return (
+                <option
+                  key={presetKey}
+                  value={presetKey}
+                  style={{ background: '#0b0f19', color: '#ffffff' }}
+                >
+                  {preset.icon} {preset.name} {presetKey === 'auto_director' ? '• (TV-Regie)' : ''}
+                </option>
+              );
+            })}
+          </select>
+
+          {/* Live Auto-Regie Tally Badge */}
+          {activeCam === 'auto_director' && (
+            <div 
+              ref={directorBadgeRef}
+              style={{
+                marginTop: 6,
+                padding: '4px 6px',
+                borderRadius: 4,
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: 8.5,
+                fontWeight: 600,
+                textAlign: 'center',
+                fontFamily: '"JetBrains Mono", monospace'
+              }}
+            >
+              ● ON AIR [AUTO-REGIE]
+            </div>
+          )}
+        </div>
+
         {/* Footer Vehicle Specs */}
         <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', color: '#667788', fontSize: 9 }}>
           <span>MAN TGL 12.250</span>
@@ -2307,68 +2387,6 @@ export default function Truck() {
         >
           💻 Crash
         </button>
-      </div>
-
-      {/* 🎬 Subagent 20: Broadcast-Kamera-Regie Leiste (Oben Mitte) */}
-      <div style={{
-        position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        zIndex: 50, userSelect: 'none', pointerEvents: 'auto'
-      }}>
-        {/* Live Tally / Director Info Badge */}
-        <div 
-          ref={directorBadgeRef}
-          style={{
-            background: activeCam === 'auto_director' ? 'rgba(231, 76, 60, 0.85)' : 'rgba(15, 23, 42, 0.85)',
-            border: activeCam === 'auto_director' ? '1px solid #e74c3c' : '1px solid rgba(0, 220, 255, 0.3)',
-            borderRadius: 20, padding: '4px 14px',
-            color: '#ffffff', fontFamily: '"JetBrains Mono", monospace', fontSize: 11, fontWeight: 700,
-            boxShadow: activeCam === 'auto_director' ? '0 0 16px rgba(231, 76, 60, 0.6)' : '0 4px 12px rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(8px)', letterSpacing: 0.5,
-            transition: 'all 0.2s'
-          }}
-        >
-          {activeCam === 'auto_director' ? '● ON AIR [AUTO-REGIE] • Intelligenter TV-Schnitt aktiv' : `🎥 KAMERA: ${TRUCK_CAMERA_PRESETS[activeCam]?.name?.toUpperCase()}`}
-        </div>
-
-        {/* Camera Preset Switcher Bar */}
-        <div style={{
-          display: 'flex', gap: 4, background: 'rgba(10, 15, 25, 0.85)',
-          padding: '4px 6px', borderRadius: 10,
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          backdropFilter: 'blur(12px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
-        }}>
-          {(Object.keys(TRUCK_CAMERA_PRESETS) as TruckCameraPresetId[]).map((presetKey) => {
-            const preset = TRUCK_CAMERA_PRESETS[presetKey];
-            const isCurrent = activeCam === presetKey;
-            return (
-              <button
-                key={presetKey}
-                onClick={() => {
-                  setActiveCam(presetKey);
-                  activeCamRef.current = presetKey;
-                  effectiveCamRef.current = presetKey;
-                  timeInShotRef.current = 0;
-                }}
-                title={preset.desc}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '6px 10px', borderRadius: 6,
-                  border: isCurrent ? '1px solid #00dcff' : '1px solid transparent',
-                  background: isCurrent ? 'rgba(0, 220, 255, 0.25)' : 'transparent',
-                  color: isCurrent ? '#00dcff' : '#cbd5e1',
-                  fontFamily: '"Inter", sans-serif', fontSize: 11, fontWeight: isCurrent ? 700 : 500,
-                  cursor: 'pointer', transition: 'all 0.15s',
-                  boxShadow: isCurrent ? '0 0 10px rgba(0, 220, 255, 0.3)' : 'none'
-                }}
-              >
-                <span>{preset.icon}</span>
-                <span>{preset.name}</span>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* BSOD Overlay */}
