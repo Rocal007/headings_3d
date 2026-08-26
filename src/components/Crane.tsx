@@ -1587,12 +1587,16 @@ function CraneScene({
   kinematicsRef, 
   sliderRefs,
   cableSettings,
-  sceneryMode = 'bright_concrete',
+  sceneryMode = 'plate',
+  showRails = false,
   cameraViewMode,
   setCameraViewMode,
   orbitControlsRef,
   onStageChange,
-  setCableSettings
+  setCableSettings,
+  avatarType = 'classic',
+  rpmUrl,
+  rpmPresetId
 }: { 
   kinematicsRef: React.MutableRefObject<any>,
   sliderRefs: Record<string, React.RefObject<HTMLInputElement | null>>,
@@ -1611,11 +1615,15 @@ function CraneScene({
     operatorMode?: CraneOperatorMode;
   },
   sceneryMode?: CraneSceneryType,
+  showRails?: boolean,
   cameraViewMode: CameraViewMode,
   setCameraViewMode: (mode: CameraViewMode) => void,
   orbitControlsRef: React.RefObject<any>,
   onStageChange?: (stage: RoundTripStageInfo) => void,
-  setCableSettings?: React.Dispatch<React.SetStateAction<any>>
+  setCableSettings?: React.Dispatch<React.SetStateAction<any>>,
+  avatarType?: 'classic' | 'rpm',
+  rpmUrl?: string,
+  rpmPresetId?: string
 }) {
   const [crane, setCrane] = useState<Supertechno50FBXModel | null>(null);
   const [kinState, setKinState] = useState(kinematicsRef.current);
@@ -1700,6 +1708,7 @@ function CraneScene({
       kin.headTilt = Math.sin(p * 0.8) * 15;
       kin.headRoll = Math.sin(p * 0.5) * 20;
     } else {
+      const isOp = cableSettings.operatorMode === 'operating';
       // Manual Keyboard Logic with Independent Hard Stops (never retracts other axes)
       if (k['w']) {
         const target = (kin.teleExtension || 0) + speed * 2;
@@ -1710,11 +1719,11 @@ function CraneScene({
       }
       if (k['q']) {
         const target = (kin.boomTilt || 0) + speed * 10;
-        kin.boomTilt = clampBoomTilt(target, kin.columnElevation, kin.teleExtension);
+        kin.boomTilt = clampBoomTilt(target, kin.columnElevation, kin.teleExtension, SAFE_FLOOR_CLEARANCE, isOp);
       }
       if (k['e']) {
         const target = (kin.boomTilt || 0) - speed * 10;
-        kin.boomTilt = clampBoomTilt(target, kin.columnElevation, kin.teleExtension);
+        kin.boomTilt = clampBoomTilt(target, kin.columnElevation, kin.teleExtension, SAFE_FLOOR_CLEARANCE, isOp);
       }
       if (k['a']) {
         kin.dollyTrack = (kin.dollyTrack || 0) + speed; // Vorwärts
@@ -1723,11 +1732,12 @@ function CraneScene({
         kin.dollyTrack = (kin.dollyTrack || 0) - speed; // Rückwärts
       }
       if (k['r']) {
-        kin.columnElevation = Math.min(3.63, (kin.columnElevation || 1.54) + speed * 0.4);
+        const maxCol = isOp ? 2.15 : 3.63;
+        kin.columnElevation = Math.min(maxCol, (kin.columnElevation || 1.54) + speed * 0.4);
       }
       if (k['f']) {
         const target = (kin.columnElevation || 1.54) - speed * 0.4;
-        kin.columnElevation = clampColumnElevation(target, kin.boomTilt, kin.teleExtension);
+        kin.columnElevation = clampColumnElevation(target, kin.boomTilt, kin.teleExtension, SAFE_FLOOR_CLEARANCE, isOp);
       }
       if (k['arrowleft'] && !k['shift']) kin.headPan = Math.max(-1080, (kin.headPan || 0) - speed * 15);
       if (k['arrowright'] && !k['shift']) kin.headPan = Math.min(1080, (kin.headPan || 0) + speed * 15);
@@ -1745,8 +1755,9 @@ function CraneScene({
       }
     }
 
-    // Secondary safety invariant (Y >= 0 guarantee)
-    enforceCraneFloorLimits(kin, cableSettings.panRangeMode);
+    // Secondary safety invariant (Y >= 0 guarantee and operator-reach guarantee)
+    const isOpActive = cableSettings.operatorMode === 'operating';
+    enforceCraneFloorLimits(kin, cableSettings.panRangeMode, SAFE_FLOOR_CLEARANCE, isOpActive);
 
     // Sync UI Sliders
     if (sliderRefs.basePan?.current) sliderRefs.basePan.current.value = kin.basePan.toString();
@@ -2037,7 +2048,7 @@ function CraneScene({
       <CraneSceneryEnvironment sceneryMode={sceneryMode} />
 
       {/* High-Precision Precision Studio Dolly Rails along Z */}
-      <DollyTrackRails visible={true} />
+      <DollyTrackRails visible={showRails} />
       
       {/* 3D Model Injection */}
       {crane && <primitive object={crane.group} />}
@@ -2082,9 +2093,21 @@ function CraneScene({
       {/* 🎬 Interactive Two-Operator Crew (Kranführer am Heck + DoP am Bodenpult) */}
       <CraneOperator
         mode={cableSettings.operatorMode || 'hidden'}
+        avatarType={avatarType}
+        rpmUrl={rpmUrl}
+        rpmPresetId={rpmPresetId}
         onArrivedAtControls={() => {
           if (setCableSettings) {
             setCableSettings((s: any) => ({ ...s, operatorMode: 'operating' }));
+          }
+          // Clamp to ergonomic reach immediately on arrival
+          enforceCraneFloorLimits(kinematicsRef.current, cableSettings.panRangeMode, SAFE_FLOOR_CLEARANCE, true);
+          if (sliderRefs.boomTilt?.current) sliderRefs.boomTilt.current.value = kinematicsRef.current.boomTilt.toString();
+          if (sliderRefs.columnElevation?.current) sliderRefs.columnElevation.current.value = kinematicsRef.current.columnElevation.toString();
+          
+          // 🎥 Switch back to Free Camera so user immediately has full interactive orbital control
+          if (setCameraViewMode) {
+            setCameraViewMode('free');
           }
         }}
         onExited={() => {
@@ -2111,6 +2134,11 @@ function CraneScene({
         maxPolarAngle={Math.PI / 2 - 0.04}
         minDistance={1.5}
         maxDistance={60}
+        onStart={() => {
+          if (setCameraViewMode && cameraViewMode !== 'free') {
+            setCameraViewMode('free');
+          }
+        }}
       />
     </>
   );
@@ -2137,7 +2165,8 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
   const headTiltRef = useRef<HTMLInputElement>(null);
   const headRollRef = useRef<HTMLInputElement>(null);
 
-  const [sceneryMode, setSceneryMode] = useState<CraneSceneryType>('bright_concrete');
+  const [sceneryMode, setSceneryMode] = useState<CraneSceneryType>('plate');
+  const [showRails, setShowRails] = useState<boolean>(false);
 
   const [cableSettings, setCableSettings] = useState({
     visible: true,
@@ -2155,6 +2184,57 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
   });
 
   const [showSpecsModal, setShowSpecsModal] = useState(false);
+
+  const [useRpmAvatar, setUseRpmAvatar] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('supertechno_crane_use_rpm') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [rpmAvatarUrl, setRpmAvatarUrl] = useState<string>(() => {
+    try {
+      return localStorage.getItem('supertechno_rpm_custom_url') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [rpmPresetId, setRpmPresetId] = useState<string>(() => {
+    try {
+      return localStorage.getItem('supertechno_rpm_active_preset_id') || 'crane_operator_max';
+    } catch {
+      return 'crane_operator_max';
+    }
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        setUseRpmAvatar(localStorage.getItem('supertechno_crane_use_rpm') === 'true');
+        setRpmAvatarUrl(localStorage.getItem('supertechno_rpm_custom_url') || '');
+        setRpmPresetId(localStorage.getItem('supertechno_rpm_active_preset_id') || 'crane_operator_max');
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // Auto-trigger operator mode if coming from RPM Avatar Studio
+    try {
+      if (localStorage.getItem('supertechno_crane_auto_op') === 'true') {
+        localStorage.removeItem('supertechno_crane_auto_op');
+        setUseRpmAvatar(true);
+        setCableSettings(s => ({ ...s, operatorMode: 'operating' }));
+        setCameraViewMode('operator');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const sliderRefs = {
     basePan: basePanRef,
@@ -2180,11 +2260,12 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
 
   const handleSliderChange = (key: string, value: any) => {
     const kin = kinematicsRef.current;
+    const isOperatorActive = cableSettings.operatorMode === 'operating';
     if (key === 'boomTilt') {
-      kin.boomTilt = clampBoomTilt(value, kin.columnElevation || 1.54, kin.teleExtension || 0);
+      kin.boomTilt = clampBoomTilt(value, kin.columnElevation || 1.54, kin.teleExtension || 0, SAFE_FLOOR_CLEARANCE, isOperatorActive);
       if (sliderRefs.boomTilt?.current) sliderRefs.boomTilt.current.value = kin.boomTilt.toString();
     } else if (key === 'columnElevation') {
-      kin.columnElevation = clampColumnElevation(value, kin.boomTilt || 0, kin.teleExtension || 0);
+      kin.columnElevation = clampColumnElevation(value, kin.boomTilt || 0, kin.teleExtension || 0, SAFE_FLOOR_CLEARANCE, isOperatorActive);
       if (sliderRefs.columnElevation?.current) sliderRefs.columnElevation.current.value = kin.columnElevation.toString();
     } else if (key === 'teleExtension') {
       kin.teleExtension = clampTeleExtension(value, kin.columnElevation || 1.54, kin.boomTilt || 0);
@@ -2206,14 +2287,15 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
 
   const handleTiltPreset = (targetTiltDeg: number) => {
     const k = kinematicsRef.current;
+    const isOperatorActive = cableSettings.operatorMode === 'operating';
     const reqCol = getMinColumnElevationForPose(targetTiltDeg, k.teleExtension || 0, SAFE_FLOOR_CLEARANCE);
     if (k.columnElevation < reqCol) {
-      k.columnElevation = reqCol;
+      k.columnElevation = clampColumnElevation(reqCol, targetTiltDeg, k.teleExtension || 0, SAFE_FLOOR_CLEARANCE, isOperatorActive);
       if (sliderRefs.columnElevation?.current) {
         sliderRefs.columnElevation.current.value = k.columnElevation.toString();
       }
     }
-    k.boomTilt = clampBoomTilt(targetTiltDeg, k.columnElevation || 1.54, k.teleExtension || 0, SAFE_FLOOR_CLEARANCE);
+    k.boomTilt = clampBoomTilt(targetTiltDeg, k.columnElevation || 1.54, k.teleExtension || 0, SAFE_FLOOR_CLEARANCE, isOperatorActive);
     if (sliderRefs.boomTilt?.current) {
       sliderRefs.boomTilt.current.value = k.boomTilt.toString();
     }
@@ -2228,6 +2310,7 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
   const tiltDeg = kin.boomTilt || 0;
   const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
   const ext = kin.teleExtension || 0;
+  const isOperatorActive = cableSettings.operatorMode === 'operating';
   
   // Total reach from fulcrum (3.24m retracted to 14.64m fully extended)
   const totalBoomFront = 3.24 + (ext / 11.3) * (14.64 - 3.24);
@@ -2244,7 +2327,7 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
   // Live Ground Clearance for Front and Rear (Invariant: Y >= 0.00m)
   const frontLowestY = Math.max(0, getFrontLowestY(colHeight, tiltDeg, ext));
   const rearLowestY = Math.max(0, getRearLowestY(colHeight, tiltDeg, ext));
-  const allowedTilt = getAllowedTiltRange(colHeight, ext);
+  const allowedTilt = getAllowedTiltRange(colHeight, ext, SAFE_FLOOR_CLEARANCE, isOperatorActive);
   const maxAllowedExt = getAllowedExtensionMax(colHeight, tiltDeg);
 
   const isFrontNearFloor = frontLowestY < 0.15;
@@ -2264,11 +2347,15 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
           sliderRefs={sliderRefs}
           cableSettings={cableSettings}
           sceneryMode={sceneryMode}
+          showRails={showRails}
           cameraViewMode={cameraViewMode}
           setCameraViewMode={setCameraViewMode}
           orbitControlsRef={orbitControlsRef}
           onStageChange={setStageInfo}
           setCableSettings={setCableSettings}
+          avatarType={useRpmAvatar ? 'rpm' : 'classic'}
+          rpmUrl={rpmAvatarUrl}
+          rpmPresetId={rpmPresetId}
         />
       </Canvas>
 
@@ -2300,7 +2387,12 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
           return (
             <button
               key={`quick-scenery-${item.id}`}
-              onClick={() => setSceneryMode(item.id)}
+              onClick={() => {
+                setSceneryMode(item.id);
+                if (item.id === 'plate') {
+                  setShowRails(false);
+                }
+              }}
               title={item.desc}
               style={{
                 padding: '5px 9px',
@@ -2324,6 +2416,32 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
             </button>
           );
         })}
+
+        {/* 🛤️ Quick Track Rails Toggle Button */}
+        <div style={{ width: '1px', height: '18px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 2px' }} />
+        <button
+          onClick={() => setShowRails(r => !r)}
+          title={showRails ? 'Schienen ausblenden (Freie Platte / Plattform)' : 'Schienen einblenden (Studio-Gleise)'}
+          style={{
+            padding: '5px 10px',
+            fontSize: '10px',
+            fontWeight: 800,
+            borderRadius: '20px',
+            border: `1px solid ${showRails ? '#ca8a04' : '#00dcff'}`,
+            background: showRails ? 'rgba(202, 138, 4, 0.25)' : 'rgba(0, 220, 255, 0.22)',
+            color: showRails ? '#fde047' : '#38bdf8',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+            boxShadow: showRails ? '0 0 12px rgba(202, 138, 4, 0.35)' : '0 0 12px rgba(0, 220, 255, 0.35)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>{showRails ? '🛤️' : '⭕'}</span>
+          <span>{showRails ? 'Schienen: AN' : 'Platte: OHNE Schienen'}</span>
+        </button>
 
         {/* 🎬 Quick Operator Walk-In Button */}
         <div style={{ width: '1px', height: '18px', background: 'rgba(255, 255, 255, 0.15)', margin: '0 2px' }} />
@@ -3011,52 +3129,64 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
             </span>
           </div>
 
-          {/* Boom Tilt / Pitch (Dynamically floor-constrained so Y >= 0) */}
+          {/* Boom Tilt / Pitch (Dynamically floor-constrained and operator-reach-constrained) */}
           <div style={{ marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#ffd700', marginBottom: '2px' }}>
-              <span>Boom Tilt (Aufrichten / Senken):</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Boom Tilt (Aufrichten / Senken):
+                {isOperatorActive && (
+                  <span style={{ fontSize: '9px', fontWeight: 800, background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                    🧑 Operator-Reichweite
+                  </span>
+                )}
+              </span>
               <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                {tiltDeg.toFixed(1)}° {tiltDeg >= 59.5 ? '(MAX 60° UP)' : ''}
+                {tiltDeg.toFixed(1)}° {tiltDeg >= (isOperatorActive ? allowedTilt.maxTilt - 0.2 : 59.5) ? `(MAX ${allowedTilt.maxTilt.toFixed(1)}°)` : ''}
               </span>
             </div>
             <input 
               type="range" 
               ref={boomTiltRef} 
-              min="-57" 
-              max="60" 
+              min={isOperatorActive ? allowedTilt.minTilt.toFixed(1) : "-57"} 
+              max={isOperatorActive ? allowedTilt.maxTilt.toFixed(1) : "60"} 
               step="0.1" 
               defaultValue="0" 
               onChange={(e) => handleSliderChange('boomTilt', parseFloat(e.target.value))} 
-              style={{ width: '100%', accentColor: '#ffd700', cursor: 'pointer', marginBottom: '2px' }} 
+              style={{ width: '100%', accentColor: isOperatorActive ? '#38bdf8' : '#ffd700', cursor: 'pointer', marginBottom: '2px' }} 
             />
             {/* Live Allowed Span Note */}
             <div style={{ fontSize: '9px', color: '#94a3b8', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Limit bei {colHeight.toFixed(2)}m Hub:</span>
-              <span style={{ color: '#4ade80', fontFamily: 'monospace', fontWeight: 700 }}>
+              <span>{isOperatorActive ? 'Greifbereich stehender Operator:' : `Limit bei ${colHeight.toFixed(2)}m Hub:`}</span>
+              <span style={{ color: isOperatorActive ? '#38bdf8' : '#4ade80', fontFamily: 'monospace', fontWeight: 700 }}>
                 {allowedTilt.minTilt.toFixed(1)}° bis +{allowedTilt.maxTilt.toFixed(1)}°
               </span>
             </div>
 
-            {/* Tilt Preset Buttons (Safe Auto-Elevation enabled) */}
+            {/* Tilt Preset Buttons (Safe Auto-Elevation & Operator-reach enabled) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px' }}>
-              {[
+              {(isOperatorActive ? [
+                { deg: allowedTilt.minTilt, label: `${allowedTilt.minTilt.toFixed(0)}° Min 🎯` },
+                { deg: 0, label: '0° Level' },
+                { deg: allowedTilt.maxTilt * 0.5, label: `${(allowedTilt.maxTilt * 0.5).toFixed(0)}° Mid` },
+                { deg: allowedTilt.maxTilt, label: `${allowedTilt.maxTilt.toFixed(0)}° Max 🧑` }
+              ] : [
                 { deg: -45, label: '-45° 🎯' },
                 { deg: 0, label: '0° Level' },
                 { deg: 30, label: '+30°' },
                 { deg: 60, label: '+60° UP 🚀' }
-              ].map(item => (
+              ]).map(item => (
                 <button
                   key={`tilt-${item.deg}`}
                   onClick={() => handleTiltPreset(item.deg)}
-                  title={`Preset ${item.label}: Stellt den Winkel ein und passt den Säulenhub bei Bedarf automatisch an, damit kein Kranteil unter Y=0 sinkt.`}
+                  title={isOperatorActive ? `Preset ${item.label}: Stellt den Winkel innerhalb des ergonomischen Greifbereichs des Operators ein.` : `Preset ${item.label}: Stellt den Winkel ein und passt den Säulenhub bei Bedarf automatisch an, damit kein Kranteil unter Y=0 sinkt.`}
                   style={{
                     padding: '4px 2px',
                     fontSize: '9px',
                     fontWeight: 700,
                     borderRadius: '4px',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    background: Math.abs(tiltDeg - item.deg) < 1 ? 'rgba(250,204,21,0.25)' : 'rgba(255,255,255,0.05)',
-                    color: Math.abs(tiltDeg - item.deg) < 1 ? '#facc15' : '#94a3b8',
+                    background: Math.abs(tiltDeg - item.deg) < 0.5 ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)',
+                    color: Math.abs(tiltDeg - item.deg) < 0.5 ? '#38bdf8' : '#94a3b8',
                     cursor: 'pointer'
                   }}
                 >
@@ -3066,17 +3196,24 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
             </div>
           </div>
 
-          {/* Column Elevation / Säulenhub (1.54m to 3.63m) */}
+          {/* Column Elevation / Säulenhub (1.54m to 3.63m or 2.15m for operator) */}
           <div style={{ marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#38bdf8', marginBottom: '2px' }}>
-              <span>Mittelsäule Hub (1.54m - 3.63m):</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                Mittelsäule Hub (1.54m - {isOperatorActive ? '2.15m' : '3.63m'}):
+                {isOperatorActive && (
+                  <span style={{ fontSize: '9px', fontWeight: 800, background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                    🧑 Max 2.15m
+                  </span>
+                )}
+              </span>
               <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{colHeight.toFixed(2)} m</span>
             </div>
             <input 
               type="range" 
               ref={columnElevationRef} 
               min="1.54" 
-              max="3.63" 
+              max={isOperatorActive ? "2.15" : "3.63"} 
               step="0.01" 
               defaultValue="1.54" 
               onChange={(e) => handleSliderChange('columnElevation', parseFloat(e.target.value))} 
@@ -3084,11 +3221,15 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
             />
             {/* Column Presets */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
-              {[
+              {(isOperatorActive ? [
+                { val: 1.54, label: '1.54m (Min)' },
+                { val: 1.84, label: '1.84m (Mid)' },
+                { val: 2.15, label: '2.15m (Max Op)' }
+              ] : [
                 { val: 1.54, label: '1.54m (Min)' },
                 { val: 2.58, label: '2.58m (Mid)' },
                 { val: 3.63, label: '3.63m (Max)' }
-              ].map(item => (
+              ]).map(item => (
                 <button
                   key={`col-${item.val}`}
                   onClick={() => handleSliderChange('columnElevation', item.val)}
@@ -3634,7 +3775,7 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
           </button>
 
           {cableSettings.operatorMode === 'operating' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
               <button
                 onClick={() => setCameraViewMode('operator')}
                 style={{
@@ -3667,6 +3808,62 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
               </button>
             </div>
           )}
+
+          {/* Avatar Engine Switcher */}
+          <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>
+                Charakter-Modell:
+              </span>
+              <span style={{ fontSize: '10px', color: useRpmAvatar ? '#c084fc' : '#38bdf8', fontWeight: 800 }}>
+                {useRpmAvatar ? '🧑 3D-Avatar (RPM)' : '👥 Klassisches Rig'}
+              </span>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <button
+                onClick={() => {
+                  setUseRpmAvatar(false);
+                  try {
+                    localStorage.setItem('supertechno_crane_use_rpm', 'false');
+                  } catch (e) {}
+                }}
+                style={{
+                  padding: '5px 6px',
+                  borderRadius: '5px',
+                  border: `1px solid ${!useRpmAvatar ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`,
+                  background: !useRpmAvatar ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255,255,255,0.04)',
+                  color: !useRpmAvatar ? '#38bdf8' : '#94a3b8',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                👥 Klassisch
+              </button>
+
+              <button
+                onClick={() => {
+                  setUseRpmAvatar(true);
+                  try {
+                    localStorage.setItem('supertechno_crane_use_rpm', 'true');
+                  } catch (e) {}
+                }}
+                style={{
+                  padding: '5px 6px',
+                  borderRadius: '5px',
+                  border: `1px solid ${useRpmAvatar ? '#a855f7' : 'rgba(255,255,255,0.1)'}`,
+                  background: useRpmAvatar ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.04)',
+                  color: useRpmAvatar ? '#d8b4fe' : '#94a3b8',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                🧑 3D-Avatar
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Base Pan & Dolly Sliders */}

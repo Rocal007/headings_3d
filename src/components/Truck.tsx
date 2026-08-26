@@ -59,7 +59,7 @@ export const TRUCK_STUDIO_CAMERAS: Record<TruckStudioCameraId, TruckStudioCamera
   },
 };
 
-export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) {
+export default function Truck(_props: { onOpenRace?: () => void } = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [doorsOpen, setDoorsOpen] = useState(false);
@@ -330,34 +330,7 @@ export default function Truck({ onOpenRace }: { onOpenRace?: () => void } = {}) 
     <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0, zIndex: 10, overflow: 'hidden' }}>
       <canvas ref={canvasRef} style={{ width: '100%', height: '100%', outline: 'none' }} />
 
-      {/* 🌟 Showroom Header & Navigation */}
-      <div style={{
-        position: 'absolute', top: 20, left: 20, zIndex: 50,
-        display: 'flex', gap: 10, alignItems: 'center'
-      }}>
-        {onOpenRace && (
-          <button
-            onClick={onOpenRace}
-            style={{
-              padding: '10px 18px',
-              borderRadius: 8,
-              border: 'none',
-              background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: 12,
-              fontFamily: '"Inter", sans-serif',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(236, 72, 153, 0.45)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6
-            }}
-          >
-            🏎️ Zu Grand Prix Rennen
-          </button>
-        )}
-      </div>
+
 
       {/* 📡 Studio Showroom Info & Specs Card (Rechts Oben) */}
       <div style={{

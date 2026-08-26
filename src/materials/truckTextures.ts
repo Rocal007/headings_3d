@@ -623,51 +623,167 @@ export function createTailLiftTexture(): THREE.CanvasTexture {
   return finalizeCanvasTexture(c);
 }
 
-/** 10. Kofferaufbau-Seitenwand-Textur */
-export function createKofferSideTexture(): THREE.CanvasTexture {
+/** 10. Kofferaufbau-Seitenwand-Textur mit Livery-Support (Supertechno White / Red Bull Racing) */
+export function createKofferSideTexture(livery: 'supertechno_white' | 'red_bull_racing' = 'supertechno_white'): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 2048;
   c.height = 512;
   const ctx = c.getContext('2d');
   if (ctx) {
-    ctx.fillStyle = '#f5f3f0';
-    ctx.fillRect(0, 0, 2048, 512);
+    if (livery === 'red_bull_racing') {
+      // 1. Midnight Navy Metallic / Matte Base
+      ctx.fillStyle = '#0a1428';
+      ctx.fillRect(0, 0, 2048, 512);
 
-    const grad = ctx.createLinearGradient(0, 0, 0, 512);
-    grad.addColorStop(0, 'rgba(255,255,255,0.15)');
-    grad.addColorStop(0.7, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.08)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 2048, 512);
+      // Carbon-Gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, 512);
+      bgGrad.addColorStop(0, 'rgba(15, 23, 42, 0.95)');
+      bgGrad.addColorStop(0.5, 'rgba(10, 20, 40, 1.0)');
+      bgGrad.addColorStop(1, 'rgba(8, 14, 28, 1.0)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 2048, 512);
 
-    const panels = 6;
-    for (let i = 0; i <= panels; i++) {
-      const x = (2048 / panels) * i;
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(x - 1, 0); ctx.lineTo(x - 1, 512); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x + 2, 0); ctx.lineTo(x + 2, 512); ctx.stroke();
-    }
-
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    for (let x = 20; x < 2048; x += 50) {
+      // 2. Dynamische Red Bull Racing Farbkeile (Sonne Gelb, Flügel Rot)
+      // Roter Racing Stripe
+      ctx.fillStyle = '#dc2626';
       ctx.beginPath();
-      ctx.arc(x, 18, 3, 0, Math.PI * 2);
+      ctx.moveTo(100, 512);
+      ctx.lineTo(580, 0);
+      ctx.lineTo(840, 0);
+      ctx.lineTo(360, 512);
+      ctx.closePath();
       ctx.fill();
-    }
-    for (let x = 20; x < 2048; x += 50) {
-      ctx.beginPath();
-      ctx.arc(x, 494, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
 
-    ctx.fillStyle = '#d0d0d0';
-    ctx.fillRect(0, 490, 2048, 22);
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0, 490, 2048, 22);
+      // Gelber Sonnen-Keil
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.moveTo(420, 512);
+      ctx.lineTo(880, 0);
+      ctx.lineTo(950, 0);
+      ctx.lineTo(490, 512);
+      ctx.closePath();
+      ctx.fill();
+
+      // Cyan Akzent-Linie
+      ctx.fillStyle = '#00dcff';
+      ctx.beginPath();
+      ctx.moveTo(80, 512);
+      ctx.lineTo(540, 0);
+      ctx.lineTo(560, 0);
+      ctx.lineTo(100, 512);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. Gelbe Sonnenscheibe (Red Bull Sun)
+      const sunGrad = ctx.createRadialGradient(1450, 240, 20, 1450, 240, 130);
+      sunGrad.addColorStop(0, '#fff066');
+      sunGrad.addColorStop(0.6, '#ffd700');
+      sunGrad.addColorStop(1, '#f59e0b');
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath();
+      ctx.arc(1450, 240, 130, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Rote Stier-Silhouetten (Dual Charging Bulls)
+      ctx.fillStyle = '#dc2626';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 12;
+
+      // Linker Stier
+      ctx.beginPath();
+      ctx.ellipse(1360, 240, 85, 45, -0.25, 0, Math.PI * 2);
+      ctx.ellipse(1410, 205, 38, 30, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rechter Stier
+      ctx.beginPath();
+      ctx.ellipse(1540, 240, 85, 45, 0.25, 0, Math.PI * 2);
+      ctx.ellipse(1490, 205, 38, 30, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // 5. Großes "RED BULL RACING" Logo
+      ctx.font = '900 96px "Arial Black", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 16;
+      ctx.fillText('RED BULL', 260, 220);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText('RACING', 260, 310);
+      ctx.shadowBlur = 0;
+
+      ctx.font = 'bold 36px monospace';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('ALPINE MOTORSPORT • SPIELBERG', 265, 365);
+
+      // Panel-Fugen
+      const panels = 6;
+      for (let i = 0; i <= panels; i++) {
+        const x = (2048 / panels) * i;
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x - 1, 0); ctx.lineTo(x - 1, 512); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x + 2, 0); ctx.lineTo(x + 2, 512); ctx.stroke();
+      }
+
+      // Unterer Carbon-Rammschutz
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 488, 2048, 24);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(0, 484, 2048, 4);
+    } else {
+      // Standard Supertechno White
+      ctx.fillStyle = '#f5f3f0';
+      ctx.fillRect(0, 0, 2048, 512);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0, 'rgba(255,255,255,0.15)');
+      grad.addColorStop(0.7, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.08)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 2048, 512);
+
+      // Supertechno Logo
+      ctx.font = '900 78px "Arial Black", sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.textAlign = 'center';
+      ctx.fillText('SUPERTECHNO 50', 1024, 230);
+      ctx.font = 'bold 32px monospace';
+      ctx.fillStyle = '#d97706';
+      ctx.fillText('TELESCOPIC CINE CRANE LOGISTICS', 1024, 290);
+
+      const panels = 6;
+      for (let i = 0; i <= panels; i++) {
+        const x = (2048 / panels) * i;
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x - 1, 0); ctx.lineTo(x - 1, 512); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x + 2, 0); ctx.lineTo(x + 2, 512); ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      for (let x = 20; x < 2048; x += 50) {
+        ctx.beginPath();
+        ctx.arc(x, 18, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      for (let x = 20; x < 2048; x += 50) {
+        ctx.beginPath();
+        ctx.arc(x, 494, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#d0d0d0';
+      ctx.fillRect(0, 490, 2048, 22);
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, 490, 2048, 22);
+    }
   }
   const tex = finalizeCanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping;

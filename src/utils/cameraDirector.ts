@@ -1037,8 +1037,11 @@ export const CINE_FRAMING_GUIDES = {
 export type TruckCameraPresetId =
   | 'free'          // Freier Orbit (User OrbitControls)
   | 'trackside_tv'  // Reale TV-Streckenkameras & Tele-Türme
-  | 'follow'        // Dynamische 3rd-Person Verfolgerkamera (Chase-Cam)
-  | 'cockpit'       // Cockpit First-Person Sicht durch die Windschutzscheibe
+  | 'duel_chase'    // ⚔️ Grand Prix Duell (MAN TGL White vs. Red Bull Racing)
+  | 'follow'        // Dynamische 3rd-Person Verfolgerkamera (Chase-Cam LKW 1)
+  | 'redbull_follow'// 🔴 Verfolgerkamera: Red Bull Racing MAN TGL
+  | 'cockpit'       // Cockpit First-Person Sicht durch die Windschutzscheibe (LKW 1)
+  | 'redbull_cockpit'// 🔴 Cockpit: Red Bull Racing MAN TGL
   | 'side_mirror'   // Rückspiegel-Blick entlang der Fahrzeugflanke
   | 'tailgate'      // Heck- & Ladebordwand-Fokus (Frachtraum & Heckleuchten)
   | 'front_hero'    // Front Low-Angle Hero-Perspektive
@@ -1056,6 +1059,15 @@ export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo>
     minHoldDuration: 0,
     preferredTransitions: ['smooth_lerp']
   },
+  duel_chase: {
+    id: 'duel_chase' as any,
+    name: '⚔️ Grand Prix Duell (2 LKWs)',
+    desc: 'Dramatischer Blick auf das Duell um P1 zwischen MAN TGL White & Red Bull Racing',
+    icon: '⚔️',
+    category: 'broadcast',
+    minHoldDuration: 3.5,
+    preferredTransitions: ['smooth_lerp', 'cut']
+  },
   trackside_tv: {
     id: 'trackside_tv' as any,
     name: 'TV Streckenkameras',
@@ -1067,18 +1079,36 @@ export const TRUCK_CAMERA_PRESETS: Record<TruckCameraPresetId, DirectorShotInfo>
   },
   follow: {
     id: 'follow' as any,
-    name: 'Verfolger (Chase-Cam)',
-    desc: 'Dynamische 3rd-Person Kamera hinter dem fahrenden LKW',
-    icon: '🚘',
+    name: 'Verfolger: LKW 1 (White)',
+    desc: 'Dynamische 3rd-Person Kamera hinter dem Supertechno LKW',
+    icon: '🚚',
+    category: 'broadcast',
+    minHoldDuration: 3.0,
+    preferredTransitions: ['smooth_lerp', 'cut']
+  },
+  redbull_follow: {
+    id: 'redbull_follow' as any,
+    name: '🔴 Verfolger: Red Bull LKW',
+    desc: 'Dynamische Verfolgerperspektive hinter dem Red Bull Racing LKW',
+    icon: '🔴',
     category: 'broadcast',
     minHoldDuration: 3.0,
     preferredTransitions: ['smooth_lerp', 'cut']
   },
   cockpit: {
     id: 'cockpit' as any,
-    name: 'Fahrerhaus (Cockpit)',
-    desc: 'First-Person Blick vom Fahrersitz über Armaturenbrett & Straße',
+    name: 'Cockpit: LKW 1 (White)',
+    desc: 'First-Person Blick vom Fahrersitz des Supertechno LKWs',
     icon: '💺',
+    category: 'action',
+    minHoldDuration: 3.5,
+    preferredTransitions: ['cut', 'smooth_lerp']
+  },
+  redbull_cockpit: {
+    id: 'redbull_cockpit' as any,
+    name: '🔴 Cockpit: Red Bull LKW',
+    desc: 'First-Person Blick vom Fahrersitz des Red Bull Racing LKWs',
+    icon: '🏎️',
     category: 'action',
     minHoldDuration: 3.5,
     preferredTransitions: ['cut', 'smooth_lerp']
@@ -1143,6 +1173,10 @@ export interface TruckTrackContext {
   cameras?: import('./raceTracks/trackTypes').TracksideCamera[];
   trackCurve?: THREE.CatmullRomCurve3;
   currentU?: number;
+  craneWorldPos?: { x: number; y: number; z: number };
+  craneHeading?: number;
+  truck2WorldPos?: { x: number; y: number; z: number };
+  truck2Heading?: number;
 }
 
 // Reusable scratch objects for zero GC in truck camera calculations (Säule 1.1)
@@ -1218,6 +1252,73 @@ export function calculateTruckCameraPose(
       _tCamPos.set(_tTruckPos.x + 28, _tTruckPos.y + 8.5, _tTruckPos.z + 18);
       _tCamTgt.set(_tTruckPos.x, _tTruckPos.y + 1.6, _tTruckPos.z);
       _tPoseResult.fov = 32;
+      return _tPoseResult;
+    }
+
+    case 'duel_chase': {
+      // Epische Verfolgerkamera, die zwischen den Boliden (Truck 1, Red Bull Truck 2 & Kran) schaut
+      const positions: { x: number; y: number; z: number }[] = [_tTruckPos];
+      if (trackContext?.truck2WorldPos) positions.push(trackContext.truck2WorldPos);
+
+      let avgX = 0, avgY = 0, avgZ = 0;
+      positions.forEach(p => {
+        avgX += p.x;
+        avgY += p.y;
+        avgZ += p.z;
+      });
+      avgX /= positions.length;
+      avgY /= positions.length;
+      avgZ /= positions.length;
+
+      _tCamPos.set(avgX - sinH * 14.0, avgY + 4.8, avgZ - cosH * 14.0);
+      _tCamTgt.set(avgX + sinH * 3.5, avgY + 1.8, avgZ + cosH * 3.5);
+      _tPoseResult.fov = 52;
+      return _tPoseResult;
+    }
+
+    case 'redbull_follow': {
+      // Verfolgerkamera direkt hinter dem Red Bull LKW
+      if (trackContext?.truck2WorldPos) {
+        const t2Pos = trackContext.truck2WorldPos;
+        const t2H = trackContext.truck2Heading ?? heading;
+        const t2Sin = Math.sin(t2H);
+        const t2Cos = Math.cos(t2H);
+        _tCamPos.set(t2Pos.x - t2Sin * 10.5, t2Pos.y + 3.6, t2Pos.z - t2Cos * 10.5);
+        _tCamTgt.set(t2Pos.x + t2Sin * 1.5, t2Pos.y + 1.8, t2Pos.z + t2Cos * 1.5);
+        _tPoseResult.fov = 48;
+        return _tPoseResult;
+      }
+      setLocalToWorld(_tCamPos, 0, 3.6, -10.5);
+      setLocalToWorld(_tCamTgt, 0, 1.8, 1.5);
+      _tPoseResult.fov = 48;
+      return _tPoseResult;
+    }
+
+    case 'redbull_cockpit': {
+      // First-Person Cockpit Blick im Red Bull Racing LKW
+      if (trackContext?.truck2WorldPos) {
+        const t2Pos = trackContext.truck2WorldPos;
+        const t2H = trackContext.truck2Heading ?? heading;
+        const t2Sin = Math.sin(t2H);
+        const t2Cos = Math.cos(t2H);
+        const perpX = -t2Cos;
+        const perpZ = t2Sin;
+        _tCamPos.set(
+          t2Pos.x + t2Sin * 3.10 + perpX * 0.55,
+          t2Pos.y + 2.35,
+          t2Pos.z + t2Cos * 3.10 + perpZ * 0.55
+        );
+        _tCamTgt.set(
+          t2Pos.x + t2Sin * 35.0 + perpX * 0.55,
+          t2Pos.y + 1.95,
+          t2Pos.z + t2Cos * 35.0 + perpZ * 0.55
+        );
+        _tPoseResult.fov = 62;
+        return _tPoseResult;
+      }
+      setLocalToWorld(_tCamPos, 0.55, 2.35, 3.10);
+      setLocalToWorld(_tCamTgt, 0.55, 1.95, 35.0);
+      _tPoseResult.fov = 62;
       return _tPoseResult;
     }
 

@@ -14,6 +14,17 @@ export const REAR_CAGE_Z = 3.76;          // 3.76m distance along boom axis from
 export const TIP_Z_RETRACTED = 3.34;      // 3.34m from pivot to front nose mounting point
 export const TELESCOPIC_STROKE = 11.40;   // 11.40m maximum telescopic extension stroke
 
+/**
+ * 🧑 Ergonomic reach limits for the Rear Hand Crane Operator standing at ground level.
+ * Ground operator height: ~1.80m, comfortable handle reach from ground: 0.82m to 2.05m.
+ * Rear handle along boom: Z = 3.74m, Y_local = -0.16m.
+ */
+export const OPERATOR_HANDLE_Z = 3.74;
+export const OPERATOR_HANDLE_Y = -0.16;
+export const OPERATOR_MIN_REACH_Y = 0.82; // Ergonomic low reach with knees bent
+export const OPERATOR_MAX_REACH_Y = 2.05; // Ergonomic high reach with arms overhead
+export const OPERATOR_MAX_COLUMN_ELEVATION = 2.15; // Max column lift while standing operator holds handle
+
 export interface CraneKinematics {
   dollyTrack: number;
   columnElevation: number; // 1.54m to 3.63m
@@ -83,11 +94,13 @@ export function getRearLowestY(
 /**
  * Calculates the dynamic allowed Tilt Range [minTilt, maxTilt] in degrees
  * such that Front lowest Y >= floorLimit AND Rear lowest Y >= floorLimit.
+ * If isOperatorActive === true, strictly clamps range to the standing operator's reachable grasp window!
  */
 export function getAllowedTiltRange(
   columnElevation: number,
   teleExtension: number,
-  floorLimit = SAFE_FLOOR_CLEARANCE
+  floorLimit = SAFE_FLOOR_CLEARANCE,
+  isOperatorActive = false
 ): { minTilt: number; maxTilt: number } {
   const colH = Math.max(1.54, Math.min(3.63, columnElevation || 1.54));
   const ext = Math.max(0, Math.min(11.3, teleExtension || 0));
@@ -123,6 +136,24 @@ export function getAllowedTiltRange(
   } else {
     const maxAlphaRad = Math.asin(targetFrontRatio) + phi_front;
     minTiltDeg = Math.max(-50.0, Math.min(0.0, -THREE.MathUtils.radToDeg(maxAlphaRad)));
+  }
+
+  // 🧑 HUMAN OPERATOR REACH RESTRICTIONS (When hand operator is active at the rear)
+  if (isOperatorActive) {
+    const R_op = Math.sqrt(OPERATOR_HANDLE_Y * OPERATOR_HANDLE_Y + OPERATOR_HANDLE_Z * OPERATOR_HANDLE_Z);
+    const phi_op = Math.atan2(-OPERATOR_HANDLE_Y, OPERATOR_HANDLE_Z); // atan2(0.16, 3.74)
+
+    // Operator Max Tilt UP (handle moves DOWN toward minimum reach 0.82m):
+    const maxOpRatio = THREE.MathUtils.clamp((colH - OPERATOR_MIN_REACH_Y) / R_op, -1, 1);
+    const maxOpTiltRad = Math.asin(maxOpRatio) - phi_op;
+    const maxOpTiltDeg = THREE.MathUtils.radToDeg(maxOpTiltRad);
+    maxTiltDeg = Math.min(maxTiltDeg, maxOpTiltDeg);
+
+    // Operator Min Tilt DOWN (handle moves UP toward maximum reach 2.05m):
+    const minOpRatio = THREE.MathUtils.clamp((colH - OPERATOR_MAX_REACH_Y) / R_op, -1, 1);
+    const minOpTiltRad = Math.asin(minOpRatio) - phi_op;
+    const minOpTiltDeg = THREE.MathUtils.radToDeg(minOpTiltRad);
+    minTiltDeg = Math.max(minTiltDeg, minOpTiltDeg);
   }
 
   return {
@@ -182,33 +213,34 @@ export function getMinColumnElevationForPose(
 }
 
 /**
- * Clamps Boom Tilt to the exact allowable range [minTilt, maxTilt] for the current pose
- * without altering column elevation or telescopic extension.
- * Hard stop: Movement simply stops at the limit ("dass es nicht weiter geht").
+ * Clamps Boom Tilt to the exact allowable range [minTilt, maxTilt] for the current pose.
+ * If isOperatorActive === true, hard-stops at the hand operator's reachable window!
  */
 export function clampBoomTilt(
   targetTiltDeg: number,
   columnElevation: number,
   teleExtension: number,
-  floorLimit = SAFE_FLOOR_CLEARANCE
+  floorLimit = SAFE_FLOOR_CLEARANCE,
+  isOperatorActive = false
 ): number {
-  const { minTilt, maxTilt } = getAllowedTiltRange(columnElevation, teleExtension, floorLimit);
+  const { minTilt, maxTilt } = getAllowedTiltRange(columnElevation, teleExtension, floorLimit, isOperatorActive);
   return Math.max(minTilt, Math.min(maxTilt, targetTiltDeg));
 }
 
 /**
- * Clamps Column Elevation to the exact allowable range [minCol, 3.63m] for the current pose
- * without altering boom tilt or telescopic extension.
- * Hard stop: Lowering the column simply stops at the minimum safe height ("dass es nicht weiter geht").
+ * Clamps Column Elevation to the exact allowable range [minCol, maxCol] for the current pose.
+ * If isOperatorActive === true, restricts max column lift to OPERATOR_MAX_COLUMN_ELEVATION (2.15m).
  */
 export function clampColumnElevation(
   targetColElevation: number,
   boomTiltDeg: number,
   teleExtension: number,
-  floorLimit = SAFE_FLOOR_CLEARANCE
+  floorLimit = SAFE_FLOOR_CLEARANCE,
+  isOperatorActive = false
 ): number {
   const minCol = getMinColumnElevationForPose(boomTiltDeg, teleExtension, floorLimit);
-  return Math.max(minCol, Math.min(3.63, targetColElevation));
+  const maxCol = isOperatorActive ? OPERATOR_MAX_COLUMN_ELEVATION : 3.63;
+  return Math.max(minCol, Math.min(maxCol, targetColElevation));
 }
 
 /**
@@ -238,16 +270,18 @@ export function clampBasePan(
 }
 
 /**
- * Strictly clamps kinematics state to ensure floor invariant (Y >= SAFE_FLOOR_CLEARANCE):
- * Respects hard stops for all degrees of freedom.
+ * Strictly clamps kinematics state to ensure floor invariant (Y >= SAFE_FLOOR_CLEARANCE)
+ * and operator reach invariant when hand operator is active.
  */
 export function enforceCraneFloorLimits(
   kin: Record<string, any>,
   panRangeMode: '180' | '360' = '180',
-  floorLimit = SAFE_FLOOR_CLEARANCE
+  floorLimit = SAFE_FLOOR_CLEARANCE,
+  isOperatorActive = false
 ): void {
   // Clamp Column Elevation
-  kin.columnElevation = Math.max(1.54, Math.min(3.63, kin.columnElevation || 1.54));
+  const maxCol = isOperatorActive ? OPERATOR_MAX_COLUMN_ELEVATION : 3.63;
+  kin.columnElevation = Math.max(1.54, Math.min(maxCol, kin.columnElevation || 1.54));
 
   // Clamp Base Pan
   kin.basePan = clampBasePan(kin.basePan || 0, panRangeMode);
@@ -262,7 +296,7 @@ export function enforceCraneFloorLimits(
   kin.teleExtension = Math.max(0, Math.min(maxExt, kin.teleExtension || 0));
 
   // Clamp Tilt
-  const { minTilt, maxTilt } = getAllowedTiltRange(kin.columnElevation, kin.teleExtension, floorLimit);
+  const { minTilt, maxTilt } = getAllowedTiltRange(kin.columnElevation, kin.teleExtension, floorLimit, isOperatorActive);
   kin.boomTilt = Math.max(minTilt, Math.min(maxTilt, kin.boomTilt || 0));
 
   // Secondary verification of Column Height if tilt was already at an extreme

@@ -18,6 +18,7 @@ export interface TruckBoxBodyParams {
   wheelbase?: number;
   frontAxleZ?: number;
   loadEdgeHeight?: number;
+  livery?: 'supertechno_white' | 'red_bull_racing';
   paintMat?: THREE.Material;
   chassisMat?: THREE.Material;
   plasticMat?: THREE.Material;
@@ -74,30 +75,33 @@ export function createTruckBoxBody(params: TruckBoxBodyParams = {}): TruckBoxBod
   const kofferHeight = 2.68;   // Außenhöhe (~2.580mm Innenmaß + Boden/Dach)
   const loadEdgeHeight = params.loadEdgeHeight ?? 1.02; // Ladekantenhöhe
   const kofferY = loadEdgeHeight + kofferHeight / 2;    // Koffer-Zentrum Y
-  const frontAxleZ = params.frontAxleZ ?? 3.5;
-  const kofferFrontZ = frontAxleZ - 1.2;                // Koffer beginnt kurz hinter der Vorderachse
+  const kofferFrontZ = 2.30;                            // Koffer beginnt exakt an der Kabinenrückwand (Z=2.37)
   const kofferZ = kofferFrontZ - kofferLength / 2;      // Koffer-Zentrum Z
-  const kofferBackZ = kofferZ - kofferLength / 2;       // Koffer-Heckkante Z (Offenes Portal)
+  const kofferBackZ = kofferFrontZ - kofferLength;      // Koffer-Heckkante Z (Offenes Portal)
 
   const wallThickness = 0.045; // 45mm Sandwich-Paneelstärke
 
   const boxGroup = new THREE.Group();
 
   // 1. Texturierte PBR-Materialien für die Kofferaußenwände (Feiner Gelcoat-Glanz & Reflexionsverhalten)
-  const kofferSideTex = regTex(createKofferSideTexture());
+  const isRedBull = params.livery === 'red_bull_racing';
+  const kofferSideTex = regTex(createKofferSideTexture(params.livery || 'supertechno_white'));
+
+  const boxColor = isRedBull ? '#0a1428' : '#f8f9fa';
   const boxMat = regMat(new THREE.MeshPhysicalMaterial({ 
-    color: '#f8f9fa', 
-    roughness: 0.22, 
-    metalness: 0.08,
-    clearcoat: 0.90,
+    color: boxColor, 
+    roughness: isRedBull ? 0.28 : 0.22, 
+    metalness: isRedBull ? 0.35 : 0.08,
+    clearcoat: 0.90, 
     clearcoatRoughness: 0.10,
     ior: 1.48
   }));
   const boxSideMat = regMat(new THREE.MeshPhysicalMaterial({ 
     map: kofferSideTex, 
-    roughness: 0.22, 
-    metalness: 0.08,
-    clearcoat: 0.90,
+    color: '#ffffff',
+    roughness: isRedBull ? 0.28 : 0.22, 
+    metalness: isRedBull ? 0.35 : 0.08,
+    clearcoat: 0.90, 
     clearcoatRoughness: 0.10,
     ior: 1.48
   }));

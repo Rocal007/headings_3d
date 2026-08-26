@@ -6,11 +6,15 @@ import {
   getFrontLowestY,
   getRearLowestY
 } from '../utils/craneKinematics';
+import { ReadyPlayerMeAvatar, type AvatarIkParams } from './rpm/ReadyPlayerMeAvatar';
 
 export type CraneOperatorMode = 'hidden' | 'walking_in' | 'operating' | 'walking_out';
 
 export interface CraneOperatorProps {
   mode: CraneOperatorMode;
+  avatarType?: 'classic' | 'rpm';
+  rpmUrl?: string;
+  rpmPresetId?: string;
   onArrivedAtControls?: () => void;
   onExited?: () => void;
   dollyTrack?: number;
@@ -1156,21 +1160,21 @@ function ArticulatedCineHand({
         </mesh>
       )}
 
-      {/* Opposable Thumb with Metacarpal, Proximal & Distal Phalanges */}
-      <group position={[0.036, -0.018, -0.004]} rotation={[0.45 * grip, -0.42, 0.62 + grip * 0.55]}>
+      {/* Opposable Thumb wrapping tightly under the handle bar */}
+      <group position={[0.036, -0.018, 0.005]} rotation={[0.42 * grip, 0.35 * grip, -0.55 * grip]}>
         {/* Thumb Metacarpal */}
         <mesh castShadow position={[0, -0.014, 0]}>
           <cylinderGeometry args={[0.011, 0.010, 0.028, 8]} />
           <primitive object={matMain} attach="material" />
         </mesh>
         {/* Thumb Proximal Phalanx */}
-        <group position={[0, -0.028, 0]} rotation={[-0.65 * grip, 0, 0.40 * grip]}>
+        <group position={[0, -0.028, 0]} rotation={[0.75 * grip, -0.20 * grip, 0.35 * grip]}>
           <mesh castShadow position={[0, -0.012, 0]}>
             <cylinderGeometry args={[0.0095, 0.0085, 0.024, 8]} />
             <primitive object={matMain} attach="material" />
           </mesh>
           {/* Thumb Distal Tip */}
-          <group position={[0, -0.024, 0]} rotation={[-0.55 * grip, 0, 0]}>
+          <group position={[0, -0.024, 0]} rotation={[0.85 * grip, 0, 0]}>
             <mesh castShadow position={[0, -0.010, 0]}>
               <sphereGeometry args={[0.0082, 8, 8]} />
               <primitive object={matMain} attach="material" />
@@ -1179,15 +1183,15 @@ function ArticulatedCineHand({
         </group>
       </group>
 
-      {/* 4 Articulated Fingers (Index, Middle, Ring, Pinky) with 3 Phalanges Each */}
+      {/* 4 Articulated Fingers (Index, Middle, Ring, Pinky) wrapping completely UNDER the bar */}
       {[
         { x: 0.027, l: 0.038, w: 0.0092 }, // Index
         { x: 0.009, l: 0.042, w: 0.0098 }, // Middle
         { x: -0.009, l: 0.039, w: 0.0092 }, // Ring
         { x: -0.026, l: 0.032, w: 0.0082 }  // Pinky
       ].map((f, i) => (
-        <group key={`finger-${i}`} position={[f.x, -0.072, 0]} rotation={[-grip * 0.85, 0, 0]}>
-          {/* 1. Proximal Phalanx */}
+        <group key={`finger-${i}`} position={[f.x, -0.072, 0]} rotation={[grip * 1.05, 0, 0]}>
+          {/* 1. Proximal Phalanx (curves over front of the bar) */}
           <mesh castShadow position={[0, 0, 0]}>
             <sphereGeometry args={[f.w * 1.05, 8, 8]} />
             <primitive object={matMain} attach="material" />
@@ -1197,8 +1201,8 @@ function ArticulatedCineHand({
             <primitive object={matMain} attach="material" />
           </mesh>
 
-          {/* 2. Intermediate Phalanx */}
-          <group position={[0, -f.l * 0.44, 0]} rotation={[-grip * 0.85, 0, 0]}>
+          {/* 2. Intermediate Phalanx (curves around the bottom of the bar) */}
+          <group position={[0, -f.l * 0.44, 0]} rotation={[grip * 1.15, 0, 0]}>
             <mesh castShadow position={[0, 0, 0]}>
               <sphereGeometry args={[f.w * 0.95, 8, 8]} />
               <primitive object={matMain} attach="material" />
@@ -1208,8 +1212,8 @@ function ArticulatedCineHand({
               <primitive object={matMain} attach="material" />
             </mesh>
 
-            {/* 3. Distal Phalanx & Fingertip */}
-            <group position={[0, -f.l * 0.36, 0]} rotation={[-grip * 0.65, 0, 0]}>
+            {/* 3. Distal Phalanx & Fingertip (hooks up under the bar) */}
+            <group position={[0, -f.l * 0.36, 0]} rotation={[grip * 1.05, 0, 0]}>
               <mesh castShadow position={[0, 0, 0]}>
                 <sphereGeometry args={[f.w * 0.85, 8, 8]} />
                 <primitive object={matMain} attach="material" />
@@ -2084,7 +2088,8 @@ function FloorControlDeskAndOperatorRig({
   headTilt = 0,
   headRoll = 0,
   animT = 1.0,
-  walkTime = 0
+  walkTime = 0,
+  hideHuman = false
 }: {
   mode: CraneOperatorMode;
   dollyTrack: number;
@@ -2097,6 +2102,7 @@ function FloorControlDeskAndOperatorRig({
   headRoll: number;
   animT: number;
   walkTime: number;
+  hideHuman?: boolean;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const spineRef = useRef<THREE.Group>(null);
@@ -2608,153 +2614,361 @@ function FloorControlDeskAndOperatorRig({
       </group>
 
       {/* 2. DOP / HEAD OPERATOR HUMANOID */}
-      <group position={[0, 0.96, 0]}>
-        {/* Pelvis in Work Trousers */}
-        <mesh castShadow position={[0, 0, 0]}>
-          <boxGeometry args={[0.32, 0.18, 0.22]} />
-          <primitive object={matPants} attach="material" />
-        </mesh>
-
-        {/* Heavy Leather Belt & Steel Buckle */}
-        <mesh castShadow position={[0, 0.095, 0]}>
-          <boxGeometry args={[0.33, 0.048, 0.228]} />
-          <primitive object={matBelt} attach="material" />
-        </mesh>
-        <mesh position={[0, 0.095, 0.116]}>
-          <boxGeometry args={[0.052, 0.042, 0.012]} />
-          <meshStandardMaterial color="#cbd5e1" metalness={0.92} roughness={0.18} />
-        </mesh>
-
-        <group ref={spineRef} position={[0, 0.12, 0]}>
-          {/* Main Crew Hoodie / Shirt */}
-          <mesh castShadow position={[0, 0.23, 0]}>
-            <boxGeometry args={[0.38, 0.42, 0.24]} />
-            <primitive object={matShirt} attach="material" />
+      {!hideHuman && (
+        <group position={[0, 0.96, 0]}>
+          {/* Pelvis in Work Trousers */}
+          <mesh castShadow position={[0, 0, 0]}>
+            <boxGeometry args={[0.32, 0.18, 0.22]} />
+            <primitive object={matPants} attach="material" />
           </mesh>
 
-          {/* Solid Anatomical Neck */}
-          <mesh castShadow position={[0, 0.49, 0]}>
-            <cylinderGeometry args={[0.048, 0.052, 0.08, 16]} />
-            <primitive object={matSkin} attach="material" />
+          {/* Heavy Leather Belt & Steel Buckle */}
+          <mesh castShadow position={[0, 0.095, 0]}>
+            <boxGeometry args={[0.33, 0.048, 0.228]} />
+            <primitive object={matBelt} attach="material" />
+          </mesh>
+          <mesh position={[0, 0.095, 0.116]}>
+            <boxGeometry args={[0.052, 0.042, 0.012]} />
+            <meshStandardMaterial color="#cbd5e1" metalness={0.92} roughness={0.18} />
           </mesh>
 
-          {/* Film Crew Walkie-Talkie on Shoulder */}
-          <CineCrewWalkieTalkie radioScreenTexture={radioScreenTexture} />
-
-          {/* All-Access VIP Pass Lanyard */}
-          <CrewLanyardPass passTexture={passTexture} />
-
-          {/* Head & Headset */}
-          <group ref={headRef} position={[0, 0.54, 0]}>
-            <RealisticFaceFeatures
-              matSkin={matSkin}
-              hasBeard={false}
-              matHair={matHairDark}
-            />
-
-            {/* Dark Textured Hair */}
-            <mesh castShadow position={[0, 0.102, -0.01]}>
-              <sphereGeometry args={[0.098, 16, 16]} />
-              <primitive object={matHairDark} attach="material" />
-            </mesh>
-
-            {/* Cine Broadcast Pro Headset with Boom Mic */}
-            <BroadcastHeadsetPro />
-          </group>
-
-          {/* Arms with 5-Finger Articulated Hands */}
-          <group ref={leftShoulderRef} position={[-0.22, 0.38, 0]}>
-            <mesh castShadow position={[0, -0.12, 0]}>
-              <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
+          <group ref={spineRef} position={[0, 0.12, 0]}>
+            {/* Main Crew Hoodie / Shirt */}
+            <mesh castShadow position={[0, 0.23, 0]}>
+              <boxGeometry args={[0.38, 0.42, 0.24]} />
               <primitive object={matShirt} attach="material" />
             </mesh>
-            <group ref={leftElbowRef} position={[0, -0.25, 0]}>
-              <mesh castShadow position={[0, -0.12, 0]}>
-                <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
-                <primitive object={matSkin} attach="material" />
+
+            {/* Solid Anatomical Neck */}
+            <mesh castShadow position={[0, 0.49, 0]}>
+              <cylinderGeometry args={[0.048, 0.052, 0.08, 16]} />
+              <primitive object={matSkin} attach="material" />
+            </mesh>
+
+            {/* Film Crew Walkie-Talkie on Shoulder */}
+            <CineCrewWalkieTalkie radioScreenTexture={radioScreenTexture} />
+
+            {/* All-Access VIP Pass Lanyard */}
+            <CrewLanyardPass passTexture={passTexture} />
+
+            {/* Head & Headset */}
+            <group ref={headRef} position={[0, 0.54, 0]}>
+              <RealisticFaceFeatures
+                matSkin={matSkin}
+                hasBeard={false}
+                matHair={matHairDark}
+              />
+
+              {/* Dark Textured Hair */}
+              <mesh castShadow position={[0, 0.102, -0.01]}>
+                <sphereGeometry args={[0.098, 16, 16]} />
+                <primitive object={matHairDark} attach="material" />
               </mesh>
-              <group ref={leftHandRef} position={[0, -0.24, 0]} rotation={[0.3, 0, 0.2]}>
-                <ArticulatedCineHand
-                  isRight={false}
-                  isGlove={true}
-                  grip={0.62}
-                  matSkin={matSkin}
-                  matGlove={matGlove}
-                />
+
+              {/* Cine Broadcast Pro Headset with Boom Mic */}
+              <BroadcastHeadsetPro />
+            </group>
+
+            {/* Arms with 5-Finger Articulated Hands */}
+            <group ref={leftShoulderRef} position={[-0.22, 0.38, 0]}>
+              <mesh castShadow position={[0, -0.12, 0]}>
+                <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
+                <primitive object={matShirt} attach="material" />
+              </mesh>
+              <group ref={leftElbowRef} position={[0, -0.25, 0]}>
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
+                  <primitive object={matSkin} attach="material" />
+                </mesh>
+                <group ref={leftHandRef} position={[0, -0.24, 0]} rotation={[0.3, 0, 0.2]}>
+                  <ArticulatedCineHand
+                    isRight={false}
+                    isGlove={true}
+                    grip={0.62}
+                    matSkin={matSkin}
+                    matGlove={matGlove}
+                  />
+                </group>
+              </group>
+            </group>
+
+            <group ref={rightShoulderRef} position={[0.22, 0.38, 0]}>
+              <mesh castShadow position={[0, -0.12, 0]}>
+                <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
+                <primitive object={matShirt} attach="material" />
+              </mesh>
+              <group ref={rightElbowRef} position={[0, -0.25, 0]}>
+                <mesh castShadow position={[0, -0.12, 0]}>
+                  <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
+                  <primitive object={matSkin} attach="material" />
+                </mesh>
+                <group ref={rightHandRef} position={[0, -0.24, 0]} rotation={[0.3, 0, -0.2]}>
+                  <ArticulatedCineHand
+                    isRight={true}
+                    isGlove={true}
+                    grip={0.62}
+                    matSkin={matSkin}
+                    matGlove={matGlove}
+                  />
+                </group>
               </group>
             </group>
           </group>
 
-          <group ref={rightShoulderRef} position={[0.22, 0.38, 0]}>
-            <mesh castShadow position={[0, -0.12, 0]}>
-              <cylinderGeometry args={[0.054, 0.046, 0.24, 16]} />
-              <primitive object={matShirt} attach="material" />
+          {/* Legs with Cargo Work Trousers & Boots */}
+          <group ref={leftHipRef} position={[-0.12, -0.06, 0]}>
+            <mesh castShadow position={[0, -0.20, 0]}>
+              <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
+              <primitive object={matPants} attach="material" />
             </mesh>
-            <group ref={rightElbowRef} position={[0, -0.25, 0]}>
-              <mesh castShadow position={[0, -0.12, 0]}>
-                <cylinderGeometry args={[0.046, 0.038, 0.24, 16]} />
-                <primitive object={matSkin} attach="material" />
+            {/* Side Cargo Pocket */}
+            <mesh castShadow position={[-0.062, -0.16, 0]}>
+              <boxGeometry args={[0.018, 0.11, 0.085]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            <group ref={leftKneeRef} position={[0, -0.40, 0]}>
+              <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+                <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+                <primitive object={matPants} attach="material" />
               </mesh>
-              <group ref={rightHandRef} position={[0, -0.24, 0]} rotation={[0.3, 0, -0.2]}>
-                <ArticulatedCineHand
-                  isRight={true}
-                  isGlove={true}
-                  grip={0.62}
-                  matSkin={matSkin}
-                  matGlove={matGlove}
-                />
-              </group>
+              <mesh castShadow position={[0, -0.19, 0]}>
+                <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
+                <primitive object={matPants} attach="material" />
+              </mesh>
+              <WorkSafetyBoots matBoots={matBoots} />
+            </group>
+          </group>
+
+          <group ref={rightHipRef} position={[0.12, -0.06, 0]}>
+            <mesh castShadow position={[0, -0.20, 0]}>
+              <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            {/* Side Cargo Pocket */}
+            <mesh castShadow position={[0.062, -0.16, 0]}>
+              <boxGeometry args={[0.018, 0.11, 0.085]} />
+              <primitive object={matPants} attach="material" />
+            </mesh>
+            <group ref={rightKneeRef} position={[0, -0.40, 0]}>
+              <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
+                <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
+                <primitive object={matPants} attach="material" />
+              </mesh>
+              <mesh castShadow position={[0, -0.19, 0]}>
+                <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
+                <primitive object={matPants} attach="material" />
+              </mesh>
+              <WorkSafetyBoots matBoots={matBoots} />
             </group>
           </group>
         </group>
+      )}
+    </group>
+  );
+}
 
-        {/* Legs with Cargo Work Trousers & Boots */}
-        <group ref={leftHipRef} position={[-0.12, -0.06, 0]}>
-          <mesh castShadow position={[0, -0.20, 0]}>
-            <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
-            <primitive object={matPants} attach="material" />
-          </mesh>
-          {/* Side Cargo Pocket */}
-          <mesh castShadow position={[-0.062, -0.16, 0]}>
-            <boxGeometry args={[0.018, 0.11, 0.085]} />
-            <primitive object={matPants} attach="material" />
-          </mesh>
-          <group ref={leftKneeRef} position={[0, -0.40, 0]}>
-            <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
-              <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
-              <primitive object={matPants} attach="material" />
-            </mesh>
-            <mesh castShadow position={[0, -0.19, 0]}>
-              <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
-              <primitive object={matPants} attach="material" />
-            </mesh>
-            <WorkSafetyBoots matBoots={matBoots} />
-          </group>
-        </group>
+// =============================================================================
+// RPM AVATAR CRANE OPERATOR RIGS
+// =============================================================================
+function RearCraneOperatorRpmRig({
+  mode,
+  dollyTrack = 0,
+  columnElevation = 1.54,
+  basePan = 0,
+  boomTilt = 0,
+  teleExtension = 0,
+  animT = 1.0,
+  walkTime = 0,
+  rpmUrl,
+  rpmPresetId
+}: {
+  mode: CraneOperatorMode;
+  dollyTrack: number;
+  columnElevation?: number;
+  basePan: number;
+  boomTilt: number;
+  teleExtension?: number;
+  animT: number;
+  walkTime: number;
+  rpmUrl?: string;
+  rpmPresetId?: string;
+}) {
+  const rootRef = useRef<THREE.Group>(null);
+  const ikParamsRef = useRef<AvatarIkParams>({
+    spinePitch: -0.15,
+    shoulderPitch: -0.65,
+    elbowAngle: 0.85,
+    handPitch: 0.75,
+    hipPitch: 0.04,
+    kneeBend: 0.08,
+    lookUpAngle: -0.22,
+    handRollOffset: 0,
+    grip: 0.92
+  });
 
-        <group ref={rightHipRef} position={[0.12, -0.06, 0]}>
-          <mesh castShadow position={[0, -0.20, 0]}>
-            <cylinderGeometry args={[0.066, 0.056, 0.40, 16]} />
-            <primitive object={matPants} attach="material" />
-          </mesh>
-          {/* Side Cargo Pocket */}
-          <mesh castShadow position={[0.062, -0.16, 0]}>
-            <boxGeometry args={[0.018, 0.11, 0.085]} />
-            <primitive object={matPants} attach="material" />
-          </mesh>
-          <group ref={rightKneeRef} position={[0, -0.40, 0]}>
-            <mesh position={[0, 0, 0.02]} rotation={[-Math.PI / 2, 0, 0]}>
-              <sphereGeometry args={[0.052, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.45]} />
-              <primitive object={matPants} attach="material" />
-            </mesh>
-            <mesh castShadow position={[0, -0.19, 0]}>
-              <cylinderGeometry args={[0.055, 0.048, 0.38, 16]} />
-              <primitive object={matPants} attach="material" />
-            </mesh>
-            <WorkSafetyBoots matBoots={matBoots} />
-          </group>
-        </group>
-      </group>
+  useFrame(() => {
+    if (!rootRef.current) return;
+    const panRad = THREE.MathUtils.degToRad(-basePan);
+    const tiltRad = THREE.MathUtils.degToRad(boomTilt);
+
+    // Dynamic handle grip point on rear safety cage:
+    // When boom tilts up (> 12°), upper handlebar (Y_local = +0.32) is at ergonomic waist/chest height.
+    // When boom is level or down (<= 12°), lower handlebar (Y_local = -0.16) is at ergonomic chest height.
+    const upperHandleWeight = THREE.MathUtils.clamp(((boomTilt || 0) - 8) / 14, 0, 1);
+    const rearHandleYLocal = THREE.MathUtils.lerp(-0.16, 0.32, upperHandleWeight);
+    const rearLeverArm = 3.74;
+
+    const handleZRot = rearLeverArm * Math.cos(tiltRad) + rearHandleYLocal * Math.sin(tiltRad);
+    const handleYRot = rearHandleYLocal * Math.cos(tiltRad) - rearLeverArm * Math.sin(tiltRad);
+    const handleWorldY = THREE.MathUtils.clamp((columnElevation || 1.54) + handleYRot, 0.65, 2.15);
+
+    // Operator stance: positioned at ideal arm reach distance (0.34m from handle grip)
+    // with safety clamp so operator never clips into crane chassis
+    const standDist = 0.34;
+    const opRadius = THREE.MathUtils.clamp(handleZRot + standDist, 3.45, 4.15);
+    const targetX = -opRadius * Math.sin(panRad);
+    const targetZ = (dollyTrack || 0) + opRadius * Math.cos(panRad);
+    const targetRotY = Math.PI + panRad;
+
+    const spawnX = -6.5;
+    const spawnZ = (dollyTrack || 0) + 7.5;
+    const isWalking = mode === 'walking_in' || mode === 'walking_out';
+
+    if (isWalking) {
+      const smoothT = animT * animT * (3 - 2 * animT);
+      const currentX = THREE.MathUtils.lerp(spawnX, targetX, smoothT);
+      const currentZ = THREE.MathUtils.lerp(spawnZ, targetZ, smoothT);
+      const stepSin = Math.sin(walkTime);
+      rootRef.current.position.set(currentX, Math.abs(stepSin) * 0.045, currentZ);
+      const dx = targetX - spawnX;
+      const dz = targetZ - spawnZ;
+      const walkAngle = Math.atan2(dx, dz) + Math.PI;
+      rootRef.current.rotation.y = THREE.MathUtils.lerp(walkAngle, targetRotY, smoothT);
+      ikParamsRef.current.grip = 0.35;
+    } else {
+      rootRef.current.position.set(targetX, 0, targetZ);
+      rootRef.current.rotation.y = targetRotY;
+
+      // 🦾 ADAPTIVE ERGONOMIC POSTURE & 2-BONE ANALYTICAL IK
+      const targetHipY = 0.93; // Fixed standing hip height - feet strictly on ground Y=0
+      const crouchFactor = handleWorldY < 1.35 ? THREE.MathUtils.clamp((1.35 - handleWorldY) / 0.65, 0, 1) : 0;
+      const kneeBend = crouchFactor * 0.08;
+      const hipPitch = crouchFactor * 0.04;
+      const spinePitch = -0.06 - crouchFactor * 0.10;
+
+      const spineLength = 0.41;
+      const shoulderForwardZ = -Math.sin(spinePitch) * spineLength;
+      const shoulderWorldY = targetHipY + Math.cos(spinePitch) * spineLength;
+
+      // Actual distance from shoulder to handle grip in sagittal plane:
+      const actualStandDist = opRadius - handleZRot;
+      const deltaZ = Math.max(0.18, actualStandDist - shoulderForwardZ);
+      const deltaY = handleWorldY - shoulderWorldY;
+
+      const L1 = 0.28; // Upper arm length
+      const L2 = 0.26; // Forearm length
+      const rawDist = Math.sqrt(deltaZ * deltaZ + deltaY * deltaY);
+      const D = THREE.MathUtils.clamp(rawDist, Math.abs(L1 - L2) + 0.02, L1 + L2 - 0.005);
+
+      // Angle of target line from downward vertical towards forward (+Z):
+      const phiTarget = Math.atan2(deltaZ, -deltaY);
+
+      // Law of cosines:
+      const cosAlpha = THREE.MathUtils.clamp((L1 * L1 + D * D - L2 * L2) / (2 * L1 * D), -1, 1);
+      const alpha = Math.acos(cosAlpha);
+
+      const cosBeta = THREE.MathUtils.clamp((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2), -1, 1);
+      const beta = Math.acos(cosBeta);
+
+      const shoulderPitch = THREE.MathUtils.clamp(phiTarget - alpha, 0.10, 2.10);
+      const elbowAngle = THREE.MathUtils.clamp(Math.PI - beta, 0.20, 2.30);
+      const handPitch = THREE.MathUtils.clamp((shoulderPitch + elbowAngle) - Math.PI * 0.5, 0.05, 1.20);
+
+      // Head tracks boom tip, but tilts naturally relative to torso:
+      const lookUpAngle = THREE.MathUtils.clamp(-0.16 - (boomTilt * Math.PI / 180) * 0.20 - spinePitch * 0.5, -0.45, 0.35);
+      const rollOff = ((teleExtension || 0) / 11.3 - 0.5) * 0.15;
+
+      ikParamsRef.current.hipY = targetHipY;
+      ikParamsRef.current.spinePitch = spinePitch;
+      ikParamsRef.current.shoulderPitch = shoulderPitch;
+      ikParamsRef.current.elbowAngle = elbowAngle;
+      ikParamsRef.current.handPitch = handPitch;
+      ikParamsRef.current.hipPitch = hipPitch;
+      ikParamsRef.current.kneeBend = kneeBend;
+      ikParamsRef.current.lookUpAngle = lookUpAngle;
+      ikParamsRef.current.handRollOffset = rollOff;
+      ikParamsRef.current.grip = 0.92;
+    }
+  });
+
+  const isWalking = mode === 'walking_in' || mode === 'walking_out';
+  const pose = isWalking ? 'walk' : 'crane_rear';
+
+  return (
+    <group ref={rootRef}>
+      <ReadyPlayerMeAvatar
+        url={rpmUrl || 'https://models.readyplayer.me/6460d35a9ae3d45ddfc82bff.glb'}
+        presetId={rpmPresetId || 'crane_operator_max'}
+        pose={pose}
+        ikParams={ikParamsRef.current}
+        scale={1.0}
+      />
+    </group>
+  );
+}
+
+function FloorDeskRpmOperatorRig({
+  mode,
+  dollyTrack = 0,
+  animT = 1.0,
+  walkTime = 0,
+  rpmUrl,
+  rpmPresetId
+}: {
+  mode: CraneOperatorMode;
+  dollyTrack: number;
+  animT: number;
+  walkTime: number;
+  rpmUrl?: string;
+  rpmPresetId?: string;
+}) {
+  const rootRef = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    if (!rootRef.current) return;
+    const spawnX = 7.5;
+    const spawnZ = dollyTrack + 4.5;
+    const targetX = 3.2;
+    const targetZ = dollyTrack + 0.8 + 0.32;
+    const isWalking = mode === 'walking_in' || mode === 'walking_out';
+
+    if (isWalking) {
+      const smoothT = animT * animT * (3 - 2 * animT);
+      const currentX = THREE.MathUtils.lerp(spawnX, targetX, smoothT);
+      const currentZ = THREE.MathUtils.lerp(spawnZ, targetZ, smoothT);
+      const stepSin = Math.sin(walkTime + 0.5);
+      rootRef.current.position.set(currentX, Math.abs(stepSin) * 0.045, currentZ);
+      const dx = targetX - spawnX;
+      const dz = targetZ - spawnZ;
+      const walkAngle = Math.atan2(dx, dz) + Math.PI;
+      rootRef.current.rotation.y = THREE.MathUtils.lerp(walkAngle, -Math.PI * 0.65, smoothT);
+    } else {
+      rootRef.current.position.set(targetX, 0, targetZ);
+      rootRef.current.rotation.y = -Math.PI * 0.65;
+    }
+  });
+
+  const isWalking = mode === 'walking_in' || mode === 'walking_out';
+  const pose = isWalking ? 'walk' : 'crane_desk';
+
+  return (
+    <group ref={rootRef}>
+      <ReadyPlayerMeAvatar
+        url={rpmUrl || 'https://models.readyplayer.me/6460d4b39ae3d45ddfc83120.glb'}
+        presetId={rpmPresetId || 'dop_elena'}
+        pose={pose}
+        scale={1.0}
+      />
     </group>
   );
 }
@@ -2764,6 +2978,9 @@ function FloorControlDeskAndOperatorRig({
 // =============================================================================
 export function CraneOperatorCrew({
   mode,
+  avatarType = 'classic',
+  rpmUrl,
+  rpmPresetId,
   onArrivedAtControls,
   onExited,
   dollyTrack = 0,
@@ -2807,32 +3024,79 @@ export function CraneOperatorCrew({
 
   return (
     <group ref={masterGroupRef}>
-      {/* 1. Kranführer am Heck (Boom & Crane Rig Operator) */}
-      <RearCraneOperatorRig
-        mode={mode}
-        dollyTrack={dollyTrack}
-        columnElevation={columnElevation}
-        basePan={basePan}
-        boomTilt={boomTilt}
-        teleExtension={teleExtension}
-        animT={animProgress.current}
-        walkTime={walkTime.current}
-      />
+      {avatarType === 'rpm' ? (
+        <>
+          {/* 1. RPM Avatar am Heck mit 2-Bone-IK & Hand-Grip */}
+          <RearCraneOperatorRpmRig
+            mode={mode}
+            dollyTrack={dollyTrack}
+            columnElevation={columnElevation}
+            basePan={basePan}
+            boomTilt={boomTilt}
+            teleExtension={teleExtension}
+            animT={animProgress.current}
+            walkTime={walkTime.current}
+            rpmUrl={rpmUrl}
+            rpmPresetId={rpmPresetId}
+          />
 
-      {/* 2. Remote Head & Kamera-Operator am Bodenpult daneben (DoP & Desk Operator) */}
-      <FloorControlDeskAndOperatorRig
-        mode={mode}
-        dollyTrack={dollyTrack}
-        columnElevation={columnElevation}
-        basePan={basePan}
-        boomTilt={boomTilt}
-        teleExtension={teleExtension}
-        headPan={headPan}
-        headTilt={headTilt}
-        headRoll={headRoll}
-        animT={animProgress.current}
-        walkTime={walkTime.current}
-      />
+          {/* 2. Flightcase Master Desk & Displays (ohne menschliches Mesh) */}
+          <FloorControlDeskAndOperatorRig
+            mode={mode}
+            dollyTrack={dollyTrack}
+            columnElevation={columnElevation}
+            basePan={basePan}
+            boomTilt={boomTilt}
+            teleExtension={teleExtension}
+            headPan={headPan}
+            headTilt={headTilt}
+            headRoll={headRoll}
+            animT={animProgress.current}
+            walkTime={walkTime.current}
+            hideHuman={true}
+          />
+
+          {/* 3. RPM Avatar am Bodensteuerpult */}
+          <FloorDeskRpmOperatorRig
+            mode={mode}
+            dollyTrack={dollyTrack}
+            animT={animProgress.current}
+            walkTime={walkTime.current}
+            rpmUrl={rpmUrl}
+            rpmPresetId={rpmPresetId}
+          />
+        </>
+      ) : (
+        <>
+          {/* 1. Klassischer Kranführer am Heck */}
+          <RearCraneOperatorRig
+            mode={mode}
+            dollyTrack={dollyTrack}
+            columnElevation={columnElevation}
+            basePan={basePan}
+            boomTilt={boomTilt}
+            teleExtension={teleExtension}
+            animT={animProgress.current}
+            walkTime={walkTime.current}
+          />
+
+          {/* 2. Klassischer Remote Head & Kamera-Operator am Bodenpult */}
+          <FloorControlDeskAndOperatorRig
+            mode={mode}
+            dollyTrack={dollyTrack}
+            columnElevation={columnElevation}
+            basePan={basePan}
+            boomTilt={boomTilt}
+            teleExtension={teleExtension}
+            headPan={headPan}
+            headTilt={headTilt}
+            headRoll={headRoll}
+            animT={animProgress.current}
+            walkTime={walkTime.current}
+            hideHuman={false}
+          />
+        </>
+      )}
     </group>
   );
 }

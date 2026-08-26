@@ -13,6 +13,7 @@ import {
   CIRCUITS_LIST,
   getCircuit,
   getCircuitSector,
+  getCircuitRacingLineOffset,
   buildCircuit3D,
 } from '../utils/raceTracks';
 import type { CircuitId, TrackMeshesResult } from '../utils/raceTracks';
@@ -35,7 +36,7 @@ export interface GraphicQualityPreset {
 export const GRAPHIC_QUALITY_PRESETS: Record<GraphicQualityId, GraphicQualityPreset> = {
   ultra: {
     id: 'ultra',
-    name: 'Ultra (2K Schatten, Retina)',
+    name: 'Ultra (100% - 2K Schatten, Retina)',
     shortDesc: '2048px Schatten • 2.0x Retina • fBM Wolken',
     icon: '🚀',
     shadows: true,
@@ -47,7 +48,7 @@ export const GRAPHIC_QUALITY_PRESETS: Record<GraphicQualityId, GraphicQualityPre
   },
   high: {
     id: 'high',
-    name: 'High (1K Schatten, 60 FPS)',
+    name: 'High (75% - 1K Schatten, 60 FPS)',
     shortDesc: '1024px Schatten • 1.5x DPI • Ausgewogen',
     icon: '⚡',
     shadows: true,
@@ -59,7 +60,7 @@ export const GRAPHIC_QUALITY_PRESETS: Record<GraphicQualityId, GraphicQualityPre
   },
   medium: {
     id: 'medium',
-    name: 'Medium (512px Schatten, 1.0x)',
+    name: 'Medium (50% - 512px Schatten, 1.0x)',
     shortDesc: '512px Schatten • 1.0x DPI • Leichte Last',
     icon: '🌱',
     shadows: true,
@@ -71,8 +72,8 @@ export const GRAPHIC_QUALITY_PRESETS: Record<GraphicQualityId, GraphicQualityPre
   },
   eco: {
     id: 'eco',
-    name: 'Eco / Potato (Max FPS, Schatten AUS)',
-    shortDesc: 'Schatten AUS • 0.85x DPI • Maximale FPS',
+    name: '25% Grafik (Eco • Max FPS)',
+    shortDesc: 'Schatten AUS • 0.85x DPI • Maximale Performance',
     icon: '🔋',
     shadows: false,
     shadowMapSize: 256,
@@ -87,6 +88,9 @@ export const GRAPHIC_QUALITY_PRESETS: Record<GraphicQualityId, GraphicQualityPre
 const _ptScratch = new THREE.Vector3();
 const _tangentScratch = new THREE.Vector3();
 const _nextTangentScratch = new THREE.Vector3();
+const _nextPtScratch = new THREE.Vector3();
+const _steerPtScratch = new THREE.Vector3();
+const _steerTanScratch = new THREE.Vector3();
 const _truckPosScratch = { x: 0, y: 0, z: 0 };
 
 export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void } = {}) {
@@ -98,16 +102,20 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
   const [platformLowered, setPlatformLowered] = useState(false);
   const [wipersActive, setWipersActive] = useState(false);
   const [isBsod, setIsBsod] = useState(false);
-  const [quality, setQuality] = useState<GraphicQualityId>('high');
-  const qualityRef = useRef<GraphicQualityId>('high');
+  const [quality, setQuality] = useState<GraphicQualityId>('eco');
+  const qualityRef = useRef<GraphicQualityId>('eco');
   const qualityChangeTriggerRef = useRef<((id: GraphicQualityId) => void) | null>(null);
-  const [activeCam, setActiveCam] = useState<TruckCameraPresetId>('follow');
-  const activeCamRef = useRef<TruckCameraPresetId>('follow');
-  const effectiveCamRef = useRef<TruckCameraPresetId>('follow');
+  const [activeCam, setActiveCam] = useState<TruckCameraPresetId>('free');
+  const activeCamRef = useRef<TruckCameraPresetId>('free');
+  const effectiveCamRef = useRef<TruckCameraPresetId>('free');
   const timeInShotRef = useRef<number>(0);
 
-  const [selectedCircuit, setSelectedCircuit] = useState<CircuitId>('silverstone');
-  const selectedCircuitRef = useRef<CircuitId>('silverstone');
+  const [showTrackLabels, setShowTrackLabels] = useState(true);
+  const showTrackLabelsRef = useRef(true);
+  const trackLabelsGroupRef = useRef<THREE.Group | null>(null);
+
+  const [selectedCircuit, setSelectedCircuit] = useState<CircuitId>('red_bull_ring');
+  const selectedCircuitRef = useRef<CircuitId>('red_bull_ring');
   const circuitChangeTriggerRef = useRef<((id: CircuitId) => void) | null>(null);
 
   const drivingRef = useRef(true);
@@ -116,6 +124,15 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
   const tailgateRef = useRef(false);
   const platformLoweredRef = useRef(false);
   const wipersActiveRef = useRef(false);
+
+  // ⚔️ Grand Prix Duell Modus: LKW vs. Supertechno 50 Teleskopkran
+  const [isDuelMode, setIsDuelMode] = useState(true);
+  const isDuelModeRef = useRef(true);
+
+  // 📂 Ausklappbare Untermenüs (Submenus Accordion Drawer)
+  type SubmenuType = 'vehicle' | 'camera' | 'track' | 'settings' | null;
+  const [activeSubmenu, setActiveSubmenu] = useState<SubmenuType>(null);
+  const [isHudMinimized, setIsHudMinimized] = useState(false);
 
   // DOM-Refs für Telemetrie-HUD (Subagent 22.6: 60fps Zero-Garbage Live Updates)
   const telemetryFpsRef = useRef<HTMLSpanElement>(null);
@@ -133,6 +150,12 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
   const telemetrySteerRef = useRef<HTMLDivElement>(null);
   const telemetryPitchRef = useRef<HTMLDivElement>(null);
   const telemetryRollRef = useRef<HTMLDivElement>(null);
+
+  // DOM-Refs für Grand Prix Duell Leaderboard
+  const duelP1BadgeRef = useRef<HTMLDivElement>(null);
+  const duelP2BadgeRef = useRef<HTMLDivElement>(null);
+  const duelGapBadgeRef = useRef<HTMLSpanElement>(null);
+  const duelTruck2SpeedRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -229,9 +252,18 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
     } = createManTglTruckRig();
     scene.add(truck);
 
+    // 8.1 🔴 MAN TGL 12.250 Race Truck 2 (Red Bull Racing Livery)
+    const truck2Rig = createManTglTruckRig({ livery: 'red_bull_racing' });
+    const truck2 = truck2Rig.truck;
+    scene.add(truck2);
+
     // 9. Grand Prix Rennstrecken & 3D-Topographie-Engine (Subagent 22.14: truck_race_tracks)
     let currentCircuitDef = getCircuit(selectedCircuitRef.current);
     let currentCircuitResult: TrackMeshesResult = buildCircuit3D(currentCircuitDef);
+    trackLabelsGroupRef.current = currentCircuitResult.trackLabelsGroup || null;
+    if (currentCircuitResult.trackLabelsGroup) {
+      currentCircuitResult.trackLabelsGroup.visible = showTrackLabelsRef.current;
+    }
     scene.add(currentCircuitResult.group);
 
     // Dynamischer Strecken-Umschalter
@@ -245,6 +277,10 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       // 2. Neues Streckennetz aufbauen
       currentCircuitDef = getCircuit(newId);
       currentCircuitResult = buildCircuit3D(currentCircuitDef);
+      trackLabelsGroupRef.current = currentCircuitResult.trackLabelsGroup || null;
+      if (currentCircuitResult.trackLabelsGroup) {
+        currentCircuitResult.trackLabelsGroup.visible = showTrackLabelsRef.current;
+      }
       scene.add(currentCircuitResult.group);
       trackU = 0.0;
     };
@@ -299,6 +335,19 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
         turboRef.current = next;
         setIsTurbo(next);
       }
+      if (e.key === 'l' || e.key === 'L') {
+        const next = !showTrackLabelsRef.current;
+        showTrackLabelsRef.current = next;
+        setShowTrackLabels(next);
+        if (trackLabelsGroupRef.current) {
+          trackLabelsGroupRef.current.visible = next;
+        }
+      }
+      if (e.key === 'd' || e.key === 'D') {
+        const next = !isDuelModeRef.current;
+        isDuelModeRef.current = next;
+        setIsDuelMode(next);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
 
@@ -315,13 +364,23 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
     canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
 
     let animationId: number;
-    let trackU = 0.0; // Streckenfortschritt auf dem Kurs [0.0, 1.0)
+    let trackU = 0.0; // Streckenfortschritt des LKW auf dem Kurs [0.0, 1.0)
     let flapProgress = 0;   // 0 = zu, 1 = waagerecht offen an Ladekante
     let lowerProgress = 0;  // 0 = an Ladekante Y=1.02m, 1 = am Boden Y=0.06m
     let currentSteerAngle = 0; // Aktueller Lenkwinkel der Vorderräder
     let currentSpeed = 0;      // Momentangeschwindigkeit in m/s
     let currentPitch = 0;      // Fahrgestell-Nickwinkel (Beschleunigen/Bremsen)
     let currentRoll = 0;       // Fahrgestell-Wankwinkel (Fliehkraft in Kurven)
+
+    // 🔴 MAN TGL 12.250 Race Truck 2 (Red Bull Racing) Variablen
+    let trackU2 = 0.985;       // Startet auf P2 knapp hinter dem White LKW
+    let currentSpeed2 = 0;     // Momentangeschwindigkeit in m/s
+    let currentPitch2 = 0;
+    let currentRoll2 = 0;
+    let currentSteerAngle2 = 0;
+    let truck2Heading = 0;
+    const _truck2PosVec = new THREE.Vector3();
+
     const wheelRadius = 0.408; // Match tireRadius
     const clock = new THREE.Clock();
 
@@ -355,57 +414,131 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       sky.mesh.position.copy(camera.position);
 
       // =======================================================================
-      // 🏎️ Grand Prix Streckenkinematik, 3D-Höhenprofil & Kurvendynamik
+      // 🏎️ Grand Prix Streckenkinematik, Dynamische Ideallinie & Kurvendynamik
       // =======================================================================
       const currentU = ((trackU % 1.0) + 1.0) % 1.0;
+      const isTurboActive = turboRef.current;
       const pt = currentCircuitResult.trackCurve.getPointAt(currentU, _ptScratch);
       const tangent = currentCircuitResult.trackCurve.getTangentAt(currentU, _tangentScratch);
       const splineLength = currentCircuitResult.splineLength;
-      const x = pt.x;
+
+      // Streckennormale in der XZ-Ebene (für Querversatz der Ideallinie)
+      const nx = -tangent.z;
+      const nz = tangent.x;
+      const len = Math.hypot(nx, nz) || 1;
+      const normX = nx / len;
+      const normZ = nz / len;
+
+      // 🏎️ DYNAMISCHE IDEALLINIE (AUSSEN ANFAHREN -> SCHEITELPUNKT INNEN -> AUSSEN HERAUSBESCHLEUNIGEN)
+      const rawOffset = getCircuitRacingLineOffset(currentCircuitDef, currentU);
+      const racingOffset = isTurboActive ? rawOffset : rawOffset * 0.45; // LKW nutzt gemäßigten Offset
+
+      const x = pt.x + normX * racingOffset;
       const y = pt.y;
-      const z = pt.z;
+      const z = pt.z + normZ * racingOffset;
 
-      // Sonnenlicht-Target folgt dem LKW sanft für stets perfekte Kontaktschatten
-      dirLight.position.set(x + 35, y + 60, z + 45);
-      dirLight.target.position.set(x, y + 1.5, z);
-      dirLight.target.updateMatrixWorld();
+      // Vorausschauende Fahrtrichtung (Heading) entlang der realen Ideallinien-Trajektorie
+      const duHeading = Math.max(0.001, 6.0 / splineLength);
+      const uAhead = (currentU + duHeading) % 1.0;
+      const ptAhead = currentCircuitResult.trackCurve.getPointAt(uAhead, _nextPtScratch);
+      const tanAhead = currentCircuitResult.trackCurve.getTangentAt(uAhead, _nextTangentScratch);
+      const nxA = -tanAhead.z;
+      const nzA = tanAhead.x;
+      const lenA = Math.hypot(nxA, nzA) || 1;
+      const rawOffsetAhead = getCircuitRacingLineOffset(currentCircuitDef, uAhead);
+      const racingOffsetAhead = isTurboActive ? rawOffsetAhead : rawOffsetAhead * 0.45;
 
-      // Ausrichtung des LKWs (Tangentenwinkel)
-      const heading = Math.atan2(tangent.x, tangent.z);
-      // 3D-Geländeneigung (Nickwinkel bei Steigungen / Gefälle wie Eau Rouge / Schönberg)
+      const xAhead = ptAhead.x + (nxA / lenA) * racingOffsetAhead;
+      const zAhead = ptAhead.z + (nzA / lenA) * racingOffsetAhead;
+
+      const heading = Math.atan2(xAhead - x, zAhead - z);
       const roadPitch = Math.atan2(-tangent.y, Math.hypot(tangent.x, tangent.z));
 
-      // Streckenkrümmung vorausschauend analysieren (18 Meter Vorausschau)
+      // Vorausschauendes Einlenken auf den nächsten Scheitelpunkt (18 Meter Vorausschau)
       const lookaheadMeters = 18.0;
-      const duAhead = lookaheadMeters / splineLength;
-      const nextTangent = currentCircuitResult.trackCurve.getTangentAt((currentU + duAhead) % 1.0, _nextTangentScratch);
-      let dHeading = Math.atan2(nextTangent.x, nextTangent.z) - heading;
+      const duSteer = lookaheadMeters / splineLength;
+      const uSteer = (currentU + duSteer) % 1.0;
+      const ptSteer = currentCircuitResult.trackCurve.getPointAt(uSteer, _steerPtScratch);
+      const tanSteer = currentCircuitResult.trackCurve.getTangentAt(uSteer, _steerTanScratch);
+      const nxS = -tanSteer.z;
+      const nzS = tanSteer.x;
+      const lenS = Math.hypot(nxS, nzS) || 1;
+      const rawOffSteer = getCircuitRacingLineOffset(currentCircuitDef, uSteer);
+      const offSteer = isTurboActive ? rawOffSteer : rawOffSteer * 0.45;
+
+      const xSteer = ptSteer.x + (nxS / lenS) * offSteer;
+      const zSteer = ptSteer.z + (nzS / lenS) * offSteer;
+      const headingSteer = Math.atan2(xSteer - x, zSteer - z);
+      let dHeading = headingSteer - heading;
       if (dHeading > Math.PI) dHeading -= Math.PI * 2;
       if (dHeading < -Math.PI) dHeading += Math.PI * 2;
-      const curvature = Math.abs(dHeading) / lookaheadMeters; // 1/m
+      // Deadzone für absolute Ruhe und spurtreue Geradeausfahrt:
+      if (Math.abs(dHeading) < 0.008) dHeading = 0.0;
 
       // Aktueller Streckenabschnitt der gewählten Rennstrecke
       const sector = getCircuitSector(currentCircuitDef, currentU);
 
-      // Dynamisches Geschwindigkeitsprofil in km/h & m/s:
-      const isTurboActive = turboRef.current;
+      // Dynamisches, stufenloses Geschwindigkeitsprofil ohne Phantom-Bremsungen:
       let targetSpeedKmh = 0.0;
       if (drivingRef.current) {
-        if (isTurboActive) {
-          // 🚀 F1 TELEMETRIE-MODUS: Echte Formula 1 Rundenzeiten, Grip & Speeds
-          const baseF1Speed = sector.f1Speed || 290.0;
-          const drsBoost = sector.drsZone ? 24.0 : 0.0;
-          targetSpeedKmh = Math.max(85.0, (baseF1Speed + drsBoost) - curvature * 450.0);
+        // Exakte Streckensegment-Berechnung mit vorausschauender Bremszonen-Interpolation
+        const sectors = currentCircuitDef.sectors;
+        let curIdx = 0;
+        for (let sIdx = 0; sIdx < sectors.length; sIdx++) {
+          if (currentU >= sectors[sIdx].uStart && currentU < sectors[sIdx].uEnd) {
+            curIdx = sIdx;
+            break;
+          }
+        }
+        const curSec = sectors[curIdx];
+        const nextIdx = (curIdx + 1) % sectors.length;
+        const nextSec = sectors[nextIdx];
+
+        const curBase = isTurboActive
+          ? (curSec.f1Speed + (curSec.drsZone ? 24.0 : 0.0))
+          : curSec.speedTarget;
+        const nextBase = isTurboActive
+          ? (nextSec.f1Speed + (nextSec.drsZone ? 24.0 : 0.0))
+          : nextSec.speedTarget;
+
+        const secLen = Math.max(0.001, curSec.uEnd - curSec.uStart);
+        const progressInSec = THREE.MathUtils.clamp((currentU - curSec.uStart) / secLen, 0.0, 1.0);
+
+        if (curSec.turnNum === 0 && nextSec.turnNum > 0) {
+          // Gerade vor Bremszone: Volle Höchstgeschwindigkeit, erst in den letzten 26% sanftes Anbremsen
+          const brakeThreshold = isTurboActive ? 0.74 : 0.78;
+          if (progressInSec < brakeThreshold) {
+            targetSpeedKmh = curBase;
+          } else {
+            const brakeT = (progressInSec - brakeThreshold) / (1.0 - brakeThreshold);
+            const smoothDecel = Math.sin(brakeT * Math.PI * 0.5);
+            targetSpeedKmh = THREE.MathUtils.lerp(curBase, nextBase, smoothDecel);
+          }
+        } else if (curSec.turnNum > 0 && nextSec.turnNum === 0) {
+          // Kurvenausgang auf Gerade: Apex-Speed halten, in den letzten 32% progressive Beschleunigung
+          if (progressInSec < 0.68) {
+            targetSpeedKmh = curBase;
+          } else {
+            const accelT = (progressInSec - 0.68) / 0.32;
+            const smoothPower = accelT * accelT;
+            targetSpeedKmh = THREE.MathUtils.lerp(curBase, nextBase, smoothPower);
+          }
         } else {
-          // Standard 12t LKW Fahrdynamik
-          targetSpeedKmh = Math.max(24.0, sector.speedTarget - curvature * 360.0);
+          // Kurve-zu-Kurve oder Gerade-zu-Gerade
+          if (progressInSec < 0.78) {
+            targetSpeedKmh = curBase;
+          } else {
+            const t = (progressInSec - 0.78) / 0.22;
+            const smoothT = t * t * (3.0 - 2.0 * t);
+            targetSpeedKmh = THREE.MathUtils.lerp(curBase, nextBase, smoothT);
+          }
         }
       }
 
       const targetSpeedMps = targetSpeedKmh / 3.6;
       const accelRate = isTurboActive 
-        ? ((targetSpeedMps > currentSpeed) ? 6.5 : 12.5) 
-        : ((targetSpeedMps > currentSpeed) ? 1.8 : 3.8);
+        ? ((targetSpeedMps > currentSpeed) ? 7.5 : 14.5) 
+        : ((targetSpeedMps > currentSpeed) ? 2.0 : 4.0);
 
       const prevSpeed = currentSpeed;
       currentSpeed = THREE.MathUtils.lerp(currentSpeed, targetSpeedMps, 1 - Math.exp(-accelRate * delta));
@@ -416,19 +549,19 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       trackU = (trackU + distanceTravelled / splineLength) % 1.0;
 
       // 1. Nick-Dynamik (Chassis Pitch + 3D-Geländeneigung)
-      const pitchMult = isTurboActive ? 0.012 : 0.008;
-      const targetPitch = THREE.MathUtils.clamp(-currentAccel * pitchMult, -0.055, 0.085);
+      const pitchMult = isTurboActive ? 0.008 : 0.006;
+      const targetPitch = THREE.MathUtils.clamp(-currentAccel * pitchMult, -0.045, 0.065);
       currentPitch = THREE.MathUtils.lerp(currentPitch, targetPitch, 1 - Math.exp(-9.0 * delta));
 
-      // 2. Wank-Dynamik (Chassis Roll: 12t Kofferaufbau neigt sich durch Fliehkraft in Kurven)
+      // 2. Wank-Dynamik (Chassis Roll: Fliehkraft in Kurven)
       const lateralAccel = (currentSpeed * currentSpeed) * (dHeading / lookaheadMeters); // m/s^2
-      const rollMult = isTurboActive ? 0.0035 : 0.007; // F1 steifere Aufhängung
-      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * rollMult, -0.065, 0.065);
-      currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-7.0 * delta));
+      const rollMult = isTurboActive ? 0.0024 : 0.006; // F1 straffere Wankstabilisierung
+      const targetRoll = THREE.MathUtils.clamp(-lateralAccel * rollMult, -0.055, 0.055);
+      currentRoll = THREE.MathUtils.lerp(currentRoll, targetRoll, 1 - Math.exp(-8.0 * delta));
 
       // 3. Fahrbahn-Rumpeln & 6-Zylinder Diesel Motorvibration (bei Turbo Hochfrequenz-Pfeifen)
       const vibeFreq = isTurboActive ? 85.0 : 45.0;
-      const vibeAmp = isTurboActive ? 0.0012 : 0.0025;
+      const vibeAmp = isTurboActive ? 0.0010 : 0.0022;
       const roadVibe = (currentSpeed > 0.1) ? (Math.sin(clock.getElapsedTime() * vibeFreq) * vibeAmp) * Math.min(1.0, currentSpeed / 20.0) : 0;
       const engineIdle = Math.sin(clock.getElapsedTime() * (isTurboActive ? 40.0 : 22.0)) * 0.0008;
 
@@ -449,8 +582,8 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       fillLight.position.set(x - 18, y + 22, z - 20);
 
       // 4. Vorderräder lenken synchron mit der Kurvenfahrt (Ackermann-Geometrie)
-      const targetSteerAngle = (currentSpeed > 0.1) ? THREE.MathUtils.clamp((dHeading / lookaheadMeters) * 12.0, -0.44, 0.44) : 0;
-      const steerDamp = 1 - Math.exp(-10 * delta);
+      const targetSteerAngle = (currentSpeed > 0.1) ? THREE.MathUtils.clamp(dHeading * 1.5, -0.40, 0.40) : 0;
+      const steerDamp = 1 - Math.exp(-9.0 * delta);
       currentSteerAngle = THREE.MathUtils.lerp(currentSteerAngle, targetSteerAngle, steerDamp);
 
       if (wheels.length >= 2) {
@@ -471,6 +604,99 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       }
 
       // =======================================================================
+      // 🔴 MAN TGL 12.250 TRUCK 2 (RED BULL RACING): PHYSIK & DUELL-DYNAMIK
+      // =======================================================================
+      let truck2SpeedKmh = 0;
+
+      if (isDuelModeRef.current) {
+        truck2.visible = true;
+
+        // 1. Position & Überhol-Linie
+        const t2CurSec = getCircuitSector(currentCircuitDef, trackU2);
+        const t2Pt = currentCircuitResult.trackCurve.getPointAt(trackU2);
+        const t2Tan = currentCircuitResult.trackCurve.getTangentAt(trackU2);
+        truck2Heading = Math.atan2(t2Tan.x, t2Tan.z);
+        const t2RoadPitch = Math.atan2(-t2Tan.y, Math.hypot(t2Tan.x, t2Tan.z));
+
+        const t2Nx = -t2Tan.z;
+        const t2Nz = t2Tan.x;
+        const t2Len = Math.hypot(t2Nx, t2Nz) || 1;
+        const t2nX = t2Nx / t2Len;
+        const t2nZ = t2Nz / t2Len;
+
+        // Taktische Ideallinie des Red Bull LKWs:
+        // Attackiert die Gegen-Spur & fährt Windschatten-Manöver
+        const truckOffsetAtT2 = getCircuitRacingLineOffset(currentCircuitDef, trackU2);
+        const t2Offset = (t2CurSec.turnNum === 0)
+          ? (truckOffsetAtT2 >= 0 ? -4.5 : 4.5)
+          : (truckOffsetAtT2 >= 0 ? -4.0 : 4.0);
+
+        _truck2PosVec.set(
+          t2Pt.x + t2nX * t2Offset,
+          t2Pt.y,
+          t2Pt.z + t2nZ * t2Offset
+        );
+
+        // 2. Lookahead
+        const t2LookaheadM = Math.min(1.0, (currentSpeed2 > 10 ? (currentSpeed2 * 0.45) : 6.0) / splineLength);
+        const t2LookU = (trackU2 + t2LookaheadM) % 1.0;
+        const t2NextTan = currentCircuitResult.trackCurve.getTangentAt(t2LookU);
+        const t2NextHeading = Math.atan2(t2NextTan.x, t2NextTan.z);
+        let t2DHeading = t2NextHeading - truck2Heading;
+        while (t2DHeading > Math.PI) t2DHeading -= Math.PI * 2;
+        while (t2DHeading < -Math.PI) t2DHeading += Math.PI * 2;
+
+        // 3. Geschwindigkeits-Regelung (Red Bull Racing Power)
+        const t2BaseKmh = isTurboActive
+          ? (t2CurSec.f1Speed + (t2CurSec.drsZone ? 28.0 : 5.0))
+          : (t2CurSec.speedTarget * 1.05);
+        // Oszillierende Renn-Dynamik (Führungswechsel)
+        const t2Swing = 1.0 + Math.cos(clock.getElapsedTime() * 0.42) * 0.08;
+        const t2TargetKmh = drivingRef.current ? (t2BaseKmh * t2Swing) : 0;
+        const t2TargetMps = t2TargetKmh / 3.6;
+
+        const prevT2Speed = currentSpeed2;
+        const t2AccelRate = isTurboActive ? 8.5 : 3.2;
+        currentSpeed2 = THREE.MathUtils.lerp(currentSpeed2, t2TargetMps, 1 - Math.exp(-t2AccelRate * delta));
+        const t2Accel = (currentSpeed2 - prevT2Speed) / Math.max(delta, 0.001);
+        truck2SpeedKmh = currentSpeed2 * 3.6;
+
+        const t2DistTravelled = currentSpeed2 * delta;
+        trackU2 = (trackU2 + t2DistTravelled / splineLength) % 1.0;
+
+        // 4. Nick & Wank
+        const t2TargetPitch = THREE.MathUtils.clamp(-t2Accel * 0.006, -0.04, 0.05);
+        currentPitch2 = THREE.MathUtils.lerp(currentPitch2, t2TargetPitch, 1 - Math.exp(-9.0 * delta));
+        const t2LateralG = (currentSpeed2 * currentSpeed2) * (t2DHeading / Math.max(1, t2LookaheadM * splineLength));
+        const t2TargetRoll = THREE.MathUtils.clamp(-t2LateralG * 0.003, -0.045, 0.045);
+        currentRoll2 = THREE.MathUtils.lerp(currentRoll2, t2TargetRoll, 1 - Math.exp(-8.0 * delta));
+
+        // 5. Lenkung & Räder
+        const t2TargetSteer = (currentSpeed2 > 0.1) ? THREE.MathUtils.clamp(t2DHeading * 1.5, -0.40, 0.40) : 0;
+        currentSteerAngle2 = THREE.MathUtils.lerp(currentSteerAngle2, t2TargetSteer, 1 - Math.exp(-9.0 * delta));
+
+        if (truck2Rig.wheels.length >= 2) {
+          truck2Rig.wheels[0].rotation.y = currentSteerAngle2;
+          truck2Rig.wheels[1].rotation.y = currentSteerAngle2;
+        }
+        if (currentSpeed2 > 0.01) {
+          truck2Rig.wheels.forEach(w => {
+            w.children[0].rotation.x += t2DistTravelled / wheelRadius;
+            w.children[1].rotation.x += t2DistTravelled / wheelRadius;
+            w.children[2].rotation.x += t2DistTravelled / wheelRadius;
+          });
+        }
+
+        // 6. Transform Update
+        truck2.position.set(_truck2PosVec.x, _truck2PosVec.y, _truck2PosVec.z);
+        truck2.rotation.y = truck2Heading;
+        truck2.rotation.x = currentPitch2 + t2RoadPitch;
+        truck2.rotation.z = currentRoll2;
+      } else {
+        truck2.visible = false;
+      }
+
+      // =======================================================================
       // 📡 Subagent 22.6: Live-Telemetrie-HUD Aktualisierung (60fps Zero-Garbage)
       // =======================================================================
       const speedKmh = currentSpeed * 3.6;
@@ -484,10 +710,22 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       let gearName = 'N';
       if (drivingRef.current && currentSpeed > 0.1) {
         if (isTurboActive) {
-          const f1GearNum = Math.min(8, Math.max(1, Math.floor(speedKmh / 42) + 1));
+          // F1 8-Gang Seamless-Shift Getriebe
+          let f1GearNum = 1;
+          if (speedKmh < 80) f1GearNum = 1;
+          else if (speedKmh < 120) f1GearNum = 2;
+          else if (speedKmh < 160) f1GearNum = 3;
+          else if (speedKmh < 200) f1GearNum = 4;
+          else if (speedKmh < 245) f1GearNum = 5;
+          else if (speedKmh < 285) f1GearNum = 6;
+          else if (speedKmh < 320) f1GearNum = 7;
+          else f1GearNum = 8;
           gearName = `G${f1GearNum}`;
-          const gearFrac = (speedKmh % 42) / 42;
-          rpm = 8500 + gearFrac * 3800; // 8.500 bis 12.300 RPM
+
+          const gearMinSpeed = [0, 0, 80, 120, 160, 200, 245, 285, 320][f1GearNum];
+          const gearMaxSpeed = [0, 80, 120, 160, 200, 245, 285, 320, 365][f1GearNum];
+          const gearFrac = THREE.MathUtils.clamp((speedKmh - gearMinSpeed) / Math.max(1, gearMaxSpeed - gearMinSpeed), 0, 1);
+          rpm = 8800 + gearFrac * 3800; // 8.800 bis 12.600 RPM
         } else {
           if (speedKmh < 18) {
             gearName = 'D1';
@@ -565,6 +803,46 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
           telemetryDrsRef.current.style.color = '#000';
         } else {
           telemetryDrsRef.current.style.display = 'none';
+        }
+      }
+
+      // =======================================================================
+      // 🏆 Grand Prix Duell Leaderboard (LKW 1 White vs. LKW 2 Red Bull Racing)
+      // =======================================================================
+      if (isDuelModeRef.current) {
+        // Sortiere die 2 LKW-Racer nach Fortschritt trackU auf der Runde
+        const racers = [
+          { id: 'truck1', name: '🚚 MAN TGL [White]', color: '#00dcff', u: trackU, speed: currentSpeed * 3.6 },
+          { id: 'truck2', name: '🔴 MAN TGL [Red Bull]', color: '#ef4444', u: trackU2, speed: truck2SpeedKmh },
+        ];
+
+        // Berechne relative Führung
+        racers.sort((a, b) => {
+          let diff = (b.u - a.u + 1.0) % 1.0;
+          return diff > 0.5 ? -1 : 1;
+        });
+
+        const p1 = racers[0];
+        const p2 = racers[1];
+
+        let p2GapU = (p1.u - p2.u + 1.0) % 1.0;
+        if (p2GapU > 0.5) p2GapU -= 1.0;
+        const p2GapM = Math.abs(p2GapU) * splineLength;
+        const p2GapS = p2GapM / Math.max(1.0, p1.speed / 3.6);
+
+        if (duelP1BadgeRef.current) {
+          duelP1BadgeRef.current.textContent = `🥇 P1: ${p1.name}`;
+          duelP1BadgeRef.current.style.color = p1.color;
+        }
+        if (duelP2BadgeRef.current) {
+          duelP2BadgeRef.current.textContent = `🥈 P2: ${p2.name} (+${p2GapS.toFixed(2)}s)`;
+          duelP2BadgeRef.current.style.color = p2.color;
+        }
+        if (duelGapBadgeRef.current) {
+          duelGapBadgeRef.current.textContent = `GAP: +${p2GapS.toFixed(2)}s (${p2GapM.toFixed(1)}m)`;
+        }
+        if (duelTruck2SpeedRef.current) {
+          duelTruck2SpeedRef.current.textContent = `${truck2SpeedKmh.toFixed(1)} km/h`;
         }
       }
 
@@ -734,6 +1012,8 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
             cameras: currentCircuitDef.cameras,
             trackCurve: currentCircuitResult.trackCurve,
             currentU: trackU,
+            truck2WorldPos: isDuelModeRef.current ? { x: _truck2PosVec.x, y: _truck2PosVec.y, z: _truck2PosVec.z } : undefined,
+            truck2Heading: truck2Heading,
           }
         );
 
@@ -808,6 +1088,8 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       currentCircuitResult.disposables.geometries.forEach(g => g.dispose());
       currentCircuitResult.disposables.materials.forEach(m => m.dispose());
       currentCircuitResult.disposables.textures.forEach(t => t.dispose());
+
+      truck2Rig.textures.forEach(t => t.dispose());
     };
   }, []);
 
@@ -815,530 +1097,620 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
     <div style={{ width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0, zIndex: 10 }}>
       <canvas ref={canvasRef} style={{ width: '100%', height: '100%', outline: 'none' }} />
       
-      {/* 🌟 Quick Switch to LKW Showroom */}
-      {onOpenStudio && (
-        <div style={{ position: 'absolute', top: 20, right: 320, zIndex: 50 }}>
-          <button
-            onClick={onOpenStudio}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 8,
-              border: '1px solid rgba(229, 197, 0, 0.4)',
-              background: 'rgba(229, 197, 0, 0.15)',
-              color: '#ffd700',
-              fontWeight: 700,
-              fontSize: 11,
-              fontFamily: '"JetBrains Mono", monospace',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(8px)'
-            }}
-          >
-            🚚 Zum LKW Showroom
-          </button>
-        </div>
-      )}
 
-      {/* 📡 Telemetrie-HUD Fenster rechts oben (Subagent 22.6) */}
+
+      {/* 📡 SPEED TELEMETRIE HUD (Minimalistisch, Ultra-Präzise & Fokussiert auf Geschwindigkeit) */}
       <div style={{
-        position: 'absolute', top: 20, right: 20, width: 280,
-        background: 'rgba(10, 15, 25, 0.82)',
-        backdropFilter: 'blur(14px)',
-        border: '1px solid rgba(0, 220, 255, 0.25)',
-        borderRadius: 12,
-        padding: '14px 16px',
+        position: 'absolute', top: 20, right: 20, width: isHudMinimized ? 160 : 270,
+        background: 'rgba(10, 15, 25, 0.86)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(0, 220, 255, 0.28)',
+        borderRadius: 14,
+        padding: isHudMinimized ? '10px 12px' : '14px 16px',
         color: '#ffffff',
         fontFamily: '"JetBrains Mono", "SF Mono", "Consolas", monospace',
-        fontSize: 11,
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(0, 220, 255, 0.05)',
+        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.65), inset 0 0 16px rgba(0, 220, 255, 0.06)',
         pointerEvents: 'auto',
         userSelect: 'none',
         zIndex: 50,
+        transition: 'all 0.25s ease',
       }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,220,255,0.2)', paddingBottom: 8, marginBottom: 8 }}>
+        {/* Header mit Minimieren-Button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(0,220,255,0.18)', paddingBottom: 6, marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 13 }}>📡</span>
-            <span style={{ fontWeight: 700, letterSpacing: 0.8, color: '#00dcff', fontSize: 11 }}>MAN TELEMATICS HUD</span>
+            <span style={{ fontWeight: 800, letterSpacing: 0.8, color: '#00dcff', fontSize: 10.5 }}>SPEED TELEMETRIE</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span ref={telemetryFpsRef} style={{
-              fontSize: 8.5, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
+              fontSize: 8, fontWeight: 800, padding: '2px 5px', borderRadius: 4,
               background: 'rgba(0,0,0,0.5)', color: '#2ecc71', border: '1px solid rgba(46, 204, 113, 0.4)',
               fontFamily: 'monospace'
             }}>
-              60 FPS • 16.6ms
+              60 FPS
             </span>
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-              background: isDriving ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)',
-              color: isDriving ? '#2ecc71' : '#e74c3c',
-              border: isDriving ? '1px solid #2ecc71' : '1px solid #e74c3c'
-            }}>
-              {isDriving ? '● DRIVING' : '○ IDLE'}
-            </span>
+            <button
+              onClick={() => setIsHudMinimized(!isHudMinimized)}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: 'none',
+                color: '#94a3b8',
+                borderRadius: 4,
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: 10,
+                fontWeight: 900
+              }}
+              title={isHudMinimized ? "Maximieren" : "Minimieren"}
+            >
+              {isHudMinimized ? '□' : '–'}
+            </button>
           </div>
         </div>
 
-        {/* FIA Grand Prix Circuit Selector & Sector Display */}
-        <div style={{
-          background: 'rgba(0, 220, 255, 0.08)',
-          border: '1px solid rgba(0, 220, 255, 0.22)',
-          borderRadius: 6,
-          padding: '6px 8px',
-          marginBottom: 10,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 4
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#8899aa', fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>🏎️ FIA GRAND PRIX STRECKE:</span>
-            <span ref={telemetryDrsRef} style={{ display: 'none', background: '#ffd700', color: '#000', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3 }}>
+        {/* 🚀 Große Geschwindigkeitsanzeige (Prominent & Edel) */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            <span ref={telemetrySpeedRef} style={{ fontWeight: 900, fontSize: isHudMinimized ? 24 : 34, color: '#00dcff', letterSpacing: -0.5, textShadow: '0 0 20px rgba(0,220,255,0.65)' }}>
+              0.0
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#64748b' }}>km/h</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span ref={telemetryGearRef} style={{ color: isTurbo ? '#ec4899' : '#ffd700', fontWeight: 900, fontSize: 14, background: isTurbo ? 'rgba(236,72,153,0.15)' : 'rgba(255,215,0,0.15)', border: isTurbo ? '1px solid rgba(236,72,153,0.4)' : '1px solid rgba(255,215,0,0.4)', padding: '2px 7px', borderRadius: 5 }}>
+              D1
+            </span>
+            <span ref={telemetryDrsRef} style={{ display: 'none', background: '#22c55e', color: '#000', fontSize: 8, fontWeight: 900, padding: '2px 5px', borderRadius: 4 }}>
               DRS
             </span>
           </div>
+        </div>
 
-          {/* Circuit Switcher Buttons */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 2 }}>
-            {CIRCUITS_LIST.map((c) => {
-              const isActive = selectedCircuit === c.id;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    if (selectedCircuit !== c.id) {
-                      setSelectedCircuit(c.id);
-                      selectedCircuitRef.current = c.id;
-                      if (circuitChangeTriggerRef.current) {
-                        circuitChangeTriggerRef.current(c.id);
-                      }
-                    }
-                  }}
-                  style={{
-                    padding: '4px 6px',
-                    borderRadius: 4,
-                    border: isActive ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.1)',
-                    background: isActive ? 'rgba(0, 220, 255, 0.22)' : 'rgba(0,0,0,0.35)',
-                    color: isActive ? '#00dcff' : '#94a3b8',
-                    fontFamily: 'inherit',
-                    fontSize: 9,
-                    fontWeight: isActive ? 700 : 500,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <span>{c.flag}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name.split(' ')[0]}</span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Dynamic Speed Progress Bar */}
+        <div style={{ width: '100%', height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginTop: 6, marginBottom: isHudMinimized ? 0 : 8 }}>
+          <div ref={telemetrySpeedBarRef} style={{ width: '0%', height: '100%', background: isTurbo ? 'linear-gradient(90deg, #3b82f6, #ec4899, #f43f5e)' : 'linear-gradient(90deg, #00dcff, #3b82f6)', transition: 'width 0.08s linear' }} />
+        </div>
 
-          <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <span ref={telemetrySectorRef} style={{ color: isTurbo ? '#ec4899' : '#00dcff', fontWeight: 800, fontSize: 11, letterSpacing: 0.3 }}>
-              HAMILTON STRAIGHT
-            </span>
-            <div ref={telemetryF1Ref} style={{ color: '#94a3b8', fontSize: 8, fontWeight: 600, fontFamily: 'monospace', marginTop: 2 }}>
-              F1 REF: 290 km/h • GANG 7 • 1.0 G
+        {!isHudMinimized && (
+          <>
+            {/* Sektor-Badge */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0, 220, 255, 0.06)', border: '1px solid rgba(0, 220, 255, 0.15)', borderRadius: 6, padding: '4px 8px', marginTop: 4 }}>
+              <span ref={telemetrySectorRef} style={{ color: isTurbo ? '#ec4899' : '#38bdf8', fontWeight: 800, fontSize: 9.5, letterSpacing: 0.3 }}>
+                START/ZIEL GERADE
+              </span>
+              <span ref={telemetryF1Ref} style={{ color: '#94a3b8', fontSize: 8, fontFamily: 'monospace' }}>
+                F1 REF: 315 km/h
+              </span>
             </div>
-          </div>
 
-          {/* ⚡ F1 TELEMETRIE TURBO BOOST BUTTON */}
+            {/* ⚔️ GRAND PRIX 2-LKW DUELL: MINI-LEADERBOARD */}
+            {isDuelMode && (
+              <div style={{
+                marginTop: 8,
+                padding: '6px 8px',
+                background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(0, 220, 255, 0.10) 100%)',
+                border: '1px solid rgba(0, 220, 255, 0.25)',
+                borderRadius: 8,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                  <span style={{ color: '#ffd700', fontSize: 8.5, fontWeight: 900, letterSpacing: 0.5 }}>⚔️ 2-LKW DUELL RANKING</span>
+                  <span ref={duelGapBadgeRef} style={{ background: '#0f172a', color: '#38bdf8', fontSize: 7.5, fontWeight: 800, padding: '1px 4px', borderRadius: 3, border: '1px solid #38bdf8' }}>
+                    GAP: +0.14s
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div ref={duelP1BadgeRef} style={{ fontSize: 9, fontWeight: 800, color: '#00dcff' }}>
+                    🥇 P1: 🚚 MAN TGL [White]
+                  </div>
+                  <div ref={duelP2BadgeRef} style={{ fontSize: 8.5, fontWeight: 700, color: '#ef4444' }}>
+                    🥈 P2: 🔴 MAN TGL [Red Bull] (+0.14s)
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 🎛️ MODULARES AUSKLAPPBARES STEUERUNGSZENTRUM (UNTERMENÜS) */}
+      {/* ========================================================================= */}
+      <div style={{
+        position: 'absolute', bottom: 25, left: '50%', transform: 'translateX(-50%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        pointerEvents: 'auto', zIndex: 60,
+      }}>
+        {/* 📂 AUSGEKLAPPTES UNTERMENÜ-FENSTER (FLOATING GLASS PANEL) */}
+        {activeSubmenu && (
+          <div style={{
+            background: 'rgba(10, 15, 25, 0.92)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(0, 220, 255, 0.35)',
+            borderRadius: 14,
+            padding: '16px 20px',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.8), 0 0 24px rgba(0, 220, 255, 0.15)',
+            color: '#fff',
+            fontFamily: '"Inter", sans-serif',
+            minWidth: 360,
+            maxWidth: '90vw',
+            animation: 'fadeIn 0.2s ease',
+          }}>
+            {/* 1. UNTERMENÜ: FAHRZEUG & RENNEN */}
+            {activeSubmenu === 'vehicle' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: '#00dcff' }}>🏎️ FAHRZEUG & RENN-SETUP</span>
+                  <button onClick={() => setActiveSubmenu(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      const driving = !isDriving;
+                      setIsDriving(driving);
+                      drivingRef.current = driving;
+                      if (driving) {
+                        setDoorsOpen(false); doorsRef.current = false;
+                        setTailgateOpen(false); tailgateRef.current = false;
+                        setPlatformLowered(false); platformLoweredRef.current = false;
+                      }
+                    }}
+                    style={{
+                      padding: '10px 14px', borderRadius: 8, border: 'none',
+                      background: isDriving ? '#e74c3c' : '#2ecc71', color: '#fff',
+                      fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <span>{isDriving ? '🛑' : '▶️'}</span>
+                    <span>{isDriving ? 'Anhalten' : 'Weiterfahren'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const next = !isTurbo;
+                      setIsTurbo(next);
+                      turboRef.current = next;
+                    }}
+                    style={{
+                      padding: '10px 14px', borderRadius: 8,
+                      border: isTurbo ? '1px solid #ec4899' : '1px solid rgba(255,215,0,0.4)',
+                      background: isTurbo ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(255,255,255,0.06)',
+                      color: isTurbo ? '#fff' : '#ffd700',
+                      fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <span>{isTurbo ? '🔥' : '⚡'}</span>
+                    <span>{isTurbo ? 'F1 Turbo: AN [T]' : 'F1 Turbo: AUS [T]'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const next = !isDuelMode;
+                      setIsDuelMode(next);
+                      isDuelModeRef.current = next;
+                    }}
+                    style={{
+                      gridColumn: 'span 2',
+                      padding: '10px 14px', borderRadius: 8,
+                      border: isDuelMode ? '1px solid #ffd700' : '1px solid rgba(255,255,255,0.2)',
+                      background: isDuelMode ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(220, 38, 38, 0.3) 100%)' : 'rgba(255,255,255,0.06)',
+                      color: isDuelMode ? '#ffd700' : '#fff',
+                      fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <span>⚔️</span>
+                    <span>{isDuelMode ? '2-LKW Duell: White vs. Red Bull (AN) [D]' : 'Solo: Nur LKW 1 [D]'}</span>
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
+                  <button
+                    onClick={() => {
+                      const open = !doorsOpen;
+                      setDoorsOpen(open);
+                      doorsRef.current = open;
+                      if (open) { setIsDriving(false); drivingRef.current = false; }
+                    }}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                      background: doorsOpen ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)', color: '#fff',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    {doorsOpen ? '🚪 Türen zu' : '🚪 Türen auf'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const open = !tailgateOpen;
+                      setTailgateOpen(open);
+                      tailgateRef.current = open;
+                      if (!open) { setPlatformLowered(false); platformLoweredRef.current = false; }
+                      if (open) { setIsDriving(false); drivingRef.current = false; }
+                    }}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                      background: tailgateOpen ? 'rgba(234, 179, 8, 0.35)' : 'rgba(255,255,255,0.05)', color: '#fff',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    {tailgateOpen ? '📦 Klappe zu' : '📦 Klappe auf'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const lower = !platformLowered;
+                      setPlatformLowered(lower);
+                      platformLoweredRef.current = lower;
+                      if (lower) { setTailgateOpen(true); tailgateRef.current = true; setIsDriving(false); drivingRef.current = false; }
+                    }}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                      background: platformLowered ? 'rgba(249, 115, 22, 0.35)' : 'rgba(255,255,255,0.05)', color: '#fff',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    {platformLowered ? '⬆️ Bordwand heben' : '⬇️ Bordwand senken'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const active = !wipersActive;
+                      setWipersActive(active);
+                      wipersActiveRef.current = active;
+                    }}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+                      background: wipersActive ? 'rgba(56, 189, 248, 0.35)' : 'rgba(255,255,255,0.05)', color: '#fff',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    {wipersActive ? '🌧️ Wischer: AN' : '🌧️ Wischer: AUS'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 2. UNTERMENÜ: KAMERA & TV-REGIE */}
+            {activeSubmenu === 'camera' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 420 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 800, fontSize: 13, color: '#00dcff' }}>🎥 KAMERA & TV-REGIE</span>
+                    {activeCam === 'auto_director' && (
+                      <span style={{ background: '#ef4444', color: '#fff', fontSize: 8.5, fontWeight: 900, padding: '2px 6px', borderRadius: 4 }}>
+                        ● ON AIR [AUTO-REGIE]
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => setActiveSubmenu(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, maxHeight: '50vh', overflowY: 'auto' }}>
+                  {(Object.keys(TRUCK_CAMERA_PRESETS) as TruckCameraPresetId[]).map((camKey) => {
+                    const preset = TRUCK_CAMERA_PRESETS[camKey];
+                    const isSelected = activeCam === camKey;
+                    return (
+                      <button
+                        key={camKey}
+                        onClick={() => {
+                          setActiveCam(camKey);
+                          activeCamRef.current = camKey;
+                          effectiveCamRef.current = camKey;
+                          timeInShotRef.current = 0;
+                        }}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          border: isSelected ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.1)',
+                          background: isSelected ? 'rgba(0, 220, 255, 0.25)' : 'rgba(255,255,255,0.05)',
+                          color: isSelected ? '#00dcff' : '#cbd5e1',
+                          fontFamily: 'inherit',
+                          fontSize: 10,
+                          fontWeight: isSelected ? 800 : 500,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: 14 }}>{preset.icon}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preset.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 3. UNTERMENÜ: STRECKE & BESCHRIFTUNG */}
+            {activeSubmenu === 'track' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 360 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: '#00dcff' }}>🗺️ FIA GRAND PRIX STRECKE</span>
+                  <button onClick={() => setActiveSubmenu(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {CIRCUITS_LIST.map((c) => {
+                    const isActive = selectedCircuit === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          if (selectedCircuit !== c.id) {
+                            setSelectedCircuit(c.id);
+                            selectedCircuitRef.current = c.id;
+                            if (circuitChangeTriggerRef.current) {
+                              circuitChangeTriggerRef.current(c.id);
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          border: isActive ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.1)',
+                          background: isActive ? 'rgba(0, 220, 255, 0.25)' : 'rgba(255,255,255,0.05)',
+                          color: isActive ? '#00dcff' : '#cbd5e1',
+                          fontWeight: isActive ? 800 : 500,
+                          fontSize: 11,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <span style={{ fontSize: 14 }}>{c.flag}</span>
+                        <span>{c.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
+                  <button
+                    onClick={() => {
+                      const next = !showTrackLabels;
+                      setShowTrackLabels(next);
+                      showTrackLabelsRef.current = next;
+                      if (trackLabelsGroupRef.current) {
+                        trackLabelsGroupRef.current.visible = next;
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: showTrackLabels ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.15)',
+                      background: showTrackLabels ? 'linear-gradient(135deg, rgba(0, 220, 255, 0.3) 0%, rgba(59, 130, 246, 0.3) 100%)' : 'rgba(255,255,255,0.06)',
+                      color: showTrackLabels ? '#00dcff' : '#fff',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>🏷️</span>
+                      <span>3D Kurven- & Geradennamen</span>
+                    </div>
+                    <span style={{ fontSize: 10, background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: 4 }}>
+                      {showTrackLabels ? 'AN [L]' : 'AUS [L]'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4. UNTERMENÜ: GRAFIK & SETTINGS */}
+            {activeSubmenu === 'settings' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 320 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: '#00dcff' }}>⚙️ GRAFIK & SETTINGS</span>
+                  <button onClick={() => setActiveSubmenu(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: 10, color: '#8899aa', fontWeight: 700 }}>GRAFIK-DETAILTREUE:</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {(Object.keys(GRAPHIC_QUALITY_PRESETS) as GraphicQualityId[]).map((qKey) => {
+                      const qPreset = GRAPHIC_QUALITY_PRESETS[qKey];
+                      const isSelected = quality === qKey;
+                      return (
+                        <button
+                          key={qKey}
+                          onClick={() => {
+                            setQuality(qKey);
+                            qualityRef.current = qKey;
+                            if (qualityChangeTriggerRef.current) {
+                              qualityChangeTriggerRef.current(qKey);
+                            }
+                          }}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                            background: isSelected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.05)',
+                            color: isSelected ? '#38bdf8' : '#fff',
+                            fontWeight: isSelected ? 800 : 500,
+                            fontSize: 11,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}
+                        >
+                          <span>{qPreset.icon}</span>
+                          <span>{qPreset.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {onOpenStudio && (
+                  <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
+                    <button
+                      onClick={onOpenStudio}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(229, 197, 0, 0.4)',
+                        background: 'linear-gradient(135deg, rgba(229, 197, 0, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%)',
+                        color: '#ffd700',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6
+                      }}
+                    >
+                      <span>🚚</span>
+                      <span>Zum LKW Showroom</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 🎛️ HAUPT-KONTROLLEISTE MIT 4 AUSKLAPPBAREN HAUPT-BUTTONS */}
+        <div style={{
+          display: 'flex',
+          gap: 10,
+          background: 'rgba(10, 15, 25, 0.88)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(0, 220, 255, 0.3)',
+          borderRadius: 14,
+          padding: '8px 12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        }}>
           <button
-            onClick={() => {
-              const next = !isTurbo;
-              setIsTurbo(next);
-              turboRef.current = next;
-            }}
+            onClick={() => setActiveSubmenu(activeSubmenu === 'vehicle' ? null : 'vehicle')}
             style={{
-              marginTop: 6,
-              padding: '6px 8px',
-              borderRadius: 6,
-              border: isTurbo ? '1px solid #ec4899' : '1px solid rgba(255, 215, 0, 0.4)',
-              background: isTurbo
-                ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%)'
-                : 'linear-gradient(135deg, rgba(255, 215, 0, 0.12) 0%, rgba(0, 220, 255, 0.08) 100%)',
-              color: isTurbo ? '#ffffff' : '#ffd700',
-              fontFamily: 'inherit',
-              fontSize: 9,
-              fontWeight: 800,
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: activeSubmenu === 'vehicle' ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.15)',
+              background: activeSubmenu === 'vehicle' ? 'rgba(0, 220, 255, 0.25)' : 'rgba(255,255,255,0.06)',
+              color: activeSubmenu === 'vehicle' ? '#00dcff' : '#fff',
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 700,
+              fontSize: 12.5,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: isTurbo ? '0 0 14px rgba(236, 72, 153, 0.5), inset 0 0 6px rgba(236, 72, 153, 0.3)' : 'none',
-              transition: 'all 0.2s ease',
+              gap: 8,
+              transition: 'all 0.18s ease'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ fontSize: 12 }}>{isTurbo ? '🔥' : '⚡'}</span>
-              <span>{isTurbo ? 'F1 TELEMETRIE: 350 KM/H' : 'F1 TURBO BOOST: AUS'}</span>
-            </div>
-            <span style={{
-              fontSize: 7.5,
-              padding: '1px 4px',
-              borderRadius: 3,
-              background: isTurbo ? '#ec4899' : 'rgba(255,255,255,0.12)',
-              color: '#ffffff'
-            }}>
-              [T]
-            </span>
+            <span>🏎️</span>
+            <span>Fahrzeug & Rennen</span>
+            <span style={{ fontSize: 10, opacity: 0.7 }}>{activeSubmenu === 'vehicle' ? '▲' : '▼'}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubmenu(activeSubmenu === 'camera' ? null : 'camera')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: activeSubmenu === 'camera' ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.15)',
+              background: activeSubmenu === 'camera' ? 'rgba(0, 220, 255, 0.25)' : 'rgba(255,255,255,0.06)',
+              color: activeSubmenu === 'camera' ? '#00dcff' : '#fff',
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.18s ease'
+            }}
+          >
+            <span>🎥</span>
+            <span>Kamera & Regie</span>
+            <span style={{ fontSize: 10, opacity: 0.7 }}>{activeSubmenu === 'camera' ? '▲' : '▼'}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubmenu(activeSubmenu === 'track' ? null : 'track')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: activeSubmenu === 'track' ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.15)',
+              background: activeSubmenu === 'track' ? 'rgba(0, 220, 255, 0.25)' : 'rgba(255,255,255,0.06)',
+              color: activeSubmenu === 'track' ? '#00dcff' : '#fff',
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.18s ease'
+            }}
+          >
+            <span>🗺️</span>
+            <span>Rennstrecke</span>
+            <span style={{ fontSize: 10, opacity: 0.7 }}>{activeSubmenu === 'track' ? '▲' : '▼'}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubmenu(activeSubmenu === 'settings' ? null : 'settings')}
+            style={{
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: activeSubmenu === 'settings' ? '1px solid #00dcff' : '1px solid rgba(255,255,255,0.15)',
+              background: activeSubmenu === 'settings' ? 'rgba(0, 220, 255, 0.25)' : 'rgba(255,255,255,0.06)',
+              color: activeSubmenu === 'settings' ? '#00dcff' : '#fff',
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.18s ease'
+            }}
+          >
+            <span>⚙️</span>
+            <span>Grafik</span>
+            <span style={{ fontSize: 10, opacity: 0.7 }}>{activeSubmenu === 'settings' ? '▲' : '▼'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsBsod(true)}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: 'none',
+              background: 'rgba(0, 120, 215, 0.4)',
+              color: '#fff',
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+            title="BSOD Crash Simulation"
+          >
+            💻
           </button>
         </div>
-
-        {/* Speed & Gear Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-          <span style={{ color: '#8899aa' }}>GESCHWINDIGKEIT:</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span ref={telemetryGearRef} style={{ color: '#ffd700', fontWeight: 800, fontSize: 13 }}>D1</span>
-            <span ref={telemetrySpeedRef} style={{ fontWeight: 700, fontSize: 16, color: '#00dcff' }}>0.0 km/h</span>
-          </div>
-        </div>
-        {/* Speed Progress Bar */}
-        <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
-          <div ref={telemetrySpeedBarRef} style={{ width: '0%', height: '100%', background: 'linear-gradient(90deg, #00dcff, #3498db)', transition: 'width 0.1s linear' }} />
-        </div>
-
-        {/* RPM Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-          <span style={{ color: '#8899aa' }}>DREHZAHL:</span>
-          <span ref={telemetryRpmRef} style={{ fontWeight: 600, color: '#ffffff' }}>750 RPM</span>
-        </div>
-        <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
-          <div ref={telemetryRpmBarRef} style={{ width: '10%', height: '100%', background: 'linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c)', transition: 'width 0.1s linear' }} />
-        </div>
-
-        {/* 2-Column Grid for Dynamics */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div>
-            <div style={{ color: '#8899aa', fontSize: 9 }}>LÄNGS G-KRAFT:</div>
-            <div ref={telemetryAccelRef} style={{ fontWeight: 700, fontSize: 12, color: '#ffffff' }}>+0.00 g</div>
-          </div>
-          <div>
-            <div style={{ color: '#8899aa', fontSize: 9 }}>QUER G-KRAFT:</div>
-            <div ref={telemetryLateralGRef} style={{ fontWeight: 700, fontSize: 12, color: '#ffffff' }}>+0.00 g</div>
-          </div>
-          <div>
-            <div style={{ color: '#8899aa', fontSize: 9 }}>LENKWINKEL:</div>
-            <div ref={telemetrySteerRef} style={{ fontWeight: 700, fontSize: 12, color: '#ffd700' }}>GERADE</div>
-          </div>
-          <div>
-            <div style={{ color: '#8899aa', fontSize: 9 }}>NICKWINKEL (PITCH):</div>
-            <div ref={telemetryPitchRef} style={{ fontWeight: 700, fontSize: 12, color: '#ffffff' }}>0.0° LEVEL</div>
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <div style={{ color: '#8899aa', fontSize: 9 }}>WANKWINKEL (BODY ROLL):</div>
-            <div ref={telemetryRollRef} style={{ fontWeight: 700, fontSize: 12, color: '#ffffff' }}>0.0° LEVEL</div>
-          </div>
-        </div>
-
-        {/* 🎥 Kamera-Perspektiven Dropdown (Subagent 20: Broadcast Regie) */}
-        <div style={{
-          marginTop: 8,
-          padding: '8px 10px',
-          background: 'rgba(0, 220, 255, 0.06)',
-          border: '1px solid rgba(0, 220, 255, 0.25)',
-          borderRadius: 8,
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ color: '#8899aa', fontSize: 8.5, fontWeight: 700, letterSpacing: 0.5 }}>🎥 KAMERA-PERSPEKTIVE:</span>
-            {activeCam === 'auto_director' && (
-              <span style={{
-                background: '#ef4444', color: '#fff', fontSize: 8, fontWeight: 800,
-                padding: '1px 5px', borderRadius: 3,
-              }}>
-                ● ON AIR
-              </span>
-            )}
-          </div>
-
-          <select
-            value={activeCam}
-            onChange={(e) => {
-              const nextCam = e.target.value as TruckCameraPresetId;
-              setActiveCam(nextCam);
-              activeCamRef.current = nextCam;
-              effectiveCamRef.current = nextCam;
-              timeInShotRef.current = 0;
-            }}
-            style={{
-              width: '100%',
-              padding: '6px 8px',
-              borderRadius: 6,
-              border: activeCam === 'auto_director' ? '1px solid #ef4444' : '1px solid rgba(0, 220, 255, 0.4)',
-              background: activeCam === 'auto_director' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(10, 15, 25, 0.95)',
-              color: activeCam === 'auto_director' ? '#fca5a5' : '#00dcff',
-              fontFamily: '"JetBrains Mono", monospace',
-              fontSize: 10.5,
-              fontWeight: 700,
-              cursor: 'pointer',
-              outline: 'none',
-              boxShadow: activeCam === 'auto_director' ? '0 0 12px rgba(239, 68, 68, 0.3)' : 'none',
-            }}
-          >
-            {(Object.keys(TRUCK_CAMERA_PRESETS) as TruckCameraPresetId[]).map((presetKey) => {
-              const preset = TRUCK_CAMERA_PRESETS[presetKey];
-              return (
-                <option
-                  key={presetKey}
-                  value={presetKey}
-                  style={{ background: '#0b0f19', color: '#ffffff' }}
-                >
-                  {preset.icon} {preset.name} {presetKey === 'auto_director' ? '• (TV-Regie)' : ''}
-                </option>
-              );
-            })}
-          </select>
-
-          {/* Live Auto-Regie Tally Badge */}
-          {activeCam === 'auto_director' && (
-            <div 
-              ref={directorBadgeRef}
-              style={{
-                marginTop: 6,
-                padding: '4px 6px',
-                borderRadius: 4,
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                fontSize: 8.5,
-                fontWeight: 600,
-                textAlign: 'center',
-                fontFamily: '"JetBrains Mono", monospace'
-              }}
-            >
-              ● ON AIR [AUTO-REGIE]
-            </div>
-          )}
-        </div>
-
-        {/* ⚙️ Grafik-Detailtreue & Performance-Stufe (Subagent 19: Performance Governance) */}
-        <div style={{
-          marginTop: 8,
-          padding: '8px 10px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: 8,
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ color: '#8899aa', fontSize: 8.5, fontWeight: 700, letterSpacing: 0.5 }}>⚙️ DETAILTREUE / GRAFIK:</span>
-            <span style={{
-              fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
-              background: quality === 'ultra' ? '#ec4899' : quality === 'high' ? '#3b82f6' : quality === 'medium' ? '#10b981' : '#f59e0b',
-              color: '#ffffff'
-            }}>
-              {quality.toUpperCase()}
-            </span>
-          </div>
-
-          <select
-            value={quality}
-            onChange={(e) => {
-              const nextQ = e.target.value as GraphicQualityId;
-              setQuality(nextQ);
-              qualityRef.current = nextQ;
-              if (qualityChangeTriggerRef.current) {
-                qualityChangeTriggerRef.current(nextQ);
-              }
-            }}
-            style={{
-              width: '100%',
-              padding: '6px 8px',
-              borderRadius: 6,
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              background: 'rgba(10, 15, 25, 0.95)',
-              color: '#ffffff',
-              fontFamily: '"JetBrains Mono", monospace',
-              fontSize: 10.5,
-              fontWeight: 700,
-              cursor: 'pointer',
-              outline: 'none',
-            }}
-          >
-            {(Object.keys(GRAPHIC_QUALITY_PRESETS) as GraphicQualityId[]).map((qKey) => {
-              const qPreset = GRAPHIC_QUALITY_PRESETS[qKey];
-              return (
-                <option
-                  key={qKey}
-                  value={qKey}
-                  style={{ background: '#0b0f19', color: '#ffffff' }}
-                >
-                  {qPreset.icon} {qPreset.name}
-                </option>
-              );
-            })}
-          </select>
-
-          <div style={{ marginTop: 4, color: '#94a3b8', fontSize: 8, fontFamily: 'monospace' }}>
-            {GRAPHIC_QUALITY_PRESETS[quality].shortDesc}
-          </div>
-        </div>
-
-        {/* Footer Vehicle Specs */}
-        <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', color: '#667788', fontSize: 9 }}>
-          <span>MAN TGL 12.250</span>
-          <span>D0836 • 1050 Nm</span>
-        </div>
-      </div>
-      
-      {/* UI Controls */}
-      <div style={{
-        position: 'absolute', bottom: 30, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', pointerEvents: 'auto',
-      }}>
-        <button
-          onClick={() => {
-            const driving = !isDriving;
-            setIsDriving(driving);
-            drivingRef.current = driving;
-            // Wenn er fährt, Türen & Ladebordwand schließen
-            if (driving) {
-              setDoorsOpen(false);
-              doorsRef.current = false;
-              setTailgateOpen(false);
-              tailgateRef.current = false;
-              setPlatformLowered(false);
-              platformLoweredRef.current = false;
-            }
-          }}
-          style={{
-            padding: '12px 20px', borderRadius: 8, border: 'none',
-            background: isDriving ? '#e74c3c' : '#2ecc71', color: '#fff',
-            fontFamily: '"Inter", sans-serif', fontWeight: 600, fontSize: 13,
-            cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            transition: 'background 0.2s',
-          }}
-        >
-          {isDriving ? '🛑 Anhalten' : '▶️ Weiterfahren'}
-        </button>
-
-        <button
-          onClick={() => {
-            const next = !isTurbo;
-            setIsTurbo(next);
-            turboRef.current = next;
-          }}
-          style={{
-            padding: '12px 20px', borderRadius: 8,
-            border: isTurbo ? '1px solid #ec4899' : '1px solid rgba(255,215,0,0.4)',
-            background: isTurbo ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(0,0,0,0.6)',
-            color: isTurbo ? '#ffffff' : '#ffd700',
-            fontFamily: '"Inter", sans-serif', fontWeight: 700, fontSize: 13,
-            cursor: 'pointer', backdropFilter: 'blur(8px)',
-            boxShadow: isTurbo ? '0 0 16px rgba(236, 72, 153, 0.6)' : '0 4px 12px rgba(0,0,0,0.5)',
-            transition: 'all 0.2s',
-          }}
-        >
-          {isTurbo ? '🔥 F1 Turbo: AN (350 km/h)' : '⚡ F1 Turbo: AUS'}
-        </button>
-
-        <button
-          onClick={() => {
-            const open = !doorsOpen;
-            setDoorsOpen(open);
-            doorsRef.current = open;
-            if (open) {
-              setIsDriving(false);
-              drivingRef.current = false;
-            }
-          }}
-          style={{
-            padding: '12px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)',
-            background: doorsOpen ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.6)', color: '#fff',
-            fontFamily: '"Inter", sans-serif', fontWeight: 600, fontSize: 13,
-            cursor: 'pointer', backdropFilter: 'blur(8px)',
-            transition: 'all 0.2s',
-          }}
-        >
-          {doorsOpen ? '🚪 Türen schließen' : '🚪 Türen öffnen'}
-        </button>
-
-        {/* KNOPF 1: Heckklappe & Ladebordwand öffnen / schließen (Abklappen auf Ladekante) */}
-        <button
-          onClick={() => {
-            const open = !tailgateOpen;
-            setTailgateOpen(open);
-            tailgateRef.current = open;
-            if (!open) {
-              // Beim Schließen automatisch auch wieder anheben
-              setPlatformLowered(false);
-              platformLoweredRef.current = false;
-            }
-            if (open) {
-              setIsDriving(false);
-              drivingRef.current = false;
-            }
-          }}
-          style={{
-            padding: '12px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)',
-            background: tailgateOpen ? 'rgba(234, 179, 8, 0.35)' : 'rgba(0,0,0,0.6)', color: '#fff',
-            fontFamily: '"Inter", sans-serif', fontWeight: 600, fontSize: 13,
-            cursor: 'pointer', backdropFilter: 'blur(8px)',
-            boxShadow: tailgateOpen ? '0 0 16px rgba(234, 179, 8, 0.4)' : 'none',
-            transition: 'all 0.2s',
-          }}
-        >
-          {tailgateOpen ? '📦 Heckklappe schließen' : '📦 Heckklappe öffnen'}
-        </button>
-
-        {/* KNOPF 2: Ladebordwand heben / senken (Auf den Boden absenken / zur Ladekante heben) */}
-        <button
-          onClick={() => {
-            const lower = !platformLowered;
-            setPlatformLowered(lower);
-            platformLoweredRef.current = lower;
-            if (lower) {
-              // Beim Senken automatisch auch Klappe öffnen
-              setTailgateOpen(true);
-              tailgateRef.current = true;
-              setIsDriving(false);
-              drivingRef.current = false;
-            }
-          }}
-          style={{
-            padding: '12px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)',
-            background: platformLowered ? 'rgba(249, 115, 22, 0.35)' : 'rgba(0,0,0,0.6)', color: '#fff',
-            fontFamily: '"Inter", sans-serif', fontWeight: 600, fontSize: 13,
-            cursor: 'pointer', backdropFilter: 'blur(8px)',
-            boxShadow: platformLowered ? '0 0 16px rgba(249, 115, 22, 0.4)' : 'none',
-            transition: 'all 0.2s',
-          }}
-        >
-          {platformLowered ? '⬆️ Ladebordwand heben' : '⬇️ Ladebordwand senken'}
-        </button>
-
-        <button
-          onClick={() => {
-            const active = !wipersActive;
-            setWipersActive(active);
-            wipersActiveRef.current = active;
-          }}
-          style={{
-            padding: '12px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)',
-            background: wipersActive ? 'rgba(56, 189, 248, 0.35)' : 'rgba(0,0,0,0.6)', color: '#fff',
-            fontFamily: '"Inter", sans-serif', fontWeight: 600, fontSize: 13,
-            cursor: 'pointer', backdropFilter: 'blur(8px)',
-            boxShadow: wipersActive ? '0 0 16px rgba(56, 189, 248, 0.4)' : 'none',
-            transition: 'all 0.2s',
-          }}
-        >
-          {wipersActive ? '🌧️ Wischer: AN' : '🌧️ Wischer: AUS'}
-        </button>
-        
-        <button
-          onClick={() => setIsBsod(true)}
-          style={{
-            padding: '12px 16px', borderRadius: 8, border: 'none',
-            background: '#0078D7', color: '#fff',
-            fontFamily: '"Inter", sans-serif', fontWeight: 600, fontSize: 14,
-            cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          }}
-        >
-          💻 Crash
-        </button>
       </div>
 
       {/* BSOD Overlay */}

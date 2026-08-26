@@ -4,6 +4,7 @@ import { Grid } from '@react-three/drei';
 import * as THREE from 'three';
 
 export type CraneSceneryType = 
+  | 'plate'
   | 'bright_concrete' 
   | 'pyramids'
   | 'machu_picchu'
@@ -15,6 +16,7 @@ export type CraneSceneryType =
   | 'studio';
 
 export const sceneryBgColors: Record<CraneSceneryType, string> = {
+  plate: '#0d1117',           // Showroom Drehteller-Plattform (wie LKW)
   bright_concrete: '#7dd3fc', // Strahlend blauer Himmel & Pyramiden
   pyramids: '#38bdf8',        // Klarer azurblauer Wüstenhimmel
   machu_picchu: '#38bdf8',    // Klarer Anden-Berghimmel über Machu Picchu
@@ -37,6 +39,15 @@ export interface SceneryOption {
 }
 
 export const sceneryOptions: SceneryOption[] = [
+  {
+    id: 'plate',
+    label: '⭕ Showroom Platte (wie LKW)',
+    shortLabel: 'Platte (LKW)',
+    desc: 'Luxuriöse Drehteller-Plattform ohne Schienen mit Leuchtring & Studiobeleuchtung',
+    icon: '⭕',
+    color: '#00dcff',
+    isBright: false
+  },
   {
     id: 'bright_concrete',
     label: '☀️ Heller Platz & Pyramiden',
@@ -1378,6 +1389,95 @@ export function LakeSceneryEnvironment() {
   );
 }
 
+// --- 🌟 SCENERY: LUXURY SHOWROOM TURNTABLE PLATFORM (MATCHING LKW SHOWROOM) ---
+export function ShowroomPlateSceneryEnvironment() {
+  const matFloor = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#1a1f26',
+    roughness: 0.55,
+    metalness: 0.35,
+  }), []);
+
+  const matTurntable = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#161c24',
+    roughness: 0.36,
+    metalness: 0.65,
+  }), []);
+
+  const matOuterRing = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#00dcff',
+    emissive: '#00dcff',
+    emissiveIntensity: 0.6,
+    roughness: 0.2,
+    metalness: 0.8,
+    side: THREE.DoubleSide,
+  }), []);
+
+  const matInnerRing = useMemo(() => new THREE.MeshBasicMaterial({
+    color: '#2a3b4c',
+    side: THREE.DoubleSide,
+  }), []);
+
+  const matCenterRing = useMemo(() => new THREE.MeshBasicMaterial({
+    color: '#00dcff',
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.5,
+  }), []);
+
+  return (
+    <group>
+      {/* 1. Haupt-Bodenplatte (Dark Showroom Studio Floor 160x160m) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.041, 0]} receiveShadow material={matFloor}>
+        <planeGeometry args={[160, 160]} />
+      </mesh>
+
+      {/* 2. Drehteller-Plattform (Turntable Platform Ø 18m, bündig auf Höhe 0.00m) */}
+      <mesh position={[0, -0.04, 0]} receiveShadow material={matTurntable}>
+        <cylinderGeometry args={[9.0, 9.2, 0.08, 64]} />
+      </mesh>
+
+      {/* 3. Gebürsteter Cyan-Glühring am Außenrand des Drehtellers (Ø 18m) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} material={matOuterRing}>
+        <ringGeometry args={[8.95, 9.15, 64]} />
+      </mesh>
+
+      {/* 4. Konzentrischer Zwischenring (Ø 9m) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} material={matInnerRing}>
+        <ringGeometry args={[4.5, 4.54, 48]} />
+      </mesh>
+
+      {/* 5. Subtiler Zentrierungs-Ring unter dem Dolly (Ø 4.5m) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} material={matCenterRing}>
+        <ringGeometry args={[2.2, 2.24, 48]} />
+      </mesh>
+
+      {/* 6. High-Tech Infinite Grid */}
+      <Grid
+        position={[0, -0.04, 0]}
+        infiniteGrid
+        fadeDistance={75}
+        sectionColor="#00dcff"
+        sectionSize={6}
+        cellColor="#1e293b"
+        cellSize={1.5}
+      />
+
+      {/* 7. Showroom Studio Akzentbeleuchtung (Golden Hour / Softbox Glow wie LKW) */}
+      <directionalLight
+        position={[28, 12, 22]}
+        intensity={2.8}
+        color="#ffe0b2"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-bias={-0.0001}
+      />
+      <ambientLight color="#9cb8d9" intensity={0.55} />
+      <pointLight position={[0, 4, 0]} intensity={1.5} distance={15} color="#38bdf8" />
+    </group>
+  );
+}
+
 // --- 🎬 SCENERY 7: DARK TECH STUDIO ---
 export function DarkStudioSceneryEnvironment() {
   return (
@@ -1397,6 +1497,8 @@ export function DarkStudioSceneryEnvironment() {
 // --- 🌟 MASTER SCENERY RENDERER ---
 export function CraneSceneryEnvironment({ sceneryMode }: { sceneryMode: CraneSceneryType }) {
   switch (sceneryMode) {
+    case 'plate':
+      return <ShowroomPlateSceneryEnvironment />;
     case 'bright_concrete':
       return <BrightConcreteSceneryEnvironment />;
     case 'pyramids':

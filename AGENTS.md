@@ -31,6 +31,7 @@ graph TD
     Orchestrator --> Director[20. camera_director<br/>Automated Cinematography & Broadcast Regie]
     Tennis --> BallDeployment[21. ball_crane_deployment<br/>Tennis Ball Deployment, Hopper & Cannon Launcher]
     Orchestrator --> LKW[22. man_tgl_truck<br/>🚚 LKW Logistics & Transport Master]
+    Orchestrator --> RPM[23. ready_player_me_avatar<br/>🧑 Ready Player Me Humanoid Engine & Studio]
     
     subgraph LKW_Subsystem [🚚 MAN TGL 12.250 Subagenten-Ökosystem]
         LKW --> Cabin[22.1 truck_cabin<br/>Fahrerkabine, Cockpit, Türen & MAN Grill]
@@ -573,6 +574,21 @@ graph TD
   * **3. Showroom & Telematics Integration**:
     * 3D-Blinkerschnittstelle mit animiertem HUD-Segment-Schalter (`[⬅️ L] [⚠️ Warnblinker] [R ➡️]`).
     * Automatische Koppelung an die Ladebordwand-Bewegung (Plattform-Sicherheitsblinken).
+
+### 23. `ready_player_me_avatar` (🧑 Ready Player Me Humanoid Engine & Studio Master)
+* **Dateien**: [`src/components/rpm/ReadyPlayerMeAvatar.tsx`](file:///e:/3D-headings/src/components/rpm/ReadyPlayerMeAvatar.tsx), [`src/components/rpm/ReadyPlayerMeStudio.tsx`](file:///e:/3D-headings/src/components/rpm/ReadyPlayerMeStudio.tsx), [`src/components/rpm/readyPlayerMePresets.ts`](file:///e:/3D-headings/src/components/rpm/readyPlayerMePresets.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. Universelle Ready Player Me WebGL-Engine (`ReadyPlayerMeAvatar`)**:
+    * Laden von beliebigen Ready Player Me `.glb`-Avatarmodellen über CDN-URL oder ID via `useGLTF`.
+    * Standardisiertes Mixamo/Humanoid-Skelett-Mapping (`Hips`, `Spine`, `Chest`, `Neck`, `Head`, `LeftArm`, `RightArm`, `LeftLeg`, `RightLeg` etc.).
+    * Prozedurale Kinematik & Posen-Engine in `useFrame`: Idle (Atmung/Gewichtsverlagerung), Walk-Cycle (Gegenphasiger Schwung & Knee-Flex), Kranführer-Haltung (Heckpult & Wippschalter), DoP-Haltung (Master Wheels), Tennis (Ready-Stance & Aufschlag-Trophy-Pose), Winken, Dance-Groove und LKW-Fahrposition.
+    * 52 ARKit / Oculus Blendshapes & Morph Targets mit prozeduralem Auto-Blinzeln (Zufallsintervalle 2.5–6s, 140ms Lidschlag), Lächeln, Mundöffnung und Augenbrauensteuerung.
+    * Dynamisches LookAt Head-Tracking mit menschlichen Winkelgrenzen (Yaw $\pm 60^\circ$, Pitch $\pm 45^\circ$).
+  * **2. Interaktiver 3D-Avatar-Showroom (`ReadyPlayerMeStudio`)**:
+    * 3D-Drehteller-Bühne mit 3-Punkt-Studiobeleuchtung (Warm Key, Cool Fill, Gold Rim), holographischem Lade-Wireframe und Kamera-Presets (Ganzkörper, Oberkörper, Gesichtsnahaufnahme).
+    * Preset-Galerie: 🎬 Max Lindemann (Kran-Operator), 🎛️ Elena Vance (DoP Lead), 🎾 Carlos Rivera (Tennis Pro), 🚚 Jake Sullivan (MAN TGL Trucker), 🕶️ Neo Kusanagi (Cyber Director).
+    * **In-App Ready Player Me Creator (Iframe Overlay)**: Nahtlose Einbindung von `demo.readyplayer.me/avatar?frameApi=true` mit Event-Listener für `v1.avatar.exported` zur direkten Live-Injektion in die 3D-Szene.
+    * Manuelle GLB-URL-Eingabe und Szenen-Zuweisung zu Kran und Tennis.
 
 ---
 

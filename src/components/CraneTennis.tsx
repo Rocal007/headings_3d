@@ -3289,7 +3289,7 @@ export default function CraneTennis() {
       {cameraMode === 'broadcast' && (
         <div style={{
           position: 'absolute',
-          top: '20px',
+          top: '72px',
           left: '20px',
           display: 'flex',
           alignItems: 'center',
@@ -3327,7 +3327,7 @@ export default function CraneTennis() {
       {/* 🖥️ ON-SCREEN GRAFIK-DETAILTREUE & GPU-BENCHMARK HUD (DIRECT VIEW) */}
       <div style={{
         position: 'absolute',
-        top: cameraMode === 'broadcast' ? '78px' : '20px',
+        top: cameraMode === 'broadcast' ? '130px' : '72px',
         left: '20px',
         width: isGpuHudExpanded ? '310px' : 'auto',
         background: 'rgba(11, 16, 28, 0.92)',

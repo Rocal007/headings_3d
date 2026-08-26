@@ -59,12 +59,14 @@ export interface CircuitDefinition {
   controlPoints: TrackControlPoint[];
   sectors: TrackSectorInfo[];
   cameras?: TracksideCamera[];
+  racingLine?: { u: number; offset: number }[]; // Ideallinie-Offsets in Metern (+ = rechts, - = links)
 }
 
 export interface TrackMeshesResult {
   group: THREE.Group;
   trackCurve: THREE.CatmullRomCurve3;
   splineLength: number;
+  trackLabelsGroup?: THREE.Group; // 3D-Streckenbeschriftungen & Kurvenmarkierungen (Ein/Aus schaltbar)
   disposables: {
     geometries: THREE.BufferGeometry[];
     materials: THREE.Material[];

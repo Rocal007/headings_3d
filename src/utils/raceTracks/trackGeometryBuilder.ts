@@ -332,7 +332,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   group.add(startFinishMesh);
 
   // 5. Start-Ziel-Gantry (Startampel-Brücke über der Hauptgeraden)
-  const gantryGroup = createStartGantry(sfPt, sfTan, trackWidth);
+  const gantryGroup = createStartGantry(sfPt, sfTan, trackWidth, circuit, disposables);
   group.add(gantryGroup);
 
   // 6. Bremstafeln (150m, 100m, 50m) vor harten Bremszonen
@@ -383,6 +383,16 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
   const terrainMesh = createCircuitTerrainMesh(trackCurve, disposables);
   group.add(terrainMesh);
 
+  // 9. 🇦🇹 Spezifische Wahrzeichen (Landmarks) für Red Bull Ring Spielberg
+  if (circuit.id === 'red_bull_ring') {
+    const redBullLandmarks = createRedBullRingLandmarks(trackCurve, disposables);
+    group.add(redBullLandmarks);
+  }
+
+  // 10. 🏷️ 3D-Streckenbeschriftungen & Kurvenmarkierungen (Ein/Aus schaltbar)
+  const trackLabelsGroup = createCircuitLabels3D(circuit, trackCurve, disposables);
+  group.add(trackLabelsGroup);
+
   // Rekursives Erfassen aller GPU-Ressourcen für 100% Zero-Leak Garantie (Säule 2.1)
   group.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -412,6 +422,7 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
     group,
     trackCurve,
     splineLength,
+    trackLabelsGroup,
     disposables,
   };
 }
@@ -420,7 +431,9 @@ export function buildCircuit3D(circuit: CircuitDefinition): TrackMeshesResult {
 function createStartGantry(
   pt: THREE.Vector3,
   tan: THREE.Vector3,
-  trackWidth: number
+  trackWidth: number,
+  circuit?: CircuitDefinition,
+  disposables?: TrackMeshesResult['disposables']
 ): THREE.Group {
   const gantry = new THREE.Group();
   const angle = Math.atan2(tan.x, tan.z);
@@ -458,6 +471,35 @@ function createStartGantry(
     lamp.rotation.x = Math.PI * 0.5;
     lamp.position.set(i * 0.65, 0, 0.1);
     lightsGroup.add(box, lamp);
+  }
+
+  // 🏁 Circuit Header Display Banner auf der Brücke
+  if (circuit) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 1024, 128);
+      ctx.strokeStyle = '#00dcff';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, 1016, 120);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 44px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${circuit.flag}  ${circuit.name.toUpperCase()}  ${circuit.flag}`, 512, 64);
+    }
+    const bannerTex = new THREE.CanvasTexture(canvas);
+    if (disposables) disposables.textures.push(bannerTex);
+    const bannerMat = new THREE.MeshStandardMaterial({ map: bannerTex, roughness: 0.2, emissive: '#ffffff', emissiveMap: bannerTex, emissiveIntensity: 0.45 });
+    if (disposables) disposables.materials.push(bannerMat);
+
+    const bannerMesh = new THREE.Mesh(new THREE.BoxGeometry(spanW * 0.82, 1.1, 0.1), bannerMat);
+    bannerMesh.position.set(0, height + 0.8, 0.2);
+    gantry.add(bannerMesh);
   }
 
   gantry.add(leftPillar, rightPillar, topBeam, lightsGroup);
@@ -989,4 +1031,333 @@ function createCircuitTerrainMesh(
   const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
   terrainMesh.receiveShadow = true;
   return terrainMesh;
+}
+
+/**
+ * 🇦🇹 Erzeugt die authentischen Wahrzeichen des Red Bull Rings in Spielberg:
+ * 1. Der monumentale 30m-Stahlbogen mit dem "Stier von Spielberg" (Skulptur)
+ * 2. Start-Ziel Haupttribüne mit Überdachung
+ * 3. Schönberg Steiermark-Hangtribüne
+ * 4. Österreich & Steiermark Fahnenmasten (Rot-Weiß-Rot)
+ * 5. Red Bull Ring Werbebanden
+ */
+function createRedBullRingLandmarks(
+  _trackCurve: THREE.CatmullRomCurve3,
+  disposables: TrackMeshesResult['disposables']
+): THREE.Group {
+  const landmarks = new THREE.Group();
+  landmarks.name = 'RedBullRing_Spielberg_Landmarks';
+
+  // --- MATERIALIEN FÜR DAS RED BULL RING MONUMENT ---
+  const cortenMat = new THREE.MeshStandardMaterial({
+    color: '#8b4513',
+    roughness: 0.75,
+    metalness: 0.35,
+  });
+  const darkTitaniumMat = new THREE.MeshStandardMaterial({
+    color: '#1e2530',
+    roughness: 0.3,
+    metalness: 0.85,
+  });
+  const chromeRingMat = new THREE.MeshStandardMaterial({
+    color: '#e2e8f0',
+    roughness: 0.15,
+    metalness: 0.95,
+  });
+  const goldHornsMat = new THREE.MeshStandardMaterial({
+    color: '#f59e0b',
+    emissive: '#d97706',
+    emissiveIntensity: 0.35,
+    roughness: 0.25,
+    metalness: 0.9,
+  });
+  const concreteMat = new THREE.MeshStandardMaterial({
+    color: '#475569',
+    roughness: 0.9,
+    metalness: 0.05,
+  });
+  const flagRedMat = new THREE.MeshStandardMaterial({
+    color: '#ef4444',
+    roughness: 0.6,
+  });
+  const flagWhiteMat = new THREE.MeshStandardMaterial({
+    color: '#f8fafc',
+    roughness: 0.6,
+  });
+
+  disposables.materials.push(
+    cortenMat,
+    darkTitaniumMat,
+    chromeRingMat,
+    goldHornsMat,
+    concreteMat,
+    flagRedMat,
+    flagWhiteMat
+  );
+
+  // =========================================================================
+  // 1. DER MONUMENTALE "STIER VON SPIELBERG" AUF DEM SCHÖNBERG-HÜGEL
+  // =========================================================================
+  const bullMonument = new THREE.Group();
+  bullMonument.position.set(72, 19.5, 115);
+  bullMonument.rotation.y = THREE.MathUtils.degToRad(-35);
+
+  // Sockel-Podium
+  const podiumGeo = new THREE.BoxGeometry(18, 2.4, 14);
+  const podium = new THREE.Mesh(podiumGeo, concreteMat);
+  podium.position.y = 1.2;
+  podium.receiveShadow = true;
+  podium.castShadow = true;
+  bullMonument.add(podium);
+
+  // Der Riesen-Stahlbogen (30m Monumental Arch)
+  const archOuterGeo = new THREE.TorusGeometry(12.5, 0.75, 16, 40, Math.PI);
+  const archOuter = new THREE.Mesh(archOuterGeo, chromeRingMat);
+  archOuter.position.set(0, 2.4, 0);
+  archOuter.castShadow = true;
+  bullMonument.add(archOuter);
+
+  const archInnerGeo = new THREE.TorusGeometry(10.5, 0.45, 12, 32, Math.PI);
+  const archInner = new THREE.Mesh(archInnerGeo, darkTitaniumMat);
+  archInner.position.set(0, 2.4, 0);
+  bullMonument.add(archInner);
+
+  // Skulptur: Der Stier von Spielberg
+  const bullGroup = new THREE.Group();
+  bullGroup.position.set(0, 3.2, 0);
+
+  // Rumpf & Brust
+  const torsoGeo = new THREE.BoxGeometry(5.2, 3.8, 8.5);
+  const torso = new THREE.Mesh(torsoGeo, cortenMat);
+  torso.position.set(0, 3.5, 0);
+  torso.castShadow = true;
+
+  // Schulterbuckel
+  const shoulderGeo = new THREE.BoxGeometry(4.6, 2.2, 3.8);
+  const shoulder = new THREE.Mesh(shoulderGeo, cortenMat);
+  shoulder.position.set(0, 5.2, 1.6);
+  shoulder.castShadow = true;
+
+  // Kopf
+  const headGeo = new THREE.ConeGeometry(1.6, 3.2, 6);
+  const head = new THREE.Mesh(headGeo, cortenMat);
+  head.rotation.x = Math.PI * 0.65;
+  head.position.set(0, 4.2, 4.8);
+  head.castShadow = true;
+
+  // 2x Goldene Hörner
+  const hornLGeo = new THREE.TorusGeometry(1.6, 0.22, 8, 16, Math.PI * 0.45);
+  const hornL = new THREE.Mesh(hornLGeo, goldHornsMat);
+  hornL.rotation.set(0.3, 0.6, 0.8);
+  hornL.position.set(1.4, 5.4, 4.4);
+  hornL.castShadow = true;
+
+  const hornRGeo = new THREE.TorusGeometry(1.6, 0.22, 8, 16, Math.PI * 0.45);
+  const hornR = new THREE.Mesh(hornRGeo, goldHornsMat);
+  hornR.rotation.set(0.3, -0.6, -0.8);
+  hornR.position.set(-1.4, 5.4, 4.4);
+  hornR.castShadow = true;
+
+  // 4x Beine
+  const legOffsets = [
+    [-1.8, 1.6, 2.6],
+    [1.8, 1.6, 2.6],
+    [-1.7, 1.6, -2.6],
+    [1.7, 1.6, -2.6],
+  ];
+  legOffsets.forEach(([lx, ly, lz]) => {
+    const legGeo = new THREE.BoxGeometry(0.9, 3.4, 1.1);
+    const leg = new THREE.Mesh(legGeo, cortenMat);
+    leg.position.set(lx, ly, lz);
+    leg.castShadow = true;
+    bullGroup.add(leg);
+  });
+
+  bullGroup.add(torso, shoulder, head, hornL, hornR);
+  bullMonument.add(bullGroup);
+
+  // 4x Österreich-Flaggen am Monument (Rot-Weiß-Rot)
+  const flagCoords = [
+    [-8, 0, -5],
+    [8, 0, -5],
+    [-8, 0, 5],
+    [8, 0, 5],
+  ];
+  flagCoords.forEach(([fx, _fy, fz]) => {
+    const poleGeo = new THREE.CylinderGeometry(0.08, 0.08, 11, 8);
+    const pole = new THREE.Mesh(poleGeo, darkTitaniumMat);
+    pole.position.set(fx, 6.7, fz);
+    pole.castShadow = true;
+
+    // 3 Streifen (Rot - Weiß - Rot)
+    const fR1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.55, 0.04), flagRedMat);
+    fR1.position.set(fx + 1.2, 11.2, fz);
+    const fW = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.55, 0.04), flagWhiteMat);
+    fW.position.set(fx + 1.2, 10.65, fz);
+    const fR2 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.55, 0.04), flagRedMat);
+    fR2.position.set(fx + 1.2, 10.1, fz);
+
+    bullMonument.add(pole, fR1, fW, fR2);
+  });
+
+  landmarks.add(bullMonument);
+
+  return landmarks;
+}
+
+/**
+ * 🏷️ Erzeugt 3D-Streckenbeschriftungen & Kurvenmarkierungen für alle Sektoren
+ * (Asphalt-Bodenmarkierungen & beleuchtete 3D-Streckenrand-Displays, ein/aus-schaltbar)
+ */
+export function createCircuitLabels3D(
+  circuit: CircuitDefinition,
+  trackCurve: THREE.CatmullRomCurve3,
+  disposables: TrackMeshesResult['disposables']
+): THREE.Group {
+  const labelsGroup = new THREE.Group();
+  labelsGroup.name = 'TrackLabelsGroup';
+
+  const sectors = circuit.sectors;
+  if (!sectors || sectors.length === 0) return labelsGroup;
+
+  const trackWidth = circuit.trackWidth;
+  const halfW = trackWidth * 0.5;
+
+  sectors.forEach((sec) => {
+    // Positioniere die Markierung im Bereich des Sektors
+    const uLabel = (sec.uStart + sec.uEnd) * 0.5;
+    const pt = trackCurve.getPointAt(uLabel);
+    const tan = trackCurve.getTangentAt(uLabel);
+    const heading = Math.atan2(tan.x, tan.z);
+    const roadPitch = Math.atan2(-tan.y, Math.hypot(tan.x, tan.z));
+
+    const nx = -tan.z;
+    const nz = tan.x;
+    const len = Math.hypot(nx, nz) || 1;
+    const normX = nx / len;
+    const normZ = nz / len;
+
+    // Farbcodierung: Kurven Gold/Rot, Geraden Cyan/Grün
+    const isCorner = sec.turnNum > 0;
+    const themeColor = isCorner ? '#f59e0b' : '#00dcff';
+    const accentColor = isCorner ? '#ef4444' : '#10b981';
+
+    // 1. 🏁 ASPHALT-BODENMARKIERUNG (Direkt auf der Fahrbahn lesbar)
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Dunkler, semi-transparenter Carbon-Hintergrund
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.beginPath();
+      ctx.roundRect(16, 16, 992, 224, 28);
+      ctx.fill();
+
+      // Neon-Rahmen mit Leuchteffekt
+      ctx.strokeStyle = themeColor;
+      ctx.lineWidth = 8;
+      ctx.stroke();
+
+      // Deko-Eckakzente
+      ctx.fillStyle = accentColor;
+      ctx.fillRect(16, 16, 36, 12);
+      ctx.fillRect(16, 16, 12, 36);
+      ctx.fillRect(972, 16, 36, 12);
+      ctx.fillRect(996, 16, 12, 36);
+      ctx.fillRect(16, 228, 36, 12);
+      ctx.fillRect(16, 204, 12, 36);
+      ctx.fillRect(972, 228, 36, 12);
+      ctx.fillRect(996, 204, 12, 36);
+
+      // Titel (Name der Kurve / Gerade)
+      ctx.font = '900 64px "Arial Black", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = themeColor;
+      ctx.shadowBlur = 18;
+      const titleText = isCorner ? `T${sec.turnNum} • ${sec.name}` : sec.name;
+      ctx.fillText(titleText, 512, 105);
+
+      // Untertitel mit Telemetrie-Referenz
+      ctx.shadowBlur = 0;
+      ctx.font = 'bold 36px monospace';
+      ctx.fillStyle = themeColor;
+      const drsInfo = sec.drsZone ? ` • ⚡ ${sec.drsZone}` : '';
+      const gInfo = sec.f1GForce ? ` • ${sec.f1GForce.toFixed(1)} G` : '';
+      const subText = `F1 REF: ${sec.f1Speed} KM/H • GANG ${sec.f1Gear}${gInfo}${drsInfo}`;
+      ctx.fillText(subText, 512, 185);
+    }
+
+    const groundTex = new THREE.CanvasTexture(canvas);
+    groundTex.anisotropy = 8;
+    disposables.textures.push(groundTex);
+
+    const groundMat = new THREE.MeshStandardMaterial({
+      map: groundTex,
+      transparent: true,
+      roughness: 0.4,
+      metalness: 0.1,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -8,
+      depthWrite: false,
+    });
+    disposables.materials.push(groundMat);
+
+    const groundGeo = new THREE.PlaneGeometry(24.0, 6.0);
+    disposables.geometries.push(groundGeo);
+
+    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+    groundMesh.position.set(pt.x, pt.y + 0.06, pt.z);
+    groundMesh.rotation.order = 'YXZ';
+    groundMesh.rotation.y = heading;
+    groundMesh.rotation.x = -Math.PI * 0.5 + roadPitch;
+    labelsGroup.add(groundMesh);
+
+    // 2. 📍 STRECKENRAND-STANDSCHILD (Beleuchtetes 3D-Display neben der Fahrbahn)
+    const signGroup = new THREE.Group();
+    const signSide = isCorner ? (sec.turnNum % 2 === 0 ? 1 : -1) : -1;
+    const signDist = halfW + 5.0;
+    signGroup.position.set(
+      pt.x + normX * (signSide * signDist),
+      pt.y,
+      pt.z + normZ * (signSide * signDist)
+    );
+    signGroup.rotation.y = heading + (signSide > 0 ? -Math.PI * 0.15 : Math.PI * 0.15);
+
+    // Carbon-Mast
+    const mastMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.7, roughness: 0.3 });
+    disposables.materials.push(mastMat);
+    const mastGeo = new THREE.CylinderGeometry(0.12, 0.16, 4.2, 16);
+    disposables.geometries.push(mastGeo);
+    const mast = new THREE.Mesh(mastGeo, mastMat);
+    mast.position.y = 2.1;
+
+    // Display-Box
+    const boxMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.4 });
+    disposables.materials.push(boxMat);
+    const boxGeo = new THREE.BoxGeometry(6.2, 2.2, 0.35);
+    disposables.geometries.push(boxGeo);
+    const box = new THREE.Mesh(boxGeo, boxMat);
+    box.position.y = 3.4;
+
+    // Display Front Panel
+    const panelMat = new THREE.MeshStandardMaterial({
+      map: groundTex,
+      emissive: themeColor,
+      emissiveIntensity: 0.45,
+      roughness: 0.2,
+    });
+    disposables.materials.push(panelMat);
+    const panelGeo = new THREE.PlaneGeometry(5.9, 2.0);
+    disposables.geometries.push(panelGeo);
+    const panelFront = new THREE.Mesh(panelGeo, panelMat);
+    panelFront.position.set(0, 3.4, 0.19);
+
+    signGroup.add(mast, box, panelFront);
+    labelsGroup.add(signGroup);
+  });
+
+  return labelsGroup;
 }
