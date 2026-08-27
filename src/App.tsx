@@ -3,11 +3,13 @@ import './App.css';
 import Truck from './components/Truck';
 import TruckRace from './components/TruckRace';
 import Crane from './components/Crane';
+import CameraHead from './components/CameraHead';
 import CraneTennis from './components/CraneTennis';
 import { ReadyPlayerMeStudio } from './components/rpm/ReadyPlayerMeStudio';
+import Jeep from './components/Jeep';
 import ErrorBoundary from './components/ErrorBoundary';
 
-export type AppViewMode = 'crane' | 'truck' | 'tennis' | 'race' | 'avatar';
+export type AppViewMode = 'crane' | 'head' | 'truck' | 'tennis' | 'race' | 'avatar' | 'jeep';
 
 interface NavigationBarProps {
   currentView: AppViewMode;
@@ -24,11 +26,25 @@ function MainNavigationBar({ currentView, onSelectView }: NavigationBarProps) {
       activeGradient: 'linear-gradient(135deg, #e5c500 0%, #ca8a04 100%)'
     },
     {
+      id: 'head',
+      label: 'Show Head',
+      icon: '🎥',
+      activeColor: '#f97316',
+      activeGradient: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)'
+    },
+    {
       id: 'truck',
       label: 'Show LKW',
       icon: '🚚',
       activeColor: '#38bdf8',
       activeGradient: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
+    },
+    {
+      id: 'jeep',
+      label: 'Show Jeep',
+      icon: '🚙',
+      activeColor: '#c4a675',
+      activeGradient: 'linear-gradient(135deg, #c4a675 0%, #8c6d3d 100%)'
     },
     {
       id: 'tennis',
@@ -111,7 +127,7 @@ function MainNavigationBar({ currentView, onSelectView }: NavigationBarProps) {
               borderRadius: 10,
               border: isActive ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
               background: isActive ? item.activeGradient : 'rgba(255, 255, 255, 0.04)',
-              color: isActive ? (item.id === 'crane' ? '#000000' : '#ffffff') : '#94a3b8',
+              color: isActive ? (item.id === 'crane' || item.id === 'jeep' ? '#000000' : '#ffffff') : '#94a3b8',
               fontWeight: isActive ? 800 : 600,
               fontSize: 12,
               cursor: 'pointer',
@@ -144,9 +160,21 @@ function App() {
         </ErrorBoundary>
       )}
 
+      {viewMode === 'head' && (
+        <ErrorBoundary fallbackTitle="Supertechno 3-Achs Remote Camera Head Studio">
+          <CameraHead />
+        </ErrorBoundary>
+      )}
+
       {viewMode === 'truck' && (
         <ErrorBoundary fallbackTitle="MAN TGL 12.250 LKW Showroom">
           <Truck onOpenRace={() => setViewMode('race')} />
+        </ErrorBoundary>
+      )}
+
+      {viewMode === 'jeep' && (
+        <ErrorBoundary fallbackTitle="Willys MB 1/4-Ton 4x4 Offroad Studio">
+          <Jeep />
         </ErrorBoundary>
       )}
 

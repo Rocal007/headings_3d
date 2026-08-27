@@ -209,6 +209,7 @@ export interface RemoteCameraHeadProps {
   scale?: number;
   useCadColors?: boolean;
   showCableLead?: boolean;
+  hideMountUmbilical?: boolean;
   customPayload?: React.ReactNode;
   hideCamera?: boolean;
   kinematicsRef?: React.MutableRefObject<{
@@ -230,6 +231,7 @@ export function RemoteCameraHead({
   scale = 1.0,
   useCadColors = false,
   showCableLead = true,
+  hideMountUmbilical = false,
   customPayload,
   hideCamera = false,
   kinematicsRef
@@ -369,51 +371,82 @@ export function RemoteCameraHead({
   const matDecalTopFront = useMemo(() => new THREE.MeshBasicMaterial({ map: texTopFront, transparent: true }), [texTopFront]);
   const matDecalRosette = useMemo(() => new THREE.MeshBasicMaterial({ map: texRosette, transparent: true }), [texRosette]);
 
-  // Cable Harnesses matching set photos
+  // --------------------------------------------------------------------------
+  // 1. Pan-Umbilical Service Loop (Directly connecting Fixed Upper Mount to Rotating Pan Yoke Crown)
+  const mountToPanCable = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.040, 0.200, 0.020),   // Upper Mount Baseplate Terminal
+    new THREE.Vector3(0.065, 0.150, 0.040),   // Smooth Catenary Drop Curve
+    new THREE.Vector3(0.075, 0.100, 0.035),   // Flex Loop
+    new THREE.Vector3(0.055, 0.065, 0.020),   // Entry Transition
+    new THREE.Vector3(0.025, 0.048, 0.010)    // Pan Yoke Crown Entry Cable Gland
+  ]), []);
+
+  // 2. Multi-Core Harness Loops hanging in supple catenary curves beneath Yoke Arch
   const underYokeLoop1 = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.20, -0.01, 0.04),
-    new THREE.Vector3(-0.10, -0.07, 0.06),
-    new THREE.Vector3(0.0, -0.09, 0.06),
-    new THREE.Vector3(0.10, -0.07, 0.06),
-    new THREE.Vector3(0.20, -0.01, 0.04)
+    new THREE.Vector3(-0.22, 0.00, 0.05),
+    new THREE.Vector3(-0.14, -0.09, 0.08),
+    new THREE.Vector3(0.0, -0.13, 0.09),
+    new THREE.Vector3(0.14, -0.09, 0.08),
+    new THREE.Vector3(0.22, 0.00, 0.05)
   ]), []);
   const underYokeLoop2 = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.18, -0.01, 0.0),
-    new THREE.Vector3(-0.09, -0.08, 0.02),
-    new THREE.Vector3(0.0, -0.105, 0.02),
-    new THREE.Vector3(0.09, -0.08, 0.02),
-    new THREE.Vector3(0.18, -0.01, 0.0)
+    new THREE.Vector3(-0.20, 0.00, 0.00),
+    new THREE.Vector3(-0.11, -0.11, 0.03),
+    new THREE.Vector3(0.0, -0.15, 0.03),
+    new THREE.Vector3(0.11, -0.11, 0.03),
+    new THREE.Vector3(0.20, 0.00, 0.00)
   ]), []);
   const underYokeLoop3 = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.19, -0.01, -0.04),
-    new THREE.Vector3(-0.10, -0.065, -0.03),
-    new THREE.Vector3(0.0, -0.085, -0.03),
-    new THREE.Vector3(0.10, -0.065, -0.03),
-    new THREE.Vector3(0.19, -0.01, -0.04)
+    new THREE.Vector3(-0.21, 0.00, -0.05),
+    new THREE.Vector3(-0.12, -0.085, -0.04),
+    new THREE.Vector3(0.0, -0.12, -0.04),
+    new THREE.Vector3(0.12, -0.085, -0.04),
+    new THREE.Vector3(0.21, 0.00, -0.05)
   ]), []);
+
+  // 3. Drop Cables along Strut Arms entering Tilt Bearings (with generous loop slack)
   const rightVelcroDropCable = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.25, 0.12, -0.042),
-    new THREE.Vector3(0.275, 0.02, -0.048),
-    new THREE.Vector3(0.285, -0.08, -0.050),
-    new THREE.Vector3(0.275, -0.16, -0.045)
+    new THREE.Vector3(0.24, 0.12, -0.040),
+    new THREE.Vector3(0.27, 0.02, -0.048),
+    new THREE.Vector3(0.29, -0.08, -0.052),
+    new THREE.Vector3(0.28, -0.16, -0.048),
+    new THREE.Vector3(0.26, -0.21, -0.020)
   ]), []);
-  const leftLemoDropCable = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.20, 0.02, -0.055),
-    new THREE.Vector3(-0.245, -0.06, -0.058),
-    new THREE.Vector3(-0.255, -0.14, -0.050),
-    new THREE.Vector3(-0.255, -0.212, -0.042)
-  ]), []);
-  const mountToYokeCable = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0.08, 0.07, 0.02),
-    new THREE.Vector3(0.14, 0.04, 0.02),
-    new THREE.Vector3(0.18, 0.01, 0.01)
-  ]), []);
+
+  // 4. Camera Baseplate BP-8 Feed Loop (Supple U-curve with extra slack)
   const cradleFeedCable = useMemo(() => new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.252, 0.020, -0.010),
-    new THREE.Vector3(-0.210, -0.025, 0.020),
-    new THREE.Vector3(-0.145, -0.065, 0.010),
-    new THREE.Vector3(-0.080, -0.098, -0.045),
+    new THREE.Vector3(-0.225, -0.040, 0.020),
+    new THREE.Vector3(-0.165, -0.095, 0.010),
+    new THREE.Vector3(-0.095, -0.120, -0.045),
     new THREE.Vector3(-0.065, -0.098, -0.080)
+  ]), []);
+
+  // 5. Primary Camera Power Umbilical (Roll Ring -> Camera BAT Socket with 340° Dutch Roll Slack)
+  const cradleToBatCable = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.252, 0.020, -0.010),
+    new THREE.Vector3(-0.245, -0.055, -0.035),
+    new THREE.Vector3(-0.185, -0.085, -0.085),
+    new THREE.Vector3(-0.105, -0.045, -0.135),
+    new THREE.Vector3(-0.032, 0.000, -0.118)
+  ]), []);
+
+  // 6. Broadcast 12G-SDI Coax Jumper (Roll Ring -> Camera SDI 1 BNC with 340° Flex Loop)
+  const cradleToSdiCable = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.252, -0.015, -0.010),
+    new THREE.Vector3(-0.235, -0.075, -0.030),
+    new THREE.Vector3(-0.165, -0.055, -0.095),
+    new THREE.Vector3(-0.085, 0.015, -0.140),
+    new THREE.Vector3(-0.032, 0.026, -0.118)
+  ]), []);
+
+  // 7. FIZ Lens Control Cable (Roll Ring Right -> Lens Drive / LBUS with 340° Service Loop)
+  const cradleToFizCable = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.252, -0.010, -0.010),
+    new THREE.Vector3(0.235, -0.065, 0.028),
+    new THREE.Vector3(0.165, -0.085, 0.075),
+    new THREE.Vector3(0.090, -0.055, 0.098),
+    new THREE.Vector3(0.065, -0.040, 0.090)
   ]), []);
 
   const levelPitchRef = useRef<THREE.Group>(null);
@@ -517,12 +550,36 @@ export function RemoteCameraHead({
           {/* Cable Harnesses under Bridge Arch */}
           {showCableLead && (
             <group>
-              <mesh castShadow receiveShadow material={matCableRubber}><tubeGeometry args={[mountToYokeCable, 20, 0.014, 10, false]} /></mesh>
+              {/* 1. Direct Umbilical Jumper: Upper Mount Baseplate -> S-Head Crown (Only when mounted on crane) */}
+              {!hideMountUmbilical && (
+                <group>
+                  <mesh castShadow receiveShadow material={matCableRubber}>
+                    <tubeGeometry args={[mountToPanCable, 28, 0.0075, 10, false]} />
+                  </mesh>
+                  {/* Upper Gold LEMO Plug on Mount Baseplate */}
+                  <mesh castShadow material={matGoldSlipRing} position={[0.040, 0.200, 0.020]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.006, 0.006, 0.012, 16]} />
+                  </mesh>
+                  {/* Upper Rubber Strain Relief Boot */}
+                  <mesh castShadow material={matBlackAnodized} position={[0.040, 0.190, 0.020]}>
+                    <cylinderGeometry args={[0.008, 0.006, 0.014, 16]} />
+                  </mesh>
+                  {/* Lower Gold LEMO Cable Gland on Pan Yoke Crown */}
+                  <mesh castShadow material={matGoldSlipRing} position={[0.025, 0.048, 0.010]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.006, 0.006, 0.010, 16]} />
+                  </mesh>
+                  {/* Lower Rubber Strain Relief Boot */}
+                  <mesh castShadow material={matBlackAnodized} position={[0.025, 0.055, 0.010]}>
+                    <cylinderGeometry args={[0.008, 0.006, 0.012, 16]} />
+                  </mesh>
+                </group>
+              )}
+
+              {/* 2. Catenary Harness Loops beneath Yoke Arch */}
               <mesh castShadow receiveShadow material={matCableRubber}><tubeGeometry args={[underYokeLoop1, 24, 0.010, 8, false]} /></mesh>
               <mesh castShadow receiveShadow material={matCableRubber}><tubeGeometry args={[underYokeLoop2, 24, 0.010, 8, false]} /></mesh>
               <mesh castShadow receiveShadow material={matCableRubber}><tubeGeometry args={[underYokeLoop3, 24, 0.010, 8, false]} /></mesh>
               <mesh castShadow receiveShadow material={matCableRubber}><tubeGeometry args={[rightVelcroDropCable, 20, 0.012, 8, false]} /></mesh>
-              <mesh castShadow receiveShadow material={matCableRubber}><tubeGeometry args={[leftLemoDropCable, 20, 0.007, 8, false]} /></mesh>
             </group>
           )}
 
@@ -903,11 +960,12 @@ export function RemoteCameraHead({
                 </group>
               </group>
 
-              {/* Cradle Feed Cable from Left Ring Port directly into Camera BP-8 Block */}
+              {/* DIRECT CABLE HARNESSES: S-HEAD TO ARRI CINEMA CAMERA */}
               {showCableLead && (
                 <group>
+                  {/* 1. Primary BP-8 Power Jumper */}
                   <mesh castShadow receiveShadow material={matCableRubber}>
-                    <tubeGeometry args={[cradleFeedCable, 24, 0.0085, 10, false]} />
+                    <tubeGeometry args={[cradleFeedCable, 24, 0.007, 10, false]} />
                   </mesh>
                   {/* Gold LEMO Right-Angle Plug on Left Ring Ear */}
                   <mesh castShadow material={matGoldSlipRing} position={[-0.252, 0.020, -0.010]} rotation={[0, 0, Math.PI / 2]}>
@@ -925,6 +983,40 @@ export function RemoteCameraHead({
                   {/* Spiral Rubber Strain Relief Boot on BP-8 side */}
                   <mesh castShadow material={matBlackAnodized} position={[-0.070, -0.098, -0.072]} rotation={[0, 0.3, 0]}>
                     <cylinderGeometry args={[0.0075, 0.006, 0.014, 16]} />
+                  </mesh>
+
+                  {/* 2. Primary Camera BAT Power Cable (Roll Ring -> Camera Rear BAT Socket) */}
+                  <mesh castShadow receiveShadow material={matCableRubber}>
+                    <tubeGeometry args={[cradleToBatCable, 28, 0.0065, 10, false]} />
+                  </mesh>
+                  {/* Gold LEMO Plug on Camera Rear BAT Socket */}
+                  <mesh castShadow material={matGoldSlipRing} position={[-0.032, 0.000, -0.118]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.006, 0.006, 0.010, 16]} />
+                  </mesh>
+                  <mesh castShadow material={matBlackAnodized} position={[-0.032, 0.000, -0.124]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.008, 0.006, 0.014, 16]} />
+                  </mesh>
+
+                  {/* 3. Broadcast 12G-SDI Coax Cable (Roll Ring -> Camera SDI 1 BNC) */}
+                  <mesh castShadow receiveShadow material={matCableRubber}>
+                    <tubeGeometry args={[cradleToSdiCable, 28, 0.0045, 10, false]} />
+                  </mesh>
+                  {/* Silver BNC Connector on Camera Rear SDI 1 */}
+                  <mesh castShadow material={matChromeSteel} position={[-0.032, 0.026, -0.120]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.0055, 0.0055, 0.012, 16]} />
+                  </mesh>
+
+                  {/* 4. FIZ Lens Control Cable (Right Ring -> Camera LBUS / Lens) */}
+                  <mesh castShadow receiveShadow material={matCableRubber}>
+                    <tubeGeometry args={[cradleToFizCable, 24, 0.005, 10, false]} />
+                  </mesh>
+                  {/* Gold LEMO Plug on Right Ring Hub */}
+                  <mesh castShadow material={matGoldSlipRing} position={[0.252, -0.010, -0.010]} rotation={[0, 0, -Math.PI / 2]}>
+                    <cylinderGeometry args={[0.0055, 0.0055, 0.010, 16]} />
+                  </mesh>
+                  {/* Gold LEMO Plug on Camera LBUS Terminal */}
+                  <mesh castShadow material={matGoldSlipRing} position={[0.065, -0.040, 0.090]} rotation={[0, 0, Math.PI / 2]}>
+                    <cylinderGeometry args={[0.005, 0.005, 0.008, 16]} />
                   </mesh>
                 </group>
               )}

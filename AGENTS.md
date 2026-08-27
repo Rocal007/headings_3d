@@ -32,6 +32,12 @@ graph TD
     Tennis --> BallDeployment[21. ball_crane_deployment<br/>Tennis Ball Deployment, Hopper & Cannon Launcher]
     Orchestrator --> LKW[22. man_tgl_truck<br/>🚚 LKW Logistics & Transport Master]
     Orchestrator --> RPM[23. ready_player_me_avatar<br/>🧑 Ready Player Me Humanoid Engine & Studio]
+    Orchestrator --> HeadStudio[24. camera_head_studio<br/>🎥 Remote Camera Head 3D Studio & MoCo Testbench]
+    HeadStudio --> Head
+    HeadStudio --> Horizon
+    HeadStudio --> Camera
+    HeadStudio --> HeadCables[25. camera_head_cables<br/>🔌 S-Head Cable Management & Umbilical Master]
+    Orchestrator --> Jeep[26. willys_jeep<br/>🚙 Willys MB 1/4-Ton 4x4 Offroad Master]
     
     subgraph LKW_Subsystem [🚚 MAN TGL 12.250 Subagenten-Ökosystem]
         LKW --> Cabin[22.1 truck_cabin<br/>Fahrerkabine, Cockpit, Türen & MAN Grill]
@@ -49,6 +55,17 @@ graph TD
         LKW --> Headlights[22.13 truck_headlights<br/>💡 LED-Frontscheinwerfer, DRL & Nebellampen]
         LKW --> Tracks[22.14 truck_race_tracks<br/>🏎️ Silverstone GP, Rennstrecken & FIA Kerbs]
         LKW --> Signals[22.15 truck_turn_signals<br/>🚨 Fahrtrichtungsanzeiger, Warnblinker & Relais]
+    end
+
+    subgraph Jeep_Subsystem [🚙 Willys MB 1/4-Ton Subagenten-Ökosystem]
+        Jeep --> BodyTub[26.1 jeep_body_tub<br/>Karosseriewanne, 9-Slot Grill, Haube & Klappscheibe]
+        Jeep --> Drivetrain[26.2 jeep_chassis_drivetrain<br/>80-Zoll Leiterrahmen, Go-Devil L134, T-84 & Dana Achsen]
+        Jeep --> JeepWheels[26.3 jeep_wheels_tires<br/>Combat Split Rims, 6.00-16 NDT Reifen & Ackermann-Lenkung]
+        Jeep --> Interior[26.4 jeep_interior_cockpit<br/>Armaturenbrett, 4 Uhren, 3 Schalthebel & Canvas Sitze]
+        Jeep --> Lighting[26.5 jeep_lighting_electrical<br/>7-Zoll Scheinwerfer, Blackout Marker & BO Rückleuchten]
+        Jeep --> Gear[26.6 jeep_military_gear_accessories<br/>Invasionsstern, Pioneer Rack Axt/Schaufel, Jerrycan & Pintle Hook]
+        Jeep --> Kinematics[26.7 jeep_kinematics_physics<br/>Klappscheiben- & Haubenkinematik, Lenkung & Allradfederung]
+        Jeep --> OffroadEnv[26.8 jeep_offroad_environments<br/>Normandie Bocage, Sahara Wüste, Schlammpiste & Studio]
     end
 ```
 
@@ -116,11 +133,12 @@ graph TD
   * Standardisierte Mitchell-Mount-Basis mit Schlossmutter.
 
 ### 9. `remote_head` (3-Achs Remote Camera Head)
-* **Dateien**: [`src/components/RemoteCameraHead.tsx`](file:///e:/3D-headings/src/components/RemoteCameraHead.tsx)
+* **Dateien**: [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx) (Standalone 3D Studio & Testbench), [`src/components/RemoteCameraHead.tsx`](file:///e:/3D-headings/src/components/RemoteCameraHead.tsx)
 * **Zuständigkeit**:
+  * Eigenständige 3D-Showroom-Ansicht (`Show Head`) mit Mitchell-Stand-Pedestal, Werkbank-Mount & Kranspitzen-Mockup.
   * 3-Achsen Gimbal (Pan, Tilt, Roll) mit Brushless-Direktantrieben.
   * Optische Absolutwertgeber, Schleifringe für kontinuierliche 360°-Drehungen.
-  * Kamerawippe mit Dovetail-Schnellwechselplatte.
+  * Kamerawippe mit Dovetail-Schnellwechselplatte, ARRI Viewfinder Look-Through Modus, MoCo-Motion-Routinen (360° Pan Sweep, Dutch Horizon Wave, Lissajous).
 
 ### 10. `cinema_camera` (ARRI Cinema Kamera Rig)
 * **Dateien**: [`src/components/ArriCinemaCamera.tsx`](file:///e:/3D-headings/src/components/ArriCinemaCamera.tsx)
@@ -590,6 +608,115 @@ graph TD
     * **In-App Ready Player Me Creator (Iframe Overlay)**: Nahtlose Einbindung von `demo.readyplayer.me/avatar?frameApi=true` mit Event-Listener für `v1.avatar.exported` zur direkten Live-Injektion in die 3D-Szene.
     * Manuelle GLB-URL-Eingabe und Szenen-Zuweisung zu Kran und Tennis.
 
+### 24. `camera_head_studio` (🎥 Remote Camera Head 3D Studio & MoCo Testbench Master)
+* **Dateien**: [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx), [`src/components/RemoteCameraHead.tsx`](file:///e:/3D-headings/src/components/RemoteCameraHead.tsx), [`src/components/AutoHorizonMount.tsx`](file:///e:/3D-headings/src/components/AutoHorizonMount.tsx), [`src/components/ArriCinemaCamera.tsx`](file:///e:/3D-headings/src/components/ArriCinemaCamera.tsx), [`src/components/CraneTennisRacketHead.tsx`](file:///e:/3D-headings/src/components/CraneTennisRacketHead.tsx), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * **1. Interaktive 3D Studio- & Showroom-Umgebung (`CameraHead`)**:
+    * Eigenständige 3D-Showroom-Ansicht (`Show Head`) mit freier Orbit-Kamera, Tiefenschärfe, weichen Schatten und 5 Beleuchtungs-Presets (*Dark Technocrane Stage*, *High-Key White Cleanroom*, *Warm Tungsten Cine Set*, *Cyber Neon MoCo Lab*, *Sunset Film Studio*).
+    * Radial-Messraster und studiobühnen-spezifische Boden-PBR-Materialien.
+  * **2. Gimbal-Kinematik & Gelenksteuerung**:
+    * 3-Achsen Gimbal Steuerung: Pan (Yaw, $360^\circ$ kontinuierlich mit Schleifring-Simulation), Tilt (Pitch, $-90^\circ \dots +90^\circ$), Roll (Dutch Roll, $-180^\circ \dots +180^\circ$).
+    * Kran-Ausleger Neigungssimulation ($-45^\circ \dots +60^\circ$) mit dynamischem, elektronischem Auto-Horizon Gyro-Nivellierausgleich.
+    * Nullpunkt-Kalibrierung, Feinabstimmungs-Steppern und Gelenk-Reset.
+  * **3. ARRI Cine Viewfinder POV (Look-Through Modus)**:
+    * Echter Blick durch das ARRI Prime DNA 45mm T1.8 Cine-Objektiv mit Sensorebene.
+    * 2.39:1 Anamorphic Scope & 16:9 Broadcast Frame Guides, Fadenkreuz, Corner Markers und Live-Aufnahme-Status (`● REC [RAW]`).
+    * ARRI Statusleiste (*24.000 fps, 180.0° Shutter, EI 800, 5600K, ProRes 4444 XQ, Timecode `01:42:18:12`*).
+  * **4. MoCo Motion-Routinen & Presets**:
+    * *Continuous 360° Pan Sweep*: Endlose Yaw-Schleifring-Fahrt zur Überprüfung der Kabelentlastung.
+    * *Dutch Horizon Wave*: Dynamische Rollachsen-Wellenbewegung von $-90^\circ$ bis $+90^\circ$.
+    * *Pan & Tilt Kalibrier-Routine*: Automatisierter Präzisions-Stresstest aller Motoren.
+    * *3-Achs MoCo Figure-8*: Komplexe Lissajous-Kamerafahrt im Raum.
+    * *Studio 360° Drehteller (Turntable)* für automatische Präsentations-Rundumfahrten.
+    * Payload-Optionen: ARRI Alexa Mini LF Rig mit FIZ-Motoren & Mattebox, High-Modulus Carbon Tennis Racket Head (16x19 Bespannung mit kinetischem Saiten-Glow) und Bare Gimbal Yoke.
+
+### 25. `camera_head_cables` (🔌 S-Head Cable Management & Umbilical Master)
+* **Dateien**: [`src/components/RemoteCameraHead.tsx`](file:///e:/3D-headings/src/components/RemoteCameraHead.tsx), [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx), [`src/components/AutoHorizonMount.tsx`](file:///e:/3D-headings/src/components/AutoHorizonMount.tsx), [`src/components/ArriCinemaCamera.tsx`](file:///e:/3D-headings/src/components/ArriCinemaCamera.tsx)
+* **Zuständigkeit**:
+  * **1. Originalgetreues Kabelmanagement & 3-Achs-Dynamik**:
+    * **Pan-Umbilical Jumper (`mountToPanCable`)**: Direkte Verbindung zwischen der Basisplatte des starren oberen Mounts und der rotierenden Pan-Yoke-Krone mit vergoldeten LEMO-Steckverbindern und Knickschutztüllen.
+    * **Unter-Yoke-Kabelschlaufen (`underYokeLoop1-3`)**: 3-fache mehradrige Catenary-Schlaufen mit weitem Biegeradius unter dem Brückenbogen für $340^\circ \dots 360^\circ$ torsionsfreie Drehung.
+    * **Rechte Karbonstreben-Führung (`rightVelcroDropCable`)**: Entlang der rechten Strebe fixiertes Kabel mit Klettbändern (Velcro Straps) zur Tilt-Lager-Durchführung.
+  * **2. ARRI Cinema Kamera-Payload Verbindungen**:
+    * **Haupt-Stromversorgung (`cradleToBatCable`)**: 8-Pin LEMO-Hauptzuleitung von der linken Roll-Ring-Verteilerbuchse direkt in die rückseitige BAT-Buchse der ARRI Alexa Mini LF mit $340^\circ$-Dutch-Roll-Lose.
+    * **12G-SDI Broadcast-Koaxialleitung (`cradleToSdiCable`)**: Geschirmtes Koaxialkabel mit verchromter BNC-Bajonettkupplung vom Roll-Ring in den SDI-1 Port der Kamera.
+    * **FIZ-Objektivsteuerung (`cradleToFizCable`)**: Mehradriges Steuerkabel von der rechten Ringbuchse zum LBUS-Port und den cforce mini Objektivmotoren auf den 19mm-Studio-Rohren.
+    * **BP-8 Basisplatten-Zuleitung (`cradleFeedCable`)**: Strom- und Datenbrücke vom Roll-Ring in den Verteilerblock der ARRI BP-8 Studio-Basisplatte.
+  * **3. Physikalische Konsistenz & Kollisionsfreiheit**:
+    * Logische Längen- und Durchhangsdimensionierung zur Vermeidung von Kabelclipping, Knicken oder Überspannung bei extremen Gimbal-Posen (Tilt $\pm 90^\circ$, Roll $\pm 180^\circ$, Pan $360^\circ$).
+
+### 26. `willys_jeep` (🚙 Willys MB 1/4-Ton 4x4 Offroad & Reconnaissance Master)
+* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+* **Zuständigkeit**:
+  * Gesamtsystem-Orchestrierung des 1941–1945 Willys MB 1/4-Ton 4x4 US Army Aufklärungs- und Geländewagens (Radstand $2.032\,\text{m} / 80\,\text{Zoll}$, Gesamtlänge $3.33\,\text{m}$, Breite $1.575\,\text{m}$, Gewicht $1.040\,\text{kg}$).
+  * PBR-Material- und Textur-Management (1944 WWII US Army Olive Drab, Sahara Desert Sand, Post-War CJ Red).
+  * 3D-Showroom-Bühne mit dynamischer Beleuchtung, Echtzeit-Schatten, 6 Kamera-Presets (*360° Studio Orbit*, *Hero 3/4*, *Cockpit & Dashboard*, *Go-Devil Motorraum*, *Pioneer Tools & Heck*, *Seitenprofil*).
+  * Integriertes Steuer-Drawer-HUD mit Kinematik-Schaltern, Lenk-Slider und Geländetelemetrie.
+
+#### 26.1 `jeep_body_tub` (Karosseriewanne, 9-Slot Kühlergrill, Kotflügel & Haube)
+* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
+* **Zuständigkeit**:
+  * Offene Karosseriewanne (Tub) aus geprägtem Tiefzieh-Stahlblech mit Bodengruppe, Getriebetunnel und Laderaum-Stufe (Riser).
+  * Ikonischer Willys 9-Slot Front-Kühlergrill mit integrierten Scheinwerfereinfassungen und Schlitzen (`createWillysGrillTexture`).
+  * Flache Frontkotflügel (Flat Fenders) mit Kotflügelschürzen und Einstiegstrittstufen.
+  * Feste Heckwand mit Sickenversteifung, Haltegriffe an den Ecken und Einstiegsausschnitte (türlose Karosserie).
+
+#### 26.2 `jeep_chassis_drivetrain` (80-Zoll Kastenleiterrahmen, Go-Devil L134 Motor, Dana 25/27 Achsen)
+* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts)
+* **Zuständigkeit**:
+  * Robuster Kastenleiterrahmen ($3.25\,\text{m}$ Länge) mit 5 Querträgern (Crossmembers) und U-Profil-Frontstoßstange mit Abschlepphaken.
+  * Willys L134 "Go-Devil" 4-Zylinder Reihenmotor ($2.199\,\text{cm}^3$, 60 PS bei 4.000 U/min, $142\,\text{Nm}$ Drehmoment), Vergaser, runder Ölbadluftfilter, Wasserkühler mit Lüfterrad und Auspuffanlage.
+  * Dana 18 Verteilergetriebe mit vorderer und hinterer Kardanwelle.
+  * Dana 25 Vorderachse (Offset links) und Dana 27 Hinterachse mit Differentialkörpern.
+  * 4x Längsblattfederpakete (Leaf Springs) mit 5 Lagen und U-Bügeln.
+
+#### 26.3 `jeep_wheels_tires` (Combat Split Rims, 6.00-16 NDT Reifen & Ackermann-Lenkgeometrie)
+* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
+* **Zuständigkeit**:
+  * 5x geteilte Stahlfelgen (Combat Split Rims, $16 \times 4.50\,\text{Zoll}$) mit verschraubtem Felgenkranz und Radnabenkappen.
+  * 6.00-16 Non-Directional Tread (NDT) Militär-Geländereifen mit markantem Zickzack-Stollenprofil (`createNdtTireTreadTexture`).
+  * Vorderrad-Achsschenkel mit funktionierender Ackermann-Lenkwinkelkopplung und synchroner Radrotation beim Fahren.
+
+#### 26.4 `jeep_interior_cockpit` (Armaturenbrett, 4 Rundinstrumente, 3 Schalthebel & Rohrrahmensitze)
+* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
+* **Zuständigkeit**:
+  * Stahlblech-Armaturenbrett mit 4 analogen Rundinstrumenten (Tachometer bis 60 MPH, Öldruck, Wassertemperatur, Amperemeter, Tankanzeige) und 3 Messing-Datenplaketten der US Army (`createJeepDashboardTexture`).
+  * 3-Speichen-Militärlenkrad mit Lenksäule ($3.2\times$ Übersetzung zur Vorderradlenkung).
+  * 3 Schalthebel auf dem Mitteltunnel: T-84 3-Gang-Hauptschalthebel, Allrad-Zuschalthebel (Front Drive Engage) und Untersetzungshebel (Hi/Lo Transfer Case).
+  * Authentische Rohrrahmen-Sitze mit Segeltuchpolsterung (Olive Drab Canvas) und klappbare hintere Passagier-Sitzbank.
+  * Gewehrhalterung (Rifle Scabbard Holder) unter dem Scheibenrahmen.
+
+#### 26.5 `jeep_lighting_electrical` (7" Sealed-Beam Scheinwerfer, Blackout Marker & BO Rückleuchten)
+* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
+* **Zuständigkeit**:
+  * 7-Zoll Sealed-Beam Hauptscheinwerfer mit Schutzringen und zuschaltbaren Three.js Spotlights ($4.5\,\text{cd}$).
+  * Blackout-Drive (BO-Drive) Marker-Leuchte mit Schlitzblende auf dem linken Frontkotflügel (`createBlackoutDriveTexture`).
+  * Blackout-Standlichter im 9-Slot Kühlergrill unter den Hauptscheinwerfern.
+  * Ovale Blackout-Rückleuchten an der Hecktraverse.
+
+#### 26.6 `jeep_military_gear_accessories` (Invasionsstern, Pioneer Tool Rack, 20L Jerrycan & Pintle Hook)
+* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
+* **Zuständigkeit**:
+  * US Army WWII Invasionsstern mit Kreis und Schablonen-Seriennummern `U.S.A. 2045819-S` auf der Motorhaube (`createMilitaryStarDecalTexture`).
+  * Pioneer Tool Rack an der Fahrerseite (+X): US-Militär-Klappspaten/Schaufel und Feuerwehraxt mit Hickory-Holzstiel und Halteklammern (`createPioneerToolsTexture`).
+  * 20-Liter Kraftstoff-Jerrycan mit Haltebügel und "U.S. Q.M.C. 1943" Prägung am Heck (`createJerryCanTexture`).
+  * Heck-Reserveradhalter mit 5. Combat-Rad und drehbarer US Army Pintle Tow Hook Anhängekupplung.
+  * Zusammengeklapptes Canvas-Verdeckgestänge mit aufgerollter Verdeckplane am Heck.
+
+#### 26.7 `jeep_kinematics_physics` (Klappscheiben- & Haubenkinematik, Lenkung & Allrad-Fahrdynamik)
+* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts)
+* **Zuständigkeit**:
+  * **Klappscheiben-Kinematik (`windshieldPivotGroup`)**: Flüssige $90^\circ$-Rotation um das Basisscharnier von aufrecht ($Y = 1.77\,\text{m}$) auf flach auf die Motorhauben-Holzpuffer ($Y = 1.32\,\text{m}$).
+  * **Hauben-Kinematik (`hoodPivotGroup`)**: Aufklappen der Motorhaube um das Spritzwand-Scharnier zur Freilegung des Go-Devil Motors.
+  * **Lenk- & Antriebskinematik**: Proportionale Ackermann-Lenkung ($-30^\circ \dots +30^\circ$), synchrones Drehen aller 4 Räder bei Fahrsimulation und dynamische Fahrwerks-Vibration.
+
+#### 26.8 `jeep_offroad_environments` (3D-Gelände, Normandie Bocage, Sahara Wüste & Studio)
+* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx)
+* **Zuständigkeit**:
+  * **Dark Technocrane Studio**: Industrielles Messraster, ACES Filmic Tone Mapping und neutrale Studio-Reflektionen.
+  * **Normandie Bocage 1944**: Dunkelgrüne Wiesen- und Hecken-Erde mit diffuser atmosphärischer Himmelsdämpfung.
+  * **Sahara Desert Patrol**: Wüstensand-Untergrund mit warmer Sonnenbeleuchtung und passender SAS-Tarnlackierung.
+
 ---
 
 ## ⚡ Workflow-Protokoll
@@ -599,4 +726,5 @@ Jede Modifikation an einer Kran- oder System-Komponente wird vom jeweiligen Spez
 2. **Architektur- & Performance-Governance (`software_architect`)**: Keine Memory Leaks, keine Zuweisungen in `useFrame`-Schleifen, saubere TypeScript-Typisierung und modulare Entkopplung.
 3. **Kinematik-Konsistenz (`crane_orchestrator`)**: Keine Komponente darf die definierten mechanischen Grenzwerte verletzen.
 4. **Boden- & Kollisionsschutz**: Der Sicherheitsabstand (`SAFE_FLOOR_CLEARANCE`) bleibt unter allen Neigungs- und Hubkonfigurationen garantiert.
+
 

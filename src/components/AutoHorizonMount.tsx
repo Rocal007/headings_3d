@@ -113,7 +113,7 @@ function createFrontBasePlateTexture(useCadColors: boolean): THREE.CanvasTexture
   return texture;
 }
 
-// 3. Yellow Emergency Stop Bezel Ring Texture
+// 3. Yellow Emergency Stop Bezel Ring Texture (NOT-AUS / EMERGENCY STOP)
 function createEmergencyStopTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -137,8 +137,10 @@ function createEmergencyStopTexture(): THREE.CanvasTexture {
     ctx.fillStyle = '#111111';
     ctx.font = 'bold 22px "Helvetica Neue", Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('EMERGENCY', 128, 48);
-    ctx.fillText('STOP', 128, 226);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('NOT-AUS', 128, 44);
+    ctx.font = 'bold 16px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillText('EMERGENCY STOP', 128, 226);
   }
   const texture = new THREE.CanvasTexture(canvas);
   return texture;
@@ -358,18 +360,6 @@ export function AutoHorizonMount({
         ========================================================================
       */}
       <group>
-        {/* A. TOP ANGLED TRANSPORT / PROTECTION HANDLE BAR (from set photo!) */}
-        <group position={[0, 0.29, -0.02]}>
-          {/* Main Diagonal Grab Bar */}
-          <mesh castShadow material={matGuideTubes} position={[0, 0.05, -0.08]} rotation={[0.42, 0, 0]}>
-            <cylinderGeometry args={[0.012, 0.012, 0.34, 24]} />
-          </mesh>
-          {/* Support Standoff Strut */}
-          <mesh castShadow material={matGuideTubes} position={[0, 0.01, 0.03]} rotation={[-0.15, 0, 0]}>
-            <cylinderGeometry args={[0.010, 0.010, 0.09, 16]} />
-          </mesh>
-        </group>
-
         {/* B. TRAPEZOIDAL FRONT FLANGE PLATE (Matte Black / Orange - "Supertechno") */}
         <group position={[0, 0.08, -0.15]}>
           {/* Main extruded trapezoidal faceplate */}
@@ -416,19 +406,7 @@ export function AutoHorizonMount({
           ))}
         </group>
 
-        {/* C. 4x TRAPEZOIDAL HORIZONTAL PRECISION GUIDE / SUPPORT TUBES */}
-        {/* Top tubes narrower at x = +/- 0.075, bottom tubes wider at x = +/- 0.105 */}
-        {[-0.075, 0.075].map((tx, tIdx) => (
-          <mesh 
-            key={`top-guide-tube-${tIdx}`} 
-            castShadow 
-            material={matGuideTubes} 
-            position={[tx, 0.165, 0.01]} 
-            rotation={[Math.PI / 2, 0, 0]}
-          >
-            <cylinderGeometry args={[0.014, 0.014, 0.32, 24]} />
-          </mesh>
-        ))}
+        {/* C. LOWER HORIZONTAL PRECISION GUIDE / SUPPORT TUBES */}
         {[-0.105, 0.105].map((bx, bIdx) => (
           <mesh 
             key={`bot-guide-tube-${bIdx}`} 
@@ -445,20 +423,37 @@ export function AutoHorizonMount({
         <group position={[0, 0.165, 0.03]}>
           <mesh castShadow receiveShadow material={matGearboxHousing} geometry={geomTrapezoidHousing} position={[0, 0, -0.10]} />
 
-          {/* FRONT-FACING RED EMERGENCY STOP (NOT-AUS) WITH YELLOW RING */}
-          <group position={[-0.035, -0.01, -0.105]} rotation={[Math.PI / 2, 0, 0]}>
-            <mesh castShadow material={matEmergencyBezel} position={[0, 0.002, 0]}>
+          {/* VORDERSEITE / OPTIKSEITE: NOT-AUS-KNOPF (RED EMERGENCY STOP MUSHROOM WITH YELLOW SAFETY DIAL) */}
+          <group position={[-0.038, -0.008, -0.105]} rotation={[Math.PI / 2, 0, 0]}>
+            {/* High-Vis Safety Yellow Bezel Dial */}
+            <mesh castShadow material={matEmergencyBezel} position={[0, 0.002, 0]} rotation={[0, 0, 0]}>
               <circleGeometry args={[0.024, 32]} />
             </mesh>
+            {/* Stainless Steel Bezel Retaining Ring */}
             <mesh castShadow material={matSteelChrome} position={[0, 0.001, 0]}>
               <cylinderGeometry args={[0.025, 0.025, 0.004, 32]} />
             </mesh>
-            <mesh castShadow material={matButtonRed} position={[0, 0.014, 0]}>
-              <cylinderGeometry args={[0.015, 0.013, 0.018, 24]} />
+            {/* Plunger Collar Shaft */}
+            <mesh castShadow material={matSteelChrome} position={[0, 0.008, 0]}>
+              <cylinderGeometry args={[0.010, 0.010, 0.012, 24]} />
             </mesh>
+            {/* Red Mushroom Head Button with Tactile Chamfer & Rim */}
+            <mesh castShadow material={matButtonRed} position={[0, 0.018, 0]}>
+              <cylinderGeometry args={[0.016, 0.013, 0.016, 32]} />
+            </mesh>
+            <mesh castShadow material={matButtonRed} position={[0, 0.026, 0]}>
+              <sphereGeometry args={[0.016, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2.8]} />
+            </mesh>
+            {/* Twist-to-Reset Directional Arrows (White Indicator Details) */}
+            {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((ang, aIdx) => (
+              <mesh key={`notaus-arrow-${aIdx}`} position={[Math.sin(ang) * 0.009, 0.028, Math.cos(ang) * 0.009]} rotation={[-Math.PI / 2, 0, -ang]}>
+                <planeGeometry args={[0.003, 0.003]} />
+                <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} />
+              </mesh>
+            ))}
           </group>
 
-          {/* 2x FRONT-FACING SILVER LEMO MINI-CONNECTORS */}
+          {/* 2x VORDERSEITIGE SILVER LEMO MINI-CONNECTORS (OPTIKSEITE) */}
           {[-0.020, 0.005].map((ly, lIdx) => (
             <group key={`front-lemo-${lIdx}`} position={[-0.072, ly, -0.105]} rotation={[Math.PI / 2, 0, 0]}>
               <mesh castShadow material={matSteelChrome}>
@@ -528,31 +523,31 @@ export function AutoHorizonMount({
           </group>
         </group>
 
-        {/* F. HORIZONTAL MOTOR & PLANETARY REDUCTION DRIVE UNIT */}
-        <group position={[0.135, 0.09, 0.06]}>
-          {/* 1. Servomotor Housing */}
-          <mesh castShadow material={matMotorGrey} position={[0.06, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <boxGeometry args={[0.065, 0.065, 0.09]} />
+        {/* F. COMPACT INTERNAL MOTOR & PLANETARY REDUCTION DRIVE UNIT (INTEGRIERT IM CHASSIS) */}
+        <group position={[0.02, 0.09, 0.01]}>
+          {/* Servomotor Housing - Flush within width */}
+          <mesh castShadow material={matMotorGrey} position={[0.02, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <boxGeometry args={[0.055, 0.055, 0.075]} />
           </mesh>
 
-          {/* 2. Red Planetary Gearhead */}
-          <mesh castShadow material={matGearboxRed} position={[0.005, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.036, 0.036, 0.038, 24]} />
+          {/* Planetary Gearhead */}
+          <mesh castShadow material={matGearboxRed} position={[-0.025, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.028, 0.028, 0.032, 24]} />
           </mesh>
 
-          {/* 3. Gold Resolver / Encoder Endcap */}
-          <group position={[0.13, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          {/* Resolver / Encoder Endcap */}
+          <group position={[0.065, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
             <mesh castShadow material={matEncoderGold}>
-              <cylinderGeometry args={[0.030, 0.030, 0.045, 24]} />
+              <cylinderGeometry args={[0.024, 0.024, 0.028, 24]} />
             </mesh>
-            <mesh castShadow material={matSteelChrome} position={[0, 0.024, 0]}>
-              <cylinderGeometry args={[0.016, 0.016, 0.008, 16]} />
+            <mesh castShadow material={matSteelChrome} position={[0, 0.016, 0]}>
+              <cylinderGeometry args={[0.012, 0.012, 0.006, 16]} />
             </mesh>
           </group>
 
-          {/* 4. Drive Pinion Gear */}
-          <mesh castShadow material={matSteelChrome} position={[-0.045, -0.015, -0.01]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.022, 0.022, 0.026, 20]} />
+          {/* Drive Pinion Gear */}
+          <mesh castShadow material={matSteelChrome} position={[-0.050, -0.012, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.018, 0.018, 0.022, 20]} />
           </mesh>
         </group>
 
@@ -699,7 +694,7 @@ export function AutoHorizonMount({
             <boxGeometry args={[0.24, 0.022, 0.20]} />
           </mesh>
 
-          {/* RED MITCHELL MOUNT LOCK LEVER / ACCENT (from set photo!) */}
+          {/* RED MITCHELL MOUNT LOCK LEVER / ACCENT */}
           <group position={[-0.125, -0.005, 0]}>
             <mesh castShadow material={matQuickLockRed}>
               <boxGeometry args={[0.016, 0.028, 0.08]} />
