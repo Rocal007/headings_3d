@@ -131,6 +131,7 @@ export function ReadyPlayerMeStudio({ onApplyToCrane, onApplyToTennis }: ReadyPl
   const [customInputUrl, setCustomInputUrl] = useState<string>('');
   const [activePose, setActivePose] = useState<AvatarPose>('idle');
   const [isCreatorOpen, setIsCreatorOpen] = useState<boolean>(false);
+  const [isPosesOpen, setIsPosesOpen] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Avatar stats
@@ -415,25 +416,71 @@ export function ReadyPlayerMeStudio({ onApplyToCrane, onApplyToTennis }: ReadyPl
         </div>
       </div>
 
-      {/* 🕹️ Left Floating Panel: Poses & Actions */}
-      <div style={{
-        position: 'absolute',
-        top: 210,
-        left: 20,
-        width: 280,
-        background: 'rgba(15, 23, 42, 0.88)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        borderRadius: 16,
-        padding: '14px 16px',
-        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.6)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        zIndex: 50
-      }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: '#e5c500', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-          Kinematik & Posen
+      {/* 🕹️ Left Floating Panel Toggle Button (When Closed) */}
+      {!isPosesOpen && (
+        <button
+          onClick={() => setIsPosesOpen(true)}
+          className="drawer-toggle-btn"
+          style={{
+            position: 'absolute',
+            top: '210px',
+            left: '20px',
+            zIndex: 90,
+            border: '1px solid rgba(229, 197, 0, 0.45)',
+            color: '#e5c500'
+          }}
+          title="Posen & Kinematik öffnen"
+          aria-label="Posen öffnen"
+        >
+          <span>🕹️</span>
+          <span>Posen & Kinematik</span>
+          <span style={{ fontSize: '10px', color: '#94a3b8' }}>▶</span>
+        </button>
+      )}
+
+      {/* 🕹️ Left Floating Panel: Poses & Actions (Slide-Out) */}
+      <div 
+        className={`slide-drawer-left custom-scrollbar ${isPosesOpen ? 'open' : 'closed'}`}
+        style={{
+          position: 'absolute',
+          top: 210,
+          left: 20,
+          width: 'min(290px, calc(100vw - 32px))',
+          maxHeight: 'calc(100vh - 230px)',
+          overflowY: 'auto',
+          background: 'rgba(15, 23, 42, 0.94)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          borderRadius: 16,
+          padding: '14px 16px',
+          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          zIndex: 90
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: '#e5c500', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+            Kinematik & Posen
+          </div>
+          <button
+            onClick={() => setIsPosesOpen(false)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 4,
+              color: '#94a3b8',
+              padding: '2px 6px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="Panel schließen"
+          >
+            ✕
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>

@@ -223,3 +223,158 @@ body {
   font-size: 1.1rem;
   font-weight: bold;
 }
+
+/* ==========================================================================
+   🎨 RESPONSIVE UI & SLIDE-OUT DRAWER SYSTEM (AGENT 27: ux_responsive_design)
+   ========================================================================== */
+
+/* Sleek custom scrollbars for all glassmorphic drawers */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Base Glassmorphic Slide-Out Drawer Animation */
+.slide-drawer-left {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.slide-drawer-left.closed {
+  transform: translateX(calc(-100% - 30px));
+  opacity: 0;
+  pointer-events: none;
+}
+.slide-drawer-left.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.slide-drawer-right {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.slide-drawer-right.closed {
+  transform: translateX(calc(100% + 30px));
+  opacity: 0;
+  pointer-events: none;
+}
+.slide-drawer-right.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Floating Drawer Toggle Buttons */
+.drawer-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(11, 16, 28, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  min-height: 40px;
+}
+.drawer-toggle-btn:hover {
+  transform: scale(1.03);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.drawer-toggle-btn:active {
+  transform: scale(0.97);
+}
+
+/* Backdrop Dimming Overlay for Mobile Drawer Modals */
+.mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9998;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobile Topbar & Hamburger Button */
+.mobile-nav-bar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 9999;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(11, 16, 28, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.hamburger-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.hamburger-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Safe Area Insets for iOS / Android */
+@supports (padding: env(safe-area-inset-top)) {
+  .mobile-nav-bar {
+    top: calc(12px + env(safe-area-inset-top));
+    left: calc(12px + env(safe-area-inset-left));
+    right: calc(12px + env(safe-area-inset-right));
+  }
+}
+
+/* Hide bulky telemetry cards & keyboard legends on mobile/tablet responsive views (< 1024px) */
+@media (max-width: 1024px) {
+  .hide-on-responsive {
+    display: none !important;
+  }
+}
+
+

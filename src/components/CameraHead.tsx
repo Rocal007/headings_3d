@@ -706,25 +706,28 @@ export default function CameraHead() {
         </div>
       </div>
 
-      {/* --- QUICK TELEMETRY BADGE (BOTTOM LEFT) --- */}
-      <div style={{
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        zIndex: 80,
-        background: 'rgba(11, 16, 28, 0.88)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        borderRadius: 16,
-        padding: '12px 18px',
-        color: '#f8fafc',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        fontFamily: '"JetBrains Mono", monospace',
-        fontSize: 12
-      }}>
+      {/* --- QUICK TELEMETRY BADGE (BOTTOM LEFT - HIDE ON RESPONSIVE) --- */}
+      <div 
+        className="hide-on-responsive"
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          zIndex: 80,
+          background: 'rgba(11, 16, 28, 0.88)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          borderRadius: 16,
+          padding: '12px 18px',
+          color: '#f8fafc',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: 12
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 6 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e' }} />
           <span style={{ fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.8px' }}>SUPERTECHNO S-HEAD (1.00m FLOATING)</span>
@@ -740,24 +743,27 @@ export default function CameraHead() {
       </div>
 
       {/* --- RIGHT SIDE CONTROL DRAWER & KINEMATICS PANEL --- */}
-      <div style={{
-        position: 'absolute',
-        top: 80,
-        right: 20,
-        width: isDrawerOpen ? 340 : 44,
-        maxHeight: 'calc(100vh - 110px)',
-        zIndex: 85,
-        background: 'rgba(11, 16, 28, 0.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.14)',
-        borderRadius: 18,
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.65)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-      }}>
+      <div 
+        className="custom-scrollbar"
+        style={{
+          position: 'absolute',
+          top: 80,
+          right: 20,
+          width: isDrawerOpen ? 'min(340px, calc(100vw - 32px))' : 44,
+          maxHeight: 'calc(100vh - 110px)',
+          zIndex: 85,
+          background: 'rgba(11, 16, 28, 0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          borderRadius: 18,
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.65)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}
+      >
         {/* Drawer Header */}
         <div style={{
           display: 'flex',

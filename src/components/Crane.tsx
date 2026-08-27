@@ -2184,6 +2184,7 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
   });
 
   const [showSpecsModal, setShowSpecsModal] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
 
   const [useRpmAvatar, setUseRpmAvatar] = useState<boolean>(() => {
     try {
@@ -2626,25 +2627,50 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
         </div>
       )}
       
-      {/* 2D CRANE DASHBOARD UI (LEFT) */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        background: 'rgba(11, 16, 24, 0.94)',
-        color: '#fff',
-        padding: '18px',
-        borderRadius: '12px',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        width: '370px',
-        maxHeight: 'calc(100vh - 40px)',
-        overflowY: 'auto',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
-        zIndex: 50
-      }}>
+      {/* 2D CRANE DASHBOARD TOGGLE BUTTON (WHEN CLOSED) */}
+      {!isDrawerOpen && (
+        <button
+          onClick={() => setIsDrawerOpen(true)}
+          className="drawer-toggle-btn"
+          style={{
+            position: 'absolute',
+            top: '76px',
+            left: '20px',
+            zIndex: 90,
+            border: '1px solid rgba(250, 204, 21, 0.45)',
+            color: '#facc15'
+          }}
+          title="Kran-Steuerung & Kinematik-Panel öffnen"
+          aria-label="Kran-Steuerung öffnen"
+        >
+          <span>🏗️</span>
+          <span>Kran-Steuerung & Specs</span>
+          <span style={{ fontSize: '10px', color: '#94a3b8' }}>▶</span>
+        </button>
+      )}
+
+      {/* 2D CRANE DASHBOARD SLIDE-OUT DRAWER (LEFT) */}
+      <div 
+        className={`slide-drawer-left custom-scrollbar ${isDrawerOpen ? 'open' : 'closed'}`}
+        style={{
+          position: 'absolute',
+          top: '72px',
+          left: '20px',
+          background: 'rgba(11, 16, 24, 0.95)',
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '12px',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          width: 'min(370px, calc(100vw - 32px))',
+          maxHeight: 'calc(100vh - 90px)',
+          overflowY: 'auto',
+          boxShadow: '0 16px 48px rgba(0, 0, 0, 0.7)',
+          zIndex: 90
+        }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: '8px', marginBottom: '12px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#facc15' }}>
@@ -2652,7 +2678,7 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
             </h3>
             <div style={{ fontSize: '10px', color: '#94a3b8' }}>Kinematik, Profil & Grundriss-Maße</div>
           </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {onOpenTechnocraneStudio && (
               <button
                 onClick={onOpenTechnocraneStudio}
@@ -2684,7 +2710,23 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
                 cursor: 'pointer'
               }}
             >
-              {showSpecsModal ? '✕ Datenblatt' : '📋 SPECS 50+'}
+              {showSpecsModal ? '✕ Specs' : '📋 SPECS'}
+            </button>
+            <button
+              onClick={() => setIsDrawerOpen(false)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '4px',
+                color: '#94a3b8',
+                padding: '3px 7px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              title="Panel schließen (Slide-Out)"
+            >
+              ✕
             </button>
           </div>
         </div>
@@ -3952,22 +3994,25 @@ export default function Crane({ onOpenTechnocraneStudio }: { onOpenTechnocraneSt
         </div>
       </div>
       
-      {/* Keyboard Controls Legend UI */}
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        background: 'rgba(11, 16, 24, 0.90)',
-        color: '#fff',
-        padding: '14px 18px',
-        borderRadius: '10px',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        pointerEvents: 'none',
-        fontSize: '11px',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.5)'
-      }}>
+      {/* Keyboard Controls Legend UI (Hide on Responsive) */}
+      <div 
+        className="hide-on-responsive"
+        style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          background: 'rgba(11, 16, 24, 0.90)',
+          color: '#fff',
+          padding: '14px 18px',
+          borderRadius: '10px',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          pointerEvents: 'none',
+          fontSize: '11px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)'
+        }}
+      >
         <h3 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '4px', color: '#facc15' }}>
           ⌨️ VERTIKAL- & KRAN-KONTROLLEN
         </h3>

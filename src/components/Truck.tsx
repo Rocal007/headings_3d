@@ -70,6 +70,7 @@ export default function Truck(_props: { onOpenRace?: () => void } = {}) {
   const [blinkerMode, setBlinkerMode] = useState<BlinkerMode>('off');
   const [autoRotate, setAutoRotate] = useState(false);
   const [activeCam, setActiveCam] = useState<TruckStudioCameraId>('orbit');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
 
   const doorsRef = useRef(false);
   const tailgateRef = useRef(false);
@@ -332,29 +333,78 @@ export default function Truck(_props: { onOpenRace?: () => void } = {}) {
 
 
 
-      {/* 📡 Studio Showroom Info & Specs Card (Rechts Oben) */}
-      <div style={{
-        position: 'absolute', top: 20, right: 20, width: 300,
-        background: 'rgba(13, 17, 23, 0.85)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(0, 220, 255, 0.25)',
-        borderRadius: 12,
-        padding: '16px',
-        color: '#ffffff',
-        fontFamily: '"JetBrains Mono", monospace',
-        fontSize: 11,
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
-        pointerEvents: 'auto',
-        zIndex: 50,
-      }}>
+      {/* 📡 Studio Showroom Toggle Button (When Closed) */}
+      {!isDrawerOpen && (
+        <button
+          onClick={() => setIsDrawerOpen(true)}
+          className="drawer-toggle-btn"
+          style={{
+            position: 'absolute',
+            top: '76px',
+            right: '20px',
+            zIndex: 90,
+            border: '1px solid rgba(0, 220, 255, 0.45)',
+            color: '#00dcff'
+          }}
+          title="LKW Specs & Kamera-Setup öffnen"
+          aria-label="LKW Specs öffnen"
+        >
+          <span>🚚</span>
+          <span>LKW Specs & Kamera</span>
+          <span style={{ fontSize: '10px', color: '#94a3b8' }}>◀</span>
+        </button>
+      )}
+
+      {/* 📡 Studio Showroom Info & Specs Card (Rechts Oben, Slide-Out) */}
+      <div 
+        className={`slide-drawer-right custom-scrollbar ${isDrawerOpen ? 'open' : 'closed'}`}
+        style={{
+          position: 'absolute',
+          top: '72px',
+          right: '20px',
+          width: 'min(310px, calc(100vw - 32px))',
+          maxHeight: 'calc(100vh - 160px)',
+          overflowY: 'auto',
+          background: 'rgba(13, 17, 23, 0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(0, 220, 255, 0.3)',
+          borderRadius: 14,
+          padding: '16px',
+          color: '#ffffff',
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: 11,
+          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65)',
+          pointerEvents: 'auto',
+          zIndex: 90,
+        }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0,220,255,0.2)', paddingBottom: 8, marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 14 }}>🚚</span>
             <span style={{ fontWeight: 800, color: '#00dcff', fontSize: 12, letterSpacing: 0.8 }}>MAN TGL SHOWROOM</span>
           </div>
-          <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(0, 220, 255, 0.15)', color: '#00dcff', border: '1px solid rgba(0, 220, 255, 0.3)' }}>
-            STUDIO 3D
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(0, 220, 255, 0.15)', color: '#00dcff', border: '1px solid rgba(0, 220, 255, 0.3)' }}>
+              3D
+            </span>
+            <button
+              onClick={() => setIsDrawerOpen(false)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: 4,
+                color: '#94a3b8',
+                padding: '2px 6px',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              title="Panel schließen"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Specs Details */}
@@ -423,14 +473,23 @@ export default function Truck(_props: { onOpenRace?: () => void } = {}) {
 
       {/* 🎮 Showroom Interaktive Steuerungsleiste (Unten Mitte) */}
       <div style={{
-        position: 'absolute', bottom: 30, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', pointerEvents: 'auto',
-        background: 'rgba(10, 15, 25, 0.85)',
-        backdropFilter: 'blur(14px)',
+        position: 'absolute',
+        bottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'min(94vw, 760px)',
+        display: 'flex',
+        gap: 8,
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        pointerEvents: 'auto',
+        background: 'rgba(10, 15, 25, 0.88)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         border: '1px solid rgba(255, 255, 255, 0.15)',
-        borderRadius: 12,
+        borderRadius: 14,
         padding: '10px 14px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.65)',
         zIndex: 50
       }}>
         <button

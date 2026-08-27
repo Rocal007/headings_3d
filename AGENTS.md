@@ -38,6 +38,7 @@ graph TD
     HeadStudio --> Camera
     HeadStudio --> HeadCables[25. camera_head_cables<br/>🔌 S-Head Cable Management & Umbilical Master]
     Orchestrator --> Jeep[26. willys_jeep<br/>🚙 Willys MB 1/4-Ton 4x4 Offroad Master]
+    Orchestrator --> UX[27. ux_responsive_design<br/>🎨 Responsive UI/UX Design & Neurodidactics Master]
     
     subgraph LKW_Subsystem [🚚 MAN TGL 12.250 Subagenten-Ökosystem]
         LKW --> Cabin[22.1 truck_cabin<br/>Fahrerkabine, Cockpit, Türen & MAN Grill]
@@ -66,6 +67,15 @@ graph TD
         Jeep --> Gear[26.6 jeep_military_gear_accessories<br/>Invasionsstern, Pioneer Rack Axt/Schaufel, Jerrycan & Pintle Hook]
         Jeep --> Kinematics[26.7 jeep_kinematics_physics<br/>Klappscheiben- & Haubenkinematik, Lenkung & Allradfederung]
         Jeep --> OffroadEnv[26.8 jeep_offroad_environments<br/>Normandie Bocage, Sahara Wüste, Schlammpiste & Studio]
+    end
+
+    subgraph UX_Subsystem [🎨 Responsive UX & UI Subagenten-Ökosystem]
+        UX --> Touch[27.1 mobile_touch_interactions<br/>📱 Touch-Gesten, Damping, Hit Targets & Haptic]
+        UX --> Layout[27.2 responsive_layout_engine<br/>📐 Breakpoints, Safe Area Insets & Flex/Grid]
+        UX --> Fluency[27.3 neurodidactic_ui_fluency<br/>🧠 VFB-Modell, System 1/2, Kontrast & Glassmorphism]
+        UX --> Drawers[27.4 telemetry_hud_drawers<br/>🎛️ Slide-Out Panels, Floating HUDs & Dial Sliders]
+        UX --> A11y[27.5 accessibility_wcag_a11y<br/>♿ WCAG AAA Kontrast, ARIA & Keyboard Nav]
+        UX --> Viewport3D[27.6 responsive_3d_viewport<br/>🖥️ Aspect-Ratio, FOV Kompensation & DPR Scaling]
     end
 ```
 
@@ -716,6 +726,72 @@ graph TD
   * **Dark Technocrane Studio**: Industrielles Messraster, ACES Filmic Tone Mapping und neutrale Studio-Reflektionen.
   * **Normandie Bocage 1944**: Dunkelgrüne Wiesen- und Hecken-Erde mit diffuser atmosphärischer Himmelsdämpfung.
   * **Sahara Desert Patrol**: Wüstensand-Untergrund mit warmer Sonnenbeleuchtung und passender SAS-Tarnlackierung.
+
+### 27. `ux_responsive_design` (🎨 Responsive UI/UX Design, Adaptive Layout & Neurodidactic Interaction Master)
+* **Dateien**: [`src/App.css`](file:///e:/3D-headings/src/App.css), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx), [`src/index.css`](file:///e:/3D-headings/src/index.css), [`src/components/tennis/TennisControlDrawer.tsx`](file:///e:/3D-headings/src/components/tennis/TennisControlDrawer.tsx), [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx), [`src/components/rpm/ReadyPlayerMeStudio.tsx`](file:///e:/3D-headings/src/components/rpm/ReadyPlayerMeStudio.tsx)
+* **Zuständigkeit**:
+  * **1. Neurodidaktische Interaktionsarchitektur & VFB-System-Modell**:
+    * Maximierung der kognitiven Leichtigkeit (**System 1 / Cognitive Fluency**) durch intuitive visuelle Hierarchien, sofort verständliche Bedienelemente und Beseitigung jeglicher kognitiver Reibung ("Pauken" $\to 0$).
+    * Strikte Einhaltung des **VFB-Neurodidaktik-Ansatzes** nach Vera F. Birkenbihl: Visuelle Anker, ergonomische Farbcodierung (🏗️ Gold `#e5c500` für Kran, 🎥 Orange `#f97316` für Head, 🚚 Sky-Blue `#38bdf8` für LKW, 🚙 Olive-Sand `#c4a675` für Jeep, 🎾 Emerald `#4ade80` für Tennis, 🏎️ Cyber-Pink `#ec4899` für Rennen, 🧑 Violett `#a855f7` für Avatar) und haptisch-visuelles Belohnungsfeedback ($\eta_{\text{Spiel}} > 1$).
+    * Radikale Objektivität ($\Omega_{\text{RO}}$) bei allen HUD-Metriken, Telemetrie-Werten und Kinematik-Parametern.
+  * **2. Multi-Device & Responsive Breakpoint Engine**:
+    * Dynamische Viewport-Skalierung über alle Formfaktoren:
+      * **Mobile Portrait ($< 640\,\text{px}$)**: Ergonomische Bottom-Sheets, Einhand-Bedienung (Thumb Zone Ergonomie), minimierte Top-Navigation mit horizontalem Scroll / Pill-Tabs, Touch-Targets $\ge 44 \times 44\,\text{px}$, automatisch einklappende Telemetrie-Karten.
+      * **Mobile Landscape & Tablet ($640\,\text{px} - 1024\,\text{px}$)**: Kompakte 2-Spalten-Drawers, seitliche Overlay-Leisten mit flexibler Breitenanpassung ($320\,\text{px} \dots 380\,\text{px}$), angepasstes Field of View (FOV) im 3D-Canvas zur Vermeidung von Mesh-Clipping.
+      * **Desktop & Workstation ($1024\,\text{px} - 1440\,\text{px}$)**: Standard-Drawer-Layouts, simultane 3D-Ansicht mit unblockierten Sichtachsen, Floating Glass HUDs mit semi-transparentem Backdrop-Blur (`16px`).
+      * **Ultrawide & Multi-Monitor ($> 1440\,\text{px}$ & 21:9 / 32:9)**: Pin-fähige Multi-Panel-Workspaces, SMPTE Timecode Broadcast Overlays, professionelle Studio-Ansichten ohne Verzerrung der 3D-Perspektive.
+    * Dynamische Berücksichtigung von iOS/Android Safe Area Insets (`env(safe-area-inset-top)`, `env(safe-area-inset-bottom)`, `env(safe-area-inset-left)`, `env(safe-area-inset-right)`) für randlose Displays, Kerben (Notches) und Dynamic Island.
+  * **3. 3D-WebGL & UI-Overlay Symbiose**:
+    * Strikte Trennung von Pointer-Events (`pointer-events: none` für transparente Overlays, `pointer-events: auto` für interaktive Controls), um ruckelfreies OrbitControls-Kameratracking und gleichzeitige Präzisionssteuerung von Slidern und Buttons zu garantieren.
+    * Dynamische Canvas Pixel-Ratio (DPR) Drosselung auf mobilen Geräten (`dpr={[1, Math.min(window.devicePixelRatio, 2)]}`) zur Schonung von Akku und GPU bei stabilen 60 FPS.
+    * Intelligente Kamera-Fokus-Verschiebung (Camera Offset / Framing Compensation), wenn seitliche Steuer-Drawers geöffnet werden, sodass das 3D-Modell immer perfekt im sichtbaren Canvas-Zentrum bleibt.
+
+#### 27.1 `mobile_touch_interactions` (📱 Multi-Touch Gestures, Damping & Ergonomic Hit Targets)
+* **Dateien**: [`src/App.css`](file:///e:/3D-headings/src/App.css), [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx)
+* **Zuständigkeit**:
+  * Multi-Touch-Gesten-Optimierung (1-Finger Orbit, 2-Finger Pan/Pinch-to-Zoom) mit optimierter Trägheitsdämpfung (`dampingFactor: 0.05`).
+  * Einhaltung minimaler Touch-Hit-Target-Größen ($\ge 44 \times 44\,\text{px}$) nach Apple HIG und Google Material Design 3.
+  * Elastische Scroll-Physik für Drawers mit `overscroll-behavior: contain` und `touch-action: pan-y`.
+  * Virtuelle Haptik & visuelles Ripple/Glow-Feedback bei Slider- und Tastenberührung.
+
+#### 27.2 `responsive_layout_engine` (📐 Dynamic Breakpoint Architecture, Safe Areas & Flex/Grid Flow)
+* **Dateien**: [`src/App.css`](file:///e:/3D-headings/src/App.css), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx), [`src/index.css`](file:///e:/3D-headings/src/index.css)
+* **Zuständigkeit**:
+  * Fluid Typography mit `clamp()` und CSS Custom Properties (`--drawer-width`, `--nav-height`, `--safe-top`, `--safe-bottom`).
+  * Intelligentes Reorganisieren von Steuerelementen (vom 3-Spalten Desktop Grid zu 1-Spalten Mobile Stacks).
+  * Auto-Collapsing von Navigation und Telemetrie-Overlays bei Bildschirmbreiten $< 768\,\text{px}$.
+  * Orientierungswechsel-Handling (Portrait $\leftrightarrow$ Landscape) ohne Zustandsverlust der 3D-Simulation.
+
+#### 27.3 `neurodidactic_ui_fluency` (🧠 Kognitive Leichtigkeit, Visuelle Hierarchie, Glassmorphism & Kontrast)
+* **Dateien**: [`src/App.css`](file:///e:/3D-headings/src/App.css), [`src/materials/craneMaterials.ts`](file:///e:/3D-headings/src/materials/craneMaterials.ts)
+* **Zuständigkeit**:
+  * Implementierung von modernem Dark-Mode Glassmorphism (`rgba(11, 16, 28, 0.88)`, `backdrop-filter: blur(16px)`, $1\,\text{px}$ subtile Border-Highlights).
+  * Kognitive Entlastung: Wichtige primäre Aktionen (z. B. "Reset Pose", "Aufschlag starten", "Ladebordwand öffnen") sind optisch prominent hervorgehoben; sekundäre Parameter sind in logische Akkordeons / Tabs gegliedert.
+  * 60fps flüssige Micro-Animations (`cubic-bezier(0.16, 1, 0.3, 1)`) für Zustandstransitionen, Hover-Effekte und Slider-Reaktionen.
+  * Farbleitsystem: Einheitliche, thematische Farbakzente pro Modul zur sofortigen Orientierung.
+
+#### 27.4 `telemetry_hud_drawers` (🎛️ Slide-Out Panels, Floating HUDs & Dial Sliders)
+* **Dateien**: [`src/components/tennis/TennisControlDrawer.tsx`](file:///e:/3D-headings/src/components/tennis/TennisControlDrawer.tsx), [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx)
+* **Zuständigkeit**:
+  * Ergonomische Slide-Out Drawers mit anpassbarer Breite, Swipe-to-Dismiss-Geste und Status-Indikatoren.
+  * Floating Telemetrie-HUDs mit Monospace-Schriftarten für jitterfreie Zahlenwerte (Winkel in Grad, Distanzen in Metern, Geschwindigkeiten in km/h).
+  * Schnellauswahl-Presets (z. B. 0m / 5.65m / 11.3m Teleskop, 0° / 45° / 90° Head-Pan) für Ein-Klick-Steuerung.
+  * Integrierte ARRI Master Viewfinder Overlays (Frame Guides, Shutter, ISO, Timecode) mit konfigurierbarer Skalierung.
+
+#### 27.5 `accessibility_wcag_a11y` (♿ WCAG 2.1 AAA Konformität, High-Contrast & Keyboard Navigation)
+* **Dateien**: [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx), [`src/components/tennis/TennisControlDrawer.tsx`](file:///e:/3D-headings/src/components/tennis/TennisControlDrawer.tsx)
+* **Zuständigkeit**:
+  * Barrierefreie Farbkontraste ($\ge 7:1$ für Fließtext, $\ge 4.5:1$ für UI-Komponenten nach WCAG AAA).
+  * Vollständige Tastaturbedienbarkeit (Tab-Index, sichtbare Focus-Ringe `#e5c500`, Pfeiltasten-Steuerung für Slider, `Escape` zum Schließen von Drawers).
+  * Semantische HTML5-Elemente (`<nav>`, `<main>`, `<aside>`, `<button>`, `<fieldset>`, `<label>`) und ARIA-Attribute (`aria-expanded`, `aria-label`, `role="region"`).
+  * `prefers-reduced-motion` Media-Query-Unterstützung zur Reduzierung von Parallax- und Animations-Effekten für empfindliche Nutzer.
+
+#### 27.6 `responsive_3d_viewport` (🖥️ Dynamische 3D-Kamera-Kompensation & Viewport Synchronisation)
+* **Dateien**: [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx), [`src/components/CraneTennis.tsx`](file:///e:/3D-headings/src/components/CraneTennis.tsx)
+* **Zuständigkeit**:
+  * Dynamische Berechnung des vertikalen/horizontalen Field-of-View (FOV) in Abhängigkeit vom Bildschirmseitenverhältnis ($16:9$, $9:16$, $4:3$, $21:9$).
+  * Intelligentes Orbit-Target Framing: Automatische Zoom-Distanz-Skalierung, damit große 3D-Modelle (wie der 15.2m Supertechno 50 Ausleger oder der MAN TGL LKW) auf Smartphones im Hochformat nicht abgeschnitten werden.
+  * Synchronisation von UI-Ebenen mit 3D-Weltkoordinaten (z. B. Tooltips, Tennis-Hawk-Eye-Overlays, Schiedsrichter-Call-Fenster).
 
 ---
 

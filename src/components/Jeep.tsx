@@ -118,6 +118,7 @@ export default function Jeep() {
   const [activeCam, setActiveCam] = useState<JeepCameraPresetId>('orbit');
   const [isDriving, setIsDriving] = useState(false);
   const [driveSpeed, setDriveSpeed] = useState(35);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
 
   // Synchronisations-Refs für 60fps Render-Loop
   const doorsRef = useRef(false);
@@ -636,26 +637,70 @@ export default function Jeep() {
         </button>
       </div>
 
-      {/* 3. Steuer-Panel & Kinematik-Drawer */}
+      {/* 3. Steuer-Panel Toggle Button (When Closed) */}
+      {!isDrawerOpen && (
+        <button
+          onClick={() => setIsDrawerOpen(true)}
+          className="drawer-toggle-btn"
+          style={{
+            position: 'absolute',
+            bottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
+            right: '20px',
+            zIndex: 90,
+            border: '1px solid rgba(196, 166, 117, 0.5)',
+            color: '#c4a675',
+          }}
+          title="Jeep Kinematik & Fahrzeug-Steuerung öffnen"
+          aria-label="Jeep Kinematik öffnen"
+        >
+          <span>🚙</span>
+          <span>Jeep Kinematik</span>
+          <span style={{ fontSize: '10px', color: '#94a3b8' }}>◀</span>
+        </button>
+      )}
+
+      {/* 3. Steuer-Panel & Kinematik-Drawer (Slide-Out) */}
       <div
+        className={`slide-drawer-right custom-scrollbar ${isDrawerOpen ? 'open' : 'closed'}`}
         style={{
           position: 'absolute',
-          bottom: 20,
-          right: 20,
-          background: 'rgba(11, 16, 24, 0.92)',
+          bottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
+          right: '20px',
+          background: 'rgba(11, 16, 24, 0.94)',
           backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.14)',
           borderRadius: 16,
-          padding: '16px 20px',
-          width: 340,
+          padding: '16px 18px',
+          width: 'min(340px, calc(100vw - 32px))',
+          maxHeight: 'calc(100vh - 120px)',
+          overflowY: 'auto',
           color: '#f8fafc',
-          boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.65)',
           fontFamily: '"Inter", system-ui, sans-serif',
-          zIndex: 100,
+          zIndex: 90,
         }}
       >
-        <div style={{ fontSize: 13, fontWeight: 800, color: '#c4a675', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-          ⚙️ 3D Fahrzeug & Kinematik
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#c4a675', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            ⚙️ 3D Fahrzeug & Kinematik
+          </div>
+          <button
+            onClick={() => setIsDrawerOpen(false)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 4,
+              color: '#94a3b8',
+              padding: '2px 6px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="Panel schließen"
+          >
+            ✕
+          </button>
         </div>
 
         {/* 1. Türen & Haube Buttons */}
@@ -841,8 +886,9 @@ export default function Jeep() {
         style={{ display: 'none' }}
       />
 
-      {/* 4. Telemetrie-HUD */}
+      {/* 4. Telemetrie-HUD (Wird in Responsive Views ausgeblendet) */}
       <div
+        className="hide-on-responsive"
         style={{
           position: 'absolute',
           bottom: 20,

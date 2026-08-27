@@ -16,7 +16,7 @@ export type CraneSceneryType =
   | 'studio';
 
 export const sceneryBgColors: Record<CraneSceneryType, string> = {
-  plate: '#0d1117',           // Showroom Drehteller-Plattform (wie LKW)
+  plate: '#1e293b',           // Helleres, edles Studio-Ambiente für den Drehteller
   bright_concrete: '#7dd3fc', // Strahlend blauer Himmel & Pyramiden
   pyramids: '#38bdf8',        // Klarer azurblauer Wüstenhimmel
   machu_picchu: '#38bdf8',    // Klarer Anden-Berghimmel über Machu Picchu
@@ -1389,49 +1389,51 @@ export function LakeSceneryEnvironment() {
   );
 }
 
-// --- 🌟 SCENERY: LUXURY SHOWROOM TURNTABLE PLATFORM (MATCHING LKW SHOWROOM) ---
+// --- 🌟 SCENERY: LUXURY SHOWROOM TURNTABLE PLATFORM (MATCHING LKW SHOWROOM - BRIGHTENED) ---
 export function ShowroomPlateSceneryEnvironment() {
   const matFloor = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#1a1f26',
-    roughness: 0.55,
-    metalness: 0.35,
+    color: '#334155', // Helles High-Tech Studio Schiefergrau
+    roughness: 0.42,
+    metalness: 0.28,
   }), []);
 
   const matTurntable = useMemo(() => new THREE.MeshStandardMaterial({
-    color: '#161c24',
-    roughness: 0.36,
-    metalness: 0.65,
+    color: '#cbd5e1', // Helles, edles gebürstetes Studio-Aluminium / Platin-Silber
+    roughness: 0.28,
+    metalness: 0.52,
   }), []);
 
   const matOuterRing = useMemo(() => new THREE.MeshStandardMaterial({
     color: '#00dcff',
     emissive: '#00dcff',
-    emissiveIntensity: 0.6,
-    roughness: 0.2,
-    metalness: 0.8,
+    emissiveIntensity: 1.1,
+    roughness: 0.15,
+    metalness: 0.85,
     side: THREE.DoubleSide,
   }), []);
 
   const matInnerRing = useMemo(() => new THREE.MeshBasicMaterial({
-    color: '#2a3b4c',
+    color: '#38bdf8',
     side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.85,
   }), []);
 
   const matCenterRing = useMemo(() => new THREE.MeshBasicMaterial({
     color: '#00dcff',
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.90,
   }), []);
 
   return (
     <group>
-      {/* 1. Haupt-Bodenplatte (Dark Showroom Studio Floor 160x160m) */}
+      {/* 1. Haupt-Bodenplatte (Heller Studio Floor 160x160m) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.041, 0]} receiveShadow material={matFloor}>
         <planeGeometry args={[160, 160]} />
       </mesh>
 
-      {/* 2. Drehteller-Plattform (Turntable Platform Ø 18m, bündig auf Höhe 0.00m) */}
+      {/* 2. Drehteller-Plattform (Heller Turntable Platform Ø 18m, bündig auf Höhe 0.00m) */}
       <mesh position={[0, -0.04, 0]} receiveShadow material={matTurntable}>
         <cylinderGeometry args={[9.0, 9.2, 0.08, 64]} />
       </mesh>
@@ -1451,29 +1453,41 @@ export function ShowroomPlateSceneryEnvironment() {
         <ringGeometry args={[2.2, 2.24, 48]} />
       </mesh>
 
-      {/* 6. High-Tech Infinite Grid */}
+      {/* 6. High-Tech Infinite Grid (Hellere Linien) */}
       <Grid
         position={[0, -0.04, 0]}
         infiniteGrid
-        fadeDistance={75}
-        sectionColor="#00dcff"
+        fadeDistance={85}
+        sectionColor="#38bdf8"
         sectionSize={6}
-        cellColor="#1e293b"
+        cellColor="#64748b"
         cellSize={1.5}
       />
 
-      {/* 7. Showroom Studio Akzentbeleuchtung (Golden Hour / Softbox Glow wie LKW) */}
+      {/* 7. Showroom Studio Ausleuchtung (Helle Beleuchtung & weiche Schatten) */}
       <directionalLight
-        position={[28, 12, 22]}
-        intensity={2.8}
-        color="#ffe0b2"
+        position={[28, 16, 22]}
+        intensity={3.6}
+        color="#fffbeb"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-bias={-0.0001}
       />
-      <ambientLight color="#9cb8d9" intensity={0.55} />
-      <pointLight position={[0, 4, 0]} intensity={1.5} distance={15} color="#38bdf8" />
+      {/* Softbox Fill Light */}
+      <directionalLight
+        position={[-20, 18, -15]}
+        intensity={2.2}
+        color="#e0f2fe"
+      />
+      {/* Top Overhead Downlight direkt auf den Drehteller */}
+      <directionalLight
+        position={[0, 24, 0]}
+        intensity={1.8}
+        color="#ffffff"
+      />
+      <ambientLight color="#f1f5f9" intensity={0.95} />
+      <pointLight position={[0, 5, 0]} intensity={3.5} distance={22} color="#38bdf8" />
     </group>
   );
 }
