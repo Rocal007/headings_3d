@@ -43,8 +43,8 @@ const MENU_ITEMS: { id: AppViewMode; label: string; icon: string; desc: string; 
   },
   {
     id: 'jeep',
-    label: 'Show Jeep',
-    desc: 'Willys MB 1/4-Ton 4x4 Geländewagen',
+    label: 'Show Fahrzeuge',
+    desc: 'Multi-Vehicle GLB Showroom & 4x4 Kinematik',
     icon: '🚙',
     activeColor: '#c4a675',
     activeGradient: 'linear-gradient(135deg, #c4a675 0%, #8c6d3d 100%)'
@@ -301,6 +301,7 @@ function MainNavigationBar({ currentView, onSelectView }: NavigationBarProps) {
   // --- DESKTOP HORIZONTAL GLASSMORPHIC NAVBAR ---
   return (
     <nav
+      className="custom-scrollbar"
       style={{
         position: 'fixed',
         top: 16,
@@ -315,6 +316,8 @@ function MainNavigationBar({ currentView, onSelectView }: NavigationBarProps) {
         border: '1px solid rgba(255, 255, 255, 0.12)',
         borderRadius: 14,
         padding: '5px 8px',
+        maxWidth: 'calc(100vw - 40px)',
+        overflowX: 'auto',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.55), 0 0 20px rgba(0, 0, 0, 0.25)',
         fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
         userSelect: 'none'

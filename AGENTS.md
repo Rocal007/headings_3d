@@ -67,6 +67,7 @@ graph TD
         Jeep --> Gear[26.6 jeep_military_gear_accessories<br/>Invasionsstern, Pioneer Rack Axt/Schaufel, Jerrycan & Pintle Hook]
         Jeep --> Kinematics[26.7 jeep_kinematics_physics<br/>Klappscheiben- & Haubenkinematik, Lenkung & Allradfederung]
         Jeep --> OffroadEnv[26.8 jeep_offroad_environments<br/>Normandie Bocage, Sahara Wüste, Schlammpiste & Studio]
+        Jeep --> JeepDoors[26.9 jeep_doors_kinematics<br/>🚪 Fahrertüren, Half-Doors, Scharniere & Kinematik]
     end
 
     subgraph UX_Subsystem [🎨 Responsive UX & UI Subagenten-Ökosystem]
@@ -379,7 +380,7 @@ graph TD
 * **Dateien**: [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
 * **Zuständigkeit**:
   * **Master-Koordination**: Gesamtfahrzeug-Simulation des **MAN TGL 12.250 / 10.250 Equipment Transporters** für den Transport des Supertechno 50 Krans, Schienen und Flightcases.
-  * **Szenen-Orchestrierung**: Eigenständige 3D-Präsentation mit `RoomEnvironment`, Schattensystem (`PCFSoftShadowMap`), Nebelsteuerung und interaktiven UI-Controls (Fahrt/Stopp, Türen, Crash-Diagnose).
+  * **Szenen-Orchestrierung**: Eigenständige 3D-Präsentation mit `RoomEnvironment`, Schattensystem (`PCFShadowMap`), Nebelsteuerung und interaktiven UI-Controls (Fahrt/Stopp, Türen, Crash-Diagnose).
   * **Subagenten-Governance**: Überwachung und Führung der 10 spezialisierten LKW-Subagenten (`truck_cabin`, `truck_chassis`, `truck_box_body`, `truck_wheels_suspension`, `truck_crane_cargo`, `truck_telematics_physics`, `truck_windshield_wipers`, `truck_license_plate`, `truck_doors_kinematics`, `truck_tailgate_kinematics`).
 
 #### 22.1 `truck_cabin` (Fahrerkabine, Hohlraum-Architektur, Aerodynamik & MAN Styling)
@@ -655,77 +656,32 @@ graph TD
   * **3. Physikalische Konsistenz & Kollisionsfreiheit**:
     * Logische Längen- und Durchhangsdimensionierung zur Vermeidung von Kabelclipping, Knicken oder Überspannung bei extremen Gimbal-Posen (Tilt $\pm 90^\circ$, Roll $\pm 180^\circ$, Pan $360^\circ$).
 
-### 26. `willys_jeep` (🚙 Willys MB 1/4-Ton 4x4 Offroad & Reconnaissance Master)
-* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
+### 26. `multi_vehicle_glb_studio` (🚙 Multi-Vehicle GLB Showroom & 4x4 Offroad Master)
+* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/model/glbAutoRigger.ts`](file:///e:/3D-headings/src/model/glbAutoRigger.ts), [`src/types/vehicleTypes.ts`](file:///e:/3D-headings/src/types/vehicleTypes.ts), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx)
 * **Zuständigkeit**:
-  * Gesamtsystem-Orchestrierung des 1941–1945 Willys MB 1/4-Ton 4x4 US Army Aufklärungs- und Geländewagens (Radstand $2.032\,\text{m} / 80\,\text{Zoll}$, Gesamtlänge $3.33\,\text{m}$, Breite $1.575\,\text{m}$, Gewicht $1.040\,\text{kg}$).
-  * PBR-Material- und Textur-Management (1944 WWII US Army Olive Drab, Sahara Desert Sand, Post-War CJ Red).
-  * 3D-Showroom-Bühne mit dynamischer Beleuchtung, Echtzeit-Schatten, 6 Kamera-Presets (*360° Studio Orbit*, *Hero 3/4*, *Cockpit & Dashboard*, *Go-Devil Motorraum*, *Pioneer Tools & Heck*, *Seitenprofil*).
-  * Integriertes Steuer-Drawer-HUD mit Kinematik-Schaltern, Lenk-Slider und Geländetelemetrie.
-
-#### 26.1 `jeep_body_tub` (Karosseriewanne, 9-Slot Kühlergrill, Kotflügel & Haube)
-* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
-* **Zuständigkeit**:
-  * Offene Karosseriewanne (Tub) aus geprägtem Tiefzieh-Stahlblech mit Bodengruppe, Getriebetunnel und Laderaum-Stufe (Riser).
-  * Ikonischer Willys 9-Slot Front-Kühlergrill mit integrierten Scheinwerfereinfassungen und Schlitzen (`createWillysGrillTexture`).
-  * Flache Frontkotflügel (Flat Fenders) mit Kotflügelschürzen und Einstiegstrittstufen.
-  * Feste Heckwand mit Sickenversteifung, Haltegriffe an den Ecken und Einstiegsausschnitte (türlose Karosserie).
-
-#### 26.2 `jeep_chassis_drivetrain` (80-Zoll Kastenleiterrahmen, Go-Devil L134 Motor, Dana 25/27 Achsen)
-* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts)
-* **Zuständigkeit**:
-  * Robuster Kastenleiterrahmen ($3.25\,\text{m}$ Länge) mit 5 Querträgern (Crossmembers) und U-Profil-Frontstoßstange mit Abschlepphaken.
-  * Willys L134 "Go-Devil" 4-Zylinder Reihenmotor ($2.199\,\text{cm}^3$, 60 PS bei 4.000 U/min, $142\,\text{Nm}$ Drehmoment), Vergaser, runder Ölbadluftfilter, Wasserkühler mit Lüfterrad und Auspuffanlage.
-  * Dana 18 Verteilergetriebe mit vorderer und hinterer Kardanwelle.
-  * Dana 25 Vorderachse (Offset links) und Dana 27 Hinterachse mit Differentialkörpern.
-  * 4x Längsblattfederpakete (Leaf Springs) mit 5 Lagen und U-Bügeln.
-
-#### 26.3 `jeep_wheels_tires` (Combat Split Rims, 6.00-16 NDT Reifen & Ackermann-Lenkgeometrie)
-* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
-* **Zuständigkeit**:
-  * 5x geteilte Stahlfelgen (Combat Split Rims, $16 \times 4.50\,\text{Zoll}$) mit verschraubtem Felgenkranz und Radnabenkappen.
-  * 6.00-16 Non-Directional Tread (NDT) Militär-Geländereifen mit markantem Zickzack-Stollenprofil (`createNdtTireTreadTexture`).
-  * Vorderrad-Achsschenkel mit funktionierender Ackermann-Lenkwinkelkopplung und synchroner Radrotation beim Fahren.
-
-#### 26.4 `jeep_interior_cockpit` (Armaturenbrett, 4 Rundinstrumente, 3 Schalthebel & Rohrrahmensitze)
-* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
-* **Zuständigkeit**:
-  * Stahlblech-Armaturenbrett mit 4 analogen Rundinstrumenten (Tachometer bis 60 MPH, Öldruck, Wassertemperatur, Amperemeter, Tankanzeige) und 3 Messing-Datenplaketten der US Army (`createJeepDashboardTexture`).
-  * 3-Speichen-Militärlenkrad mit Lenksäule ($3.2\times$ Übersetzung zur Vorderradlenkung).
-  * 3 Schalthebel auf dem Mitteltunnel: T-84 3-Gang-Hauptschalthebel, Allrad-Zuschalthebel (Front Drive Engage) und Untersetzungshebel (Hi/Lo Transfer Case).
-  * Authentische Rohrrahmen-Sitze mit Segeltuchpolsterung (Olive Drab Canvas) und klappbare hintere Passagier-Sitzbank.
-  * Gewehrhalterung (Rifle Scabbard Holder) unter dem Scheibenrahmen.
-
-#### 26.5 `jeep_lighting_electrical` (7" Sealed-Beam Scheinwerfer, Blackout Marker & BO Rückleuchten)
-* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
-* **Zuständigkeit**:
-  * 7-Zoll Sealed-Beam Hauptscheinwerfer mit Schutzringen und zuschaltbaren Three.js Spotlights ($4.5\,\text{cd}$).
-  * Blackout-Drive (BO-Drive) Marker-Leuchte mit Schlitzblende auf dem linken Frontkotflügel (`createBlackoutDriveTexture`).
-  * Blackout-Standlichter im 9-Slot Kühlergrill unter den Hauptscheinwerfern.
-  * Ovale Blackout-Rückleuchten an der Hecktraverse.
-
-#### 26.6 `jeep_military_gear_accessories` (Invasionsstern, Pioneer Tool Rack, 20L Jerrycan & Pintle Hook)
-* **Dateien**: [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts), [`src/materials/jeepTextures.ts`](file:///e:/3D-headings/src/materials/jeepTextures.ts)
-* **Zuständigkeit**:
-  * US Army WWII Invasionsstern mit Kreis und Schablonen-Seriennummern `U.S.A. 2045819-S` auf der Motorhaube (`createMilitaryStarDecalTexture`).
-  * Pioneer Tool Rack an der Fahrerseite (+X): US-Militär-Klappspaten/Schaufel und Feuerwehraxt mit Hickory-Holzstiel und Halteklammern (`createPioneerToolsTexture`).
-  * 20-Liter Kraftstoff-Jerrycan mit Haltebügel und "U.S. Q.M.C. 1943" Prägung am Heck (`createJerryCanTexture`).
-  * Heck-Reserveradhalter mit 5. Combat-Rad und drehbarer US Army Pintle Tow Hook Anhängekupplung.
-  * Zusammengeklapptes Canvas-Verdeckgestänge mit aufgerollter Verdeckplane am Heck.
-
-#### 26.7 `jeep_kinematics_physics` (Klappscheiben- & Haubenkinematik, Lenkung & Allrad-Fahrdynamik)
-* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/model/willysJeepRig.ts`](file:///e:/3D-headings/src/model/willysJeepRig.ts)
-* **Zuständigkeit**:
-  * **Klappscheiben-Kinematik (`windshieldPivotGroup`)**: Flüssige $90^\circ$-Rotation um das Basisscharnier von aufrecht ($Y = 1.77\,\text{m}$) auf flach auf die Motorhauben-Holzpuffer ($Y = 1.32\,\text{m}$).
-  * **Hauben-Kinematik (`hoodPivotGroup`)**: Aufklappen der Motorhaube um das Spritzwand-Scharnier zur Freilegung des Go-Devil Motors.
-  * **Lenk- & Antriebskinematik**: Proportionale Ackermann-Lenkung ($-30^\circ \dots +30^\circ$), synchrones Drehen aller 4 Räder bei Fahrsimulation und dynamische Fahrwerks-Vibration.
-
-#### 26.8 `jeep_offroad_environments` (3D-Gelände, Normandie Bocage, Sahara Wüste & Studio)
-* **Dateien**: [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx)
-* **Zuständigkeit**:
-  * **Dark Technocrane Studio**: Industrielles Messraster, ACES Filmic Tone Mapping und neutrale Studio-Reflektionen.
-  * **Normandie Bocage 1944**: Dunkelgrüne Wiesen- und Hecken-Erde mit diffuser atmosphärischer Himmelsdämpfung.
-  * **Sahara Desert Patrol**: Wüstensand-Untergrund mit warmer Sonnenbeleuchtung und passender SAS-Tarnlackierung.
+  * **1. Multi-Fahrzeug-Slot-Management**:
+    * Dynamischer Fahrzeug-Umschalter (View / Tab Bar) im Viewport zum sofortigen Wechseln zwischen verschiedenen Fahrzeug-Slots (z. B. Jeep Wrangler Rubicon, Offroad Trophy 4x4, Willys Recon MB, Custom GLB).
+    * Persistente Speicherung jedes einzelnen Fahrzeugs im browserbasierten IndexedDB-Cache (`saveModelToCache`, `loadModelFromCache`, `clearModelCache`).
+    * Vollständige Slot-Verwaltung (Hinzufügen neuer Slots, Umbenennen, Löschen, Metadaten- und Spezifikationsanzeige: PS, Hubraum, Antrieb, Gewicht, Bodenfreiheit).
+  * **2. 100% GLB-Architektur & Auto-Rigging Engine (`glbAutoRigger.ts`)**:
+    * Automatische Baugruppen-Isolierung: 4 Räder (Felgen, Reifen, Bremsen), Ackermann-Lenkachsen für die Vorderräder, Scharnier-Pivot für Motorhauben, Cockpit-Lenkrad und 3D-Scheinwerfergläser.
+    * Dynamische Karosserie-Lackierung / Farb-Tönung (`applyBodyColorTint`) auf allen erkannten Karosserie-Materialien.
+    * Bounding-Box Normalisierung und proportionale Skalierung auf reale Fahrzeuglängen.
+    * Interaktiver 3D-Standby-Sockel mit Hologramm-Drahtgitter und Drag & Drop Zone für leere Slots.
+  * **3. 4x4 Fahrdynamik & Kinematik-Steuerung**:
+    * **4x4 Allrad-Fahrantrieb**: 100% synchrone Radrotation bei variabler Geschwindigkeit (10–100 km/h) basierend auf Raddurchmesser.
+    * **Ackermann-Lenkung**: Getrennte Innen- und Außenwinkel-Kopplung (-32° bis +32°) mit synchroner Lenkradrotation.
+    * **Motorhaube**: Flüssiges Aufklappen mit mechanischem Endanschlag bei 0°.
+    * **Beleuchtung**: 3D-Spotlight-Kegel mit Weichschatten, Lens-Flares und emissiven Gläsern.
+  * **4. 3D-Gelände & Kameras**:
+    * Umgebungen: Dark Studio (Messraster), Normandie Bocage, Sahara Wüste.
+    * 6 Kamera-Presets: 360° Studio Orbit, Front 3/4 Hero, Cockpit & Dashboard, Motor & Haube, Heck & Reserverad, Seitenprofil.
+  * **3. Wrangler- & Offroad-Konfigurationen**:
+    * **Full Steel Doors**: Serienmäßige Volltüren mit geschlossenem Fensterrahmen und Klarglas.
+    * **Half-Doors / Tube Doors**: Trail-Rohrtüren für maximale Geländesicht und Open-Air-Feeling.
+    * **Doorless Mode**: Vollständig ausgehängte Türen nach Wrangler-Standard (inkl. Spiegelfuß-Relocation an den Scheibenrahmen).
+  * **4. UI & Steuerungs-Integration**:
+    * Interaktiver 2D/3D Drawer-Toggle (`🚪 Türen öffnen / Türen zu`) mit Live-Winkelanzeige im Telemetrie-HUD.
 
 ### 27. `ux_responsive_design` (🎨 Responsive UI/UX Design, Adaptive Layout & Neurodidactic Interaction Master)
 * **Dateien**: [`src/App.css`](file:///e:/3D-headings/src/App.css), [`src/App.tsx`](file:///e:/3D-headings/src/App.tsx), [`src/index.css`](file:///e:/3D-headings/src/index.css), [`src/components/tennis/TennisControlDrawer.tsx`](file:///e:/3D-headings/src/components/tennis/TennisControlDrawer.tsx), [`src/components/Crane.tsx`](file:///e:/3D-headings/src/components/Crane.tsx), [`src/components/Truck.tsx`](file:///e:/3D-headings/src/components/Truck.tsx), [`src/components/Jeep.tsx`](file:///e:/3D-headings/src/components/Jeep.tsx), [`src/components/CameraHead.tsx`](file:///e:/3D-headings/src/components/CameraHead.tsx), [`src/components/rpm/ReadyPlayerMeStudio.tsx`](file:///e:/3D-headings/src/components/rpm/ReadyPlayerMeStudio.tsx)

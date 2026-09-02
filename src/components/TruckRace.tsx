@@ -176,7 +176,7 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
 
@@ -382,7 +382,7 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
     const _truck2PosVec = new THREE.Vector3();
 
     const wheelRadius = 0.408; // Match tireRadius
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
 
     let frameCount = 0;
     let lastPerfSample = performance.now();
@@ -391,8 +391,9 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       animationId = requestAnimationFrame(animate);
 
       // Delta-Time Normalisierung für 60Hz / 120Hz / 144Hz (Säule 1.2)
-      const delta = Math.min(clock.getDelta(), 0.1);
-      const elapsedTime = clock.getElapsedTime();
+      timer.update();
+      const delta = Math.min(timer.getDelta(), 0.1);
+      const elapsedTime = timer.getElapsed();
 
       // ⏱️ FPS & GPU-Frame-Dauer Profiling (Aktualisierung alle 400ms)
       frameCount++;
@@ -562,8 +563,8 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
       // 3. Fahrbahn-Rumpeln & 6-Zylinder Diesel Motorvibration (bei Turbo Hochfrequenz-Pfeifen)
       const vibeFreq = isTurboActive ? 85.0 : 45.0;
       const vibeAmp = isTurboActive ? 0.0010 : 0.0022;
-      const roadVibe = (currentSpeed > 0.1) ? (Math.sin(clock.getElapsedTime() * vibeFreq) * vibeAmp) * Math.min(1.0, currentSpeed / 20.0) : 0;
-      const engineIdle = Math.sin(clock.getElapsedTime() * (isTurboActive ? 40.0 : 22.0)) * 0.0008;
+      const roadVibe = (currentSpeed > 0.1) ? (Math.sin(elapsedTime * vibeFreq) * vibeAmp) * Math.min(1.0, currentSpeed / 20.0) : 0;
+      const engineIdle = Math.sin(elapsedTime * (isTurboActive ? 40.0 : 22.0)) * 0.0008;
 
       truck.position.x = x;
       truck.position.y = y + 0.10 + roadVibe + engineIdle;
@@ -651,7 +652,7 @@ export default function TruckRace({ onOpenStudio }: { onOpenStudio?: () => void 
           ? (t2CurSec.f1Speed + (t2CurSec.drsZone ? 28.0 : 5.0))
           : (t2CurSec.speedTarget * 1.05);
         // Oszillierende Renn-Dynamik (Führungswechsel)
-        const t2Swing = 1.0 + Math.cos(clock.getElapsedTime() * 0.42) * 0.08;
+        const t2Swing = 1.0 + Math.cos(elapsedTime * 0.42) * 0.08;
         const t2TargetKmh = drivingRef.current ? (t2BaseKmh * t2Swing) : 0;
         const t2TargetMps = t2TargetKmh / 3.6;
 

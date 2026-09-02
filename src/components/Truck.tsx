@@ -99,7 +99,7 @@ export default function Truck(_props: { onOpenRace?: () => void } = {}) {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
 
@@ -215,7 +215,7 @@ export default function Truck(_props: { onOpenRace?: () => void } = {}) {
     let animationId: number;
     let flapProgress = 0;
     let lowerProgress = 0;
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
 
     const handleResize = () => {
       if (!canvasRef.current) return;
@@ -227,8 +227,9 @@ export default function Truck(_props: { onOpenRace?: () => void } = {}) {
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      const delta = Math.min(clock.getDelta(), 0.1);
-      const elapsedTime = clock.getElapsedTime();
+      timer.update();
+      const delta = Math.min(timer.getDelta(), 0.1);
+      const elapsedTime = timer.getElapsed();
 
       // 1. Auto-Rotate Drehteller
       if (autoRotateRef.current) {
