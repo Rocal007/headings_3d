@@ -377,4 +377,59 @@ body {
   }
 }
 
+/* ========================================================= */
+/* Gallery Container 3D Styles & Responsive UI               */
+/* ========================================================= */
+.gallery-container-viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  user-select: none;
+}
+
+.gallery-drawer-toggle:hover {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px rgba(56, 189, 248, 0.2) !important;
+}
+
+.gallery-quick-toolbar button {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gallery-quick-toolbar button:hover {
+  background: rgba(56, 189, 248, 0.2) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  transform: translateY(-2px);
+}
+
+.gallery-quick-toolbar button:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .gallery-telemetry-hud {
+    top: 68px !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-width: none !important;
+    padding: 10px 12px !important;
+  }
+
+  .gallery-quick-toolbar {
+    bottom: 16px !important;
+    padding: 4px 8px !important;
+    max-width: 94vw;
+    overflow-x: auto;
+    white-space: nowrap;
+    justify-content: flex-start;
+  }
+
+  .gallery-quick-toolbar button {
+    font-size: 10px !important;
+    padding: 5px 8px !important;
+  }
+}
+
 

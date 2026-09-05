@@ -7,9 +7,10 @@ import CameraHead from './components/CameraHead';
 import CraneTennis from './components/CraneTennis';
 import { ReadyPlayerMeStudio } from './components/rpm/ReadyPlayerMeStudio';
 import Jeep from './components/Jeep';
+import GalleryContainer from './components/gallery/GalleryContainer';
 import ErrorBoundary from './components/ErrorBoundary';
 
-export type AppViewMode = 'crane' | 'head' | 'truck' | 'tennis' | 'race' | 'avatar' | 'jeep';
+export type AppViewMode = 'crane' | 'head' | 'truck' | 'tennis' | 'race' | 'avatar' | 'jeep' | 'gallery';
 
 interface NavigationBarProps {
   currentView: AppViewMode;
@@ -48,6 +49,14 @@ const MENU_ITEMS: { id: AppViewMode; label: string; icon: string; desc: string; 
     icon: '🚙',
     activeColor: '#c4a675',
     activeGradient: 'linear-gradient(135deg, #c4a675 0%, #8c6d3d 100%)'
+  },
+  {
+    id: 'gallery',
+    label: 'Show Container',
+    desc: '2-Story Pop-up Container Kunstgalerie & Wiener Votivkirche',
+    icon: '🎨',
+    activeColor: '#a855f7',
+    activeGradient: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)'
   },
   {
     id: 'tennis',
@@ -381,7 +390,7 @@ function MainNavigationBar({ currentView, onSelectView }: NavigationBarProps) {
 }
 
 function App() {
-  const [viewMode, setViewMode] = useState<AppViewMode>('crane');
+  const [viewMode, setViewMode] = useState<AppViewMode>('gallery');
 
   return (
     <div className="app-container">
@@ -408,6 +417,12 @@ function App() {
       {viewMode === 'jeep' && (
         <ErrorBoundary fallbackTitle="Willys MB 1/4-Ton 4x4 Offroad Studio">
           <Jeep />
+        </ErrorBoundary>
+      )}
+
+      {viewMode === 'gallery' && (
+        <ErrorBoundary fallbackTitle="Pop-up Gallery Container & Wiener Votivkirche">
+          <GalleryContainer />
         </ErrorBoundary>
       )}
 

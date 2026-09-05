@@ -39,6 +39,7 @@ graph TD
     HeadStudio --> HeadCables[25. camera_head_cables<br/>🔌 S-Head Cable Management & Umbilical Master]
     Orchestrator --> Jeep[26. willys_jeep<br/>🚙 Willys MB 1/4-Ton 4x4 Offroad Master]
     Orchestrator --> UX[27. ux_responsive_design<br/>🎨 Responsive UI/UX Design & Neurodidactics Master]
+    Orchestrator --> Gallery[28. gallery_container<br/>🎨 Modular Container Art Gallery Master]
     
     subgraph LKW_Subsystem [🚚 MAN TGL 12.250 Subagenten-Ökosystem]
         LKW --> Cabin[22.1 truck_cabin<br/>Fahrerkabine, Cockpit, Türen & MAN Grill]
@@ -77,6 +78,16 @@ graph TD
         UX --> Drawers[27.4 telemetry_hud_drawers<br/>🎛️ Slide-Out Panels, Floating HUDs & Dial Sliders]
         UX --> A11y[27.5 accessibility_wcag_a11y<br/>♿ WCAG AAA Kontrast, ARIA & Keyboard Nav]
         UX --> Viewport3D[27.6 responsive_3d_viewport<br/>🖥️ Aspect-Ratio, FOV Kompensation & DPR Scaling]
+    end
+
+    subgraph Gallery_Subsystem [🎨 Gallery Container Subagenten-Ökosystem]
+        Gallery --> Structure[28.1 container_architecture_structure<br/>20ft ISO Double-Stack, Corrugated Steel & Twistlocks]
+        Gallery --> GlassDoors[28.2 container_glass_facades_doors<br/>Panorama-Glas, Flügeltüren & Verriegelungskinematik]
+        Gallery --> Interior[28.3 container_gallery_interior<br/>Weißer Galerie-Innenraum, Holzböden & Sockel]
+        Gallery --> ArtCuration[28.4 container_art_curation<br/>Kuratierte Kunstwerke, Skulpturen & Info-Plaques]
+        Gallery --> Lighting[28.5 container_lighting_ambience<br/>Lineare LED-Deckenfluter, CCT & Nacht-Glow]
+        Gallery --> Environment[28.6 container_environment_votivkirche<br/>Wiener Votivkirche Gotik-Fassade & Piazza]
+        Gallery --> CameraDirector[28.7 container_camera_director<br/>Innenraum-Walk-In, 1. OG Ausblick, Hero & Orbit]
     end
 ```
 
@@ -748,6 +759,91 @@ graph TD
   * Dynamische Berechnung des vertikalen/horizontalen Field-of-View (FOV) in Abhängigkeit vom Bildschirmseitenverhältnis ($16:9$, $9:16$, $4:3$, $21:9$).
   * Intelligentes Orbit-Target Framing: Automatische Zoom-Distanz-Skalierung, damit große 3D-Modelle (wie der 15.2m Supertechno 50 Ausleger oder der MAN TGL LKW) auf Smartphones im Hochformat nicht abgeschnitten werden.
   * Synchronisation von UI-Ebenen mit 3D-Weltkoordinaten (z. B. Tooltips, Tennis-Hawk-Eye-Overlays, Schiedsrichter-Call-Fenster).
+
+### 28. `gallery_container` (🎨 Modular 2-Story Shipping Container Art Gallery & Architecture Master)
+* **Dateien**: 
+  * [`src/components/gallery/GalleryContainer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryContainer.tsx) (Scene Orchestrator & Viewport Master)
+  * [`src/components/gallery/ContainerStructure.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerStructure.tsx) (20ft ISO Double-Stack Container Baugruppe)
+  * [`src/components/gallery/ContainerGlassAndDoors.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerGlassAndDoors.tsx) (Panorama-Glasfassaden & Türkinematik)
+  * [`src/components/gallery/ContainerInterior.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerInterior.tsx) (Galerie-Innenraum, Podeste & Treppenaufgang)
+  * [`src/components/gallery/ContainerArtworks.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerArtworks.tsx) (Kuratierte Kunstwerke, Skulpturen & Spots)
+  * [`src/components/gallery/ContainerLighting.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerLighting.tsx) (Lineare LED-Lichtbänder & CCT-Steuerung)
+  * [`src/components/gallery/VotivkircheEnvironment.tsx`](file:///e:/3D-headings/src/components/gallery/VotivkircheEnvironment.tsx) (Wiener Votivkirche Gotik-Kathedrale & Piazza)
+  * [`src/components/gallery/GalleryControlDrawer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryControlDrawer.tsx) (Neurodidaktischer Glassmorphism UI-Drawer)
+  * [`src/types/galleryTypes.ts`](file:///e:/3D-headings/src/types/galleryTypes.ts) (Typdefinitionen & Presets)
+* **Zuständigkeit**:
+  * **1. Zweistöckige Pop-up Kunstgalerie (2-Story Modular Art Pavilion)**:
+    * Vorbildgetreue 3D-Nachbildung des zweistöckigen, anthrazitfarbenen 20ft Seecontainer-Pavillons aus dem Referenzfoto.
+    * Modularer Doppel-Stack (EG + 1. OG): 2x 20ft ISO Standardcontainer ($L=6.058\,\text{m}, B=2.438\,\text{m}, H=2.591\,\text{m}$), Gesamthöhe $5.182\,\text{m}$.
+    * Realistische Eckbeschläge (Corner Castings), Twistlock-Verriegelungen und stählerne Nivellier-Bodenplatten (Spreader Base Pads).
+  * **2. Panorama-Verglasung & Begehbare Innenräume**:
+    * Großflächige, bodentiefe Panorama-Glasfassaden mit filigranen Aluminium-Profilen, Antireflex-Eigenschaften und Innenbeleuchtungsdurchlässigkeit.
+    * Öffnungsfähige Container-Endtüren mit rotierenden Verriegelungsstangen (Locking Bars), Nocken (Cams/Keepers) und Glasschiebetür-Haupteingang.
+  * **3. Museums-Lichttechnik & CCT-Regelung**:
+    * Durchgehende lineare LED-Deckenlichtbänder mit variabler Farbtemperatur (2700K Warmweiß bis 6500K Tageslichtweiß).
+    * Dimmbare Galerie-Spots zur Ausleuchtung von Gemälden und Skulpturen-Podesten.
+    * Bodenbündige Außenfluter für dramatische Fassadenillumination bei Nacht.
+  * **4. Historische Wiener Gotik-Kulisse (Votivkirche Wien)**:
+    * 3D-Architektur der neugotischen Wiener Votivkirche (Zwillingsspitzen, Maßwerk-Rosette, Strebepfeiler, Maßwerkfenster) am Sigmund-Freud-Park / Rooseveltplatz.
+    * Umschaltbare Plätze und Atmosphären (Wiener Votivkirche, Modern Art Plaza, Nacht-Museum, Sunset Panorama, Studio Cyclorama).
+  * **5. Kamera-Regie & Interaktive Kuration**:
+    * 6 cineastische Kameraperspektiven (Hero 3/4 Gotik-Perspektive wie im Foto, EG Walk-In, 1. OG Galerie-Fenster, Gotik-Kathedrale Total, Drohne, 360° Orbit).
+    * Wechselbare Kunst-Kollektionen (Modern Abstract, Supertechno Cine Photography, Bauhaus & Minimalismus, Skulpturenschau) mit interaktiven Beschriftungsschildern.
+
+#### 28.1 `container_architecture_structure` (🏗️ 20ft ISO Double-Stack Rahmen, Trapezblech & Twistlocks)
+* **Dateien**: [`src/components/gallery/ContainerStructure.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerStructure.tsx)
+* **Zuständigkeit**:
+  * Präzise 20ft ISO-Container-Geometrie ($6.058 \times 2.438 \times 2.591\,\text{m}$ pro Stockwerk).
+  * 8x genormte ISO-Eckbeschläge (Corner Castings) mit Twistlocks zur Arretierung des oberen Containers.
+  * Gewellte Trapezblech-Seitenwände (Corrugated Steel Panels) mit feiner Kantengeometrie und realistischer PBR-Materialbeschichtung (Matt Anthrazit RAL 7016, Rost/Corten, Reinweiß RAL 9010, Cyber Neon).
+  * 4x Stahl-Schwerlast-Nivellierplatten (Base Spreader Plates) am Boden.
+
+#### 28.2 `container_glass_facades_doors` (🪟 Panorama-Glas, Flügeltüren & Verriegelungskinematik)
+* **Dateien**: [`src/components/gallery/ContainerGlassAndDoors.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerGlassAndDoors.tsx)
+* **Zuständigkeit**:
+  * Bodentiefe Panorama-Glasscheiben an Längs- und Stirnseiten für ungehinderten Ein- und Ausblick.
+  * Voll funktionstüchtige Container-Flügeltüren ($0^\circ \dots 110^\circ$) mit Verriegelungsgestänge, Griffhebeln und Nocken.
+  * Eingebettete Glas-Eingangstür mit Edelstahl-Drückergarnitur.
+
+#### 28.3 `container_gallery_interior` (🏛️ Weißer Galerie-Innenraum, Holzböden & Sockel)
+* **Dateien**: [`src/components/gallery/ContainerInterior.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerInterior.tsx)
+* **Zuständigkeit**:
+  * Makelloser weißer Museums-Trockenbauausbau mit Schattenfugen.
+  * Hochwertiger polierter Sichtestrich- bzw. Eichenparkett-Bodenbelag.
+  * Weiße Ausstellungssockel (Pedestals / Display Cubes) in verschiedenen Höhen für 3D-Skulpturen.
+  * Minimalistische Innentreppe / Wendelaufgang zur Verbindung beider Ausstellungsebenen.
+
+#### 28.4 `container_art_curation` (🖼️ Kuratierte Kunstwerke, Skulpturen & Info-Plaques)
+* **Dateien**: [`src/components/gallery/ContainerArtworks.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerArtworks.tsx)
+* **Zuständigkeit**:
+  * Ansprechende gerahmte Kunstwerke auf beiden Stockwerken mit akzentuierter Beleuchtung.
+  * Umschaltbare Kunst-Kollektionen: *Modern Abstract Expressions*, *Supertechno Cine History*, *Bauhaus Avantgarde*, *Contemporary Sculptures*.
+  * Interaktive Museumsplaketten (Künstler, Werkname, Entstehungsjahr, Technik) per Klick oder HUD-Auswahl.
+
+#### 28.5 `container_lighting_ambience` (💡 Lineare LED-Deckenfluter, CCT & Nacht-Glow)
+* **Dateien**: [`src/components/gallery/ContainerLighting.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerLighting.tsx)
+* **Zuständigkeit**:
+  * Durchgehende lineare LED-Lichtbänder an den Decken beider Container (wie im Referenzfoto).
+  * Stufenlose Farbtemperatur-Regelung (CCT $2700\,\text{K}$ Warmweiß bis $6500\,\text{K}$ Kaltweiß) und Dimmer ($0\% \dots 100\%$).
+  * Dimmbare Decken-Downlights und Kunst-Spots.
+  * Architektonische Außenfluter (Ground Up-Lights) für stimmungsvolle Nachtbeleuchtung.
+
+#### 28.6 `container_environment_votivkirche` (⛪ Wiener Votivkirche Gotik-Fassade & Piazza)
+* **Dateien**: [`src/components/gallery/VotivkircheEnvironment.tsx`](file:///e:/3D-headings/src/components/gallery/VotivkircheEnvironment.tsx)
+* **Zuständigkeit**:
+  * Monumentale neugotische Wiener Votivkirchen-Fassade im Hintergrund mit detailgetreuen Maßwerk-Spitzen, Portalbögen und Rosette.
+  * Wiener Sigmund-Freud-Park Platzgestaltung mit Granit-Steinplatten, Rasenflächen, Parkbäumen und historischer Kandelaber-Laterne.
+  * Wechselbare Umgebungs-Presets: *Votivkirche Wien (Original)*, *Modern Art Piazza*, *Nacht-Museum Illumination*, *Goldene Stunde Sunset*, *Minimal Studio Cyclorama*.
+
+#### 28.7 `container_camera_director` (🎥 Innenraum-Walk-In, 1. OG Ausblick, Hero & Orbit)
+* **Dateien**: [`src/components/gallery/GalleryContainer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryContainer.tsx)
+* **Zuständigkeit**:
+  * *Hero 3/4 Shot*: Original-Fotoperspektive mit Blick auf Container und Votivkirche im Hintergrund.
+  * *Ground Floor Walk-In*: Kamera fährt direkt in das Erdgeschoss zur Nahbetrachtung der Kunstwerke.
+  * *Upper Floor Gallery*: Kamera im 1. Obergeschoss mit Blick auf Gemälde und durch das Panoramafenster nach draußen.
+  * *Cathedral Architectural View*: Weitwinkelperspektive auf die Votivkirche mit dem Pavillon im Vordergrund.
+  * *Drone Top-Down*: Senkrechter Blick von oben auf das Dach und die Platzgeometrie.
+  * *360° Studio Orbit*: Sanft rotierender Rundflug um den Kunstpavillon.
 
 ---
 
