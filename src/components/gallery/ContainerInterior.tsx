@@ -59,7 +59,7 @@ export const ContainerInterior: React.FC<ContainerInteriorProps> = ({
     };
   }, []);
 
-  // Single Floor Gallery Interior Shell (gegengleiche open room with solid walls only at steel sections)
+  // Single Floor Gallery Interior Shell (staggered open room with solid drywall only behind steel sections)
   const InteriorFloor = ({ yOffset, isUpper = false }: { yOffset: number; isUpper?: boolean }) => {
     const innerL = LENGTH - WALL_THICKNESS * 2 - 0.1;
     const innerW = WIDTH - WALL_THICKNESS * 2 - 0.1;
@@ -69,9 +69,10 @@ export const ContainerInterior: React.FC<ContainerInteriorProps> = ({
     const midY = yOffset + HEIGHT / 2;
 
     const solidWallHalfL = innerL / 2;
-    // For EG (!isUpper): Solid steel is at X > 0 (right half). Left half is open glass.
-    // For 1. OG (isUpper): Solid steel is at X < 0 (left half). Right half is open glass.
-    const wallPosX = isUpper ? -solidWallHalfL / 2 : solidWallHalfL / 2;
+    // For EG (!isUpper): Solid steel is Front at X > 0, Back at X < 0.
+    // For 1. OG (isUpper): Solid steel is Front at X < 0, Back at X > 0.
+    const frontWallPosX = isUpper ? -solidWallHalfL / 2 : solidWallHalfL / 2;
+    const backWallPosX = isUpper ? solidWallHalfL / 2 : -solidWallHalfL / 2;
 
     return (
       <group>
@@ -87,9 +88,27 @@ export const ContainerInterior: React.FC<ContainerInteriorProps> = ({
           <primitive object={materials.galleryCeiling} attach="material" />
         </mesh>
 
-        {/* Back Interior Wall - Only behind the corrugated steel half! */}
-        <mesh position={[wallPosX, midY, -innerW / 2 + 0.02]} receiveShadow>
+        {/* Front Interior Drywall - Behind Front Solid Corrugated Steel */}
+        <mesh position={[frontWallPosX, midY, innerW / 2 - 0.02]} receiveShadow>
           <boxGeometry args={[solidWallHalfL, innerH, 0.03]} />
+          <primitive object={materials.galleryWall} attach="material" />
+        </mesh>
+
+        {/* Back Interior Drywall - Behind Back Solid Corrugated Steel */}
+        <mesh position={[backWallPosX, midY, -innerW / 2 + 0.02]} receiveShadow>
+          <boxGeometry args={[solidWallHalfL, innerH, 0.03]} />
+          <primitive object={materials.galleryWall} attach="material" />
+        </mesh>
+
+        {/* Left End Interior Drywall - Behind Solid Corrugated End Panel */}
+        <mesh position={[-innerL / 2 + 0.02, midY, isUpper ? (innerW / 4) : (-innerW / 4)]} receiveShadow>
+          <boxGeometry args={[0.03, innerH, innerW / 2]} />
+          <primitive object={materials.galleryWall} attach="material" />
+        </mesh>
+
+        {/* Right End Interior Drywall - Behind Solid Corrugated End Panel */}
+        <mesh position={[innerL / 2 - 0.02, midY, isUpper ? (-innerW / 4) : (innerW / 4)]} receiveShadow>
+          <boxGeometry args={[0.03, innerH, innerW / 2]} />
           <primitive object={materials.galleryWall} attach="material" />
         </mesh>
       </group>

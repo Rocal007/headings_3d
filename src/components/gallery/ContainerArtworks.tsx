@@ -181,8 +181,48 @@ export const ContainerArtworks: React.FC<ContainerArtworksProps> = ({
   const ogOffsetY = stackMode === 'side_by_side' ? -2.591 : 0;
   const ogOffsetZ = stackMode === 'side_by_side' ? -2.438 : 0;
 
+  // Architectural Scale Figures (as drawn in PDF pages 3, 4, 5, 6)
+  const figures = [
+    // 1. Curator in Suit on the right (Pages 4, 5, 6)
+    { pos: [3.8, 0, 0.8] as [number, number, number], rotY: -0.4, scale: 1.78 },
+    // 2. Spectator on the left (Pages 3, 4, 5)
+    { pos: [-3.8, 0, 0.6] as [number, number, number], rotY: 0.6, scale: 1.75 },
+    // 3. Standing viewer in front of glass showcase (Pages 3, 5)
+    { pos: [0.0, 0, 2.6] as [number, number, number], rotY: 0.0, scale: 1.72 },
+    // 4. Second person on the right walking (Page 5)
+    { pos: [4.4, 0, 1.6] as [number, number, number], rotY: -0.8, scale: 1.68 },
+  ];
+
   return (
     <group name="container_artworks">
+      {/* 1. Architectural Scale Figures matching PDF Sketches */}
+      <group name="gezwanzig_scale_figures">
+        {figures.map((fig, idx) => (
+          <group key={`fig_${idx}`} position={fig.pos} rotation={[0, fig.rotY, 0]}>
+            {/* Torso / Coat */}
+            <mesh position={[0, fig.scale * 0.58, 0]} castShadow>
+              <capsuleGeometry args={[0.13, fig.scale * 0.42, 6, 8]} />
+              <meshStandardMaterial color="#334155" roughness={0.6} metalness={0.1} />
+            </mesh>
+            {/* Head */}
+            <mesh position={[0, fig.scale * 0.92, 0]} castShadow>
+              <sphereGeometry args={[0.10, 10, 10]} />
+              <meshStandardMaterial color="#334155" roughness={0.6} metalness={0.1} />
+            </mesh>
+            {/* Legs */}
+            <mesh position={[-0.06, fig.scale * 0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.045, 0.035, fig.scale * 0.5, 8]} />
+              <meshStandardMaterial color="#334155" roughness={0.6} metalness={0.1} />
+            </mesh>
+            <mesh position={[0.06, fig.scale * 0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.045, 0.035, fig.scale * 0.5, 8]} />
+              <meshStandardMaterial color="#334155" roughness={0.6} metalness={0.1} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+
+      {/* 2. Collection Artworks (Sculpture & Framed Artworks) */}
       {collection.artworks.map((art) => {
         if (art.floor === 'OG' && !showUpper) return null;
 
@@ -190,6 +230,7 @@ export const ContainerArtworks: React.FC<ContainerArtworksProps> = ({
         const [w, h, d] = art.scale;
         const isSculpture = art.patternType === 'sculpture';
         const isUpperFloor = art.floor === 'OG';
+        const isGezwanzigSculpture = art.id.includes('gezwanzig');
 
         const finalPos: [number, number, number] = isUpperFloor
           ? [art.position[0] + ogOffsetX, art.position[1] + ogOffsetY, art.position[2] + ogOffsetZ]
@@ -207,33 +248,62 @@ export const ContainerArtworks: React.FC<ContainerArtworksProps> = ({
                 onSelectArtwork(isSelected ? null : art.id);
               }}
             >
-              {/* Abstract Torus Knot / Organic Form in Bronze or Mirror Steel */}
-              <mesh castShadow receiveShadow position={[0, 0.4, 0]}>
-                <torusKnotGeometry args={[0.22, 0.07, 100, 16, 2, 3]} />
-                <meshStandardMaterial
-                  color={art.primaryColor}
-                  roughness={art.patternType === 'sculpture' && art.primaryColor.includes('e2e8f0') ? 0.05 : 0.4}
-                  metalness={0.9}
-                  emissive={isSelected ? new THREE.Color('#ca8a04') : new THREE.Color('#000000')}
-                  emissiveIntensity={isSelected ? 0.3 : 0}
-                />
+              {/* White Exhibition Pedestal / Plinth */}
+              <mesh position={[0, 0.15, 0]} castShadow receiveShadow>
+                <boxGeometry args={[0.9, 0.3, 0.9]} />
+                <primitive object={materials.plaqueMat} attach="material" />
               </mesh>
+
+              {/* gezwanzig Organic Loop Sculpture (Matching PDF Page 4 & 5) */}
+              {isGezwanzigSculpture ? (
+                <group position={[0, 0.85, 0]}>
+                  {/* Outer Monumental Organic Loop */}
+                  <mesh castShadow receiveShadow rotation={[0.2, 0.4, -0.1]}>
+                    <torusGeometry args={[0.55, 0.16, 24, 48]} />
+                    <meshStandardMaterial
+                      color="#ffffff"
+                      roughness={0.15}
+                      metalness={0.05}
+                      emissive={isSelected ? new THREE.Color('#38bdf8') : new THREE.Color('#000000')}
+                      emissiveIntensity={isSelected ? 0.25 : 0}
+                    />
+                  </mesh>
+                  {/* Inner Interlocking Moebius Twist */}
+                  <mesh castShadow receiveShadow position={[0.05, 0, 0]} rotation={[-0.4, 0.8, 0.5]}>
+                    <torusKnotGeometry args={[0.32, 0.08, 64, 16, 2, 3]} />
+                    <meshStandardMaterial
+                      color="#f1f5f9"
+                      roughness={0.2}
+                      metalness={0.1}
+                    />
+                  </mesh>
+                </group>
+              ) : (
+                <mesh castShadow receiveShadow position={[0, 0.5, 0]}>
+                  <torusKnotGeometry args={[0.26, 0.08, 100, 16, 2, 3]} />
+                  <meshStandardMaterial
+                    color={art.primaryColor}
+                    roughness={0.2}
+                    metalness={0.8}
+                  />
+                </mesh>
+              )}
 
               {/* Dedicated Focused Spotlight */}
               {spotlightIntensity > 0 && (
                 <pointLight
-                  position={[0, 1.2, 0.3]}
-                  intensity={spotlightIntensity * 1.8}
-                  distance={2.5}
+                  position={[0, 1.8, 0.4]}
+                  intensity={spotlightIntensity * 2.2}
+                  distance={3.5}
                   color="#fffbeb"
-                  castShadow
+                  castShadow={false}
                 />
               )}
             </group>
           );
         }
 
-        // Wall Canvas Component
+        // Wall Canvas Component (Matching PDF Page 4 & 6 with Passepartout)
         const texture = artworkTextures[art.id];
 
         return (
@@ -246,33 +316,45 @@ export const ContainerArtworks: React.FC<ContainerArtworksProps> = ({
               onSelectArtwork(isSelected ? null : art.id);
             }}
           >
-            {/* Dark Outer Picture Frame */}
+            {/* Dark Anthracite Aluminum Outer Picture Frame */}
             <mesh castShadow receiveShadow>
-              <boxGeometry args={[w + 0.06, h + 0.06, d]} />
+              <boxGeometry args={[w + 0.08, h + 0.08, d]} />
               <primitive object={isSelected ? materials.highlightFrame : materials.frame} attach="material" />
             </mesh>
 
-            {/* Front Artwork Surface */}
+            {/* White Passepartout Border (as seen on Page 6) */}
             <mesh position={[0, 0, d / 2 + 0.002]} receiveShadow>
               <planeGeometry args={[w, h]} />
+              <meshStandardMaterial
+                color="#f8fafc"
+                roughness={0.9}
+                polygonOffset={true}
+                polygonOffsetFactor={-1}
+                polygonOffsetUnits={-1}
+              />
+            </mesh>
+
+            {/* Inner Art Print */}
+            <mesh position={[0, 0, d / 2 + 0.004]} receiveShadow>
+              <planeGeometry args={[w * 0.72, h * 0.72]} />
               {texture ? (
                 <meshStandardMaterial
                   map={texture}
                   roughness={0.4}
                   metalness={0.1}
+                  polygonOffset={true}
+                  polygonOffsetFactor={-2}
+                  polygonOffsetUnits={-2}
                 />
               ) : (
-                <meshStandardMaterial color={art.primaryColor} />
+                <meshStandardMaterial
+                  color={art.primaryColor}
+                  polygonOffset={true}
+                  polygonOffsetFactor={-2}
+                  polygonOffsetUnits={-2}
+                />
               )}
             </mesh>
-
-            {/* Museum Info Plaque to the bottom right of painting */}
-            <group position={[w / 2 + 0.14, -h / 2 + 0.06, d / 2 + 0.001]}>
-              <mesh receiveShadow>
-                <planeGeometry args={[0.16, 0.1]} />
-                <primitive object={materials.plaqueMat} attach="material" />
-              </mesh>
-            </group>
 
             {/* Spot Downlight Illuminating the painting */}
             {spotlightIntensity > 0 && (
@@ -284,7 +366,7 @@ export const ContainerArtworks: React.FC<ContainerArtworksProps> = ({
                 intensity={spotlightIntensity * 2.2}
                 distance={3.2}
                 color="#fff8e7"
-                castShadow
+                castShadow={false}
               />
             )}
           </group>

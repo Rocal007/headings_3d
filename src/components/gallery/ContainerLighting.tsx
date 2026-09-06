@@ -137,7 +137,7 @@ export const ContainerLighting: React.FC<ContainerLightingProps> = ({
           intensity={exteriorUpLightsIntensity * 2.8}
           distance={8.0}
           color="#fef3c7"
-          castShadow
+          castShadow={false}
         />
       )}
     </group>

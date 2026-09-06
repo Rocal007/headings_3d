@@ -5,10 +5,12 @@ import {
   type ContainerStackMode,
   type GalleryCameraId,
   type GalleryEnvironmentId,
+  type ArtExhibitionId,
   CONTAINER_COLOR_OPTIONS,
   CONTAINER_STACK_OPTIONS,
   GALLERY_CAMERA_PRESETS,
   GALLERY_ENVIRONMENTS,
+  ART_COLLECTIONS,
   kelvinToHex,
 } from '../../types/galleryTypes';
 
@@ -19,7 +21,7 @@ interface GalleryControlDrawerProps {
   onToggleOpen: () => void;
 }
 
-type TabType = 'architecture' | 'lighting' | 'environment' | 'camera';
+type TabType = 'architecture' | 'lighting' | 'curation' | 'environment' | 'camera';
 
 export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
   state,
@@ -59,19 +61,19 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
         }}
       >
         <span>{isOpen ? '✕' : '🎛️'}</span>
-        <span>{isOpen ? 'Schließen' : 'Freie Regie & Setup'}</span>
+        <span>{isOpen ? 'Schließen' : 'gezwanzig Setup & Regie'}</span>
       </button>
 
       {/* Main Glassmorphic Slide-Out Drawer */}
       <aside
         className={`gallery-drawer ${isOpen ? 'open' : 'closed'}`}
         role="region"
-        aria-label="Container Galerie Steuerung"
+        aria-label="gezwanzig Galerie Steuerung"
         style={{
           position: 'fixed',
           top: 0,
           right: 0,
-          width: 'clamp(330px, 85vw, 440px)',
+          width: 'clamp(340px, 85vw, 460px)',
           height: '100vh',
           background: 'rgba(15, 23, 42, 0.95)',
           backdropFilter: 'blur(24px)',
@@ -98,52 +100,47 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '20px' }}>🎨</span>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: '16px',
-                  fontWeight: 800,
-                  letterSpacing: '0.5px',
-                  color: '#f8fafc',
-                }}
-              >
-                GALLERY CONTAINER 3D
-              </h2>
+              <span style={{ fontSize: '22px' }}>🏛️</span>
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '16px',
+                    fontWeight: 800,
+                    letterSpacing: '0.8px',
+                    color: '#f8fafc',
+                  }}
+                >
+                  gezwanzig 3D
+                </h2>
+                <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  contemporary showcase gallery (Maßstab 1:40)
+                </div>
+              </div>
             </div>
             <span
               style={{
                 fontSize: '10px',
                 fontWeight: 700,
-                padding: '2px 6px',
-                borderRadius: '4px',
+                padding: '2px 8px',
+                borderRadius: '6px',
                 background: 'rgba(56, 189, 248, 0.2)',
                 color: '#38bdf8',
                 border: '1px solid rgba(56, 189, 248, 0.35)',
               }}
             >
-              FREIE REGIE
+              PDF ORIGINAL
             </span>
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '11px',
-              color: '#94a3b8',
-              lineHeight: 1.4,
-            }}
-          >
-            Modulare 20ft Container-Architektur, Beleuchtung, Kuration & Drehteller-Showroom
-          </p>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation (5 Tabs) */}
         <nav
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: '2px',
-            padding: '8px 10px',
+            padding: '8px 8px',
             background: 'rgba(2, 6, 23, 0.6)',
             borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           }}
@@ -151,6 +148,7 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
           {[
             { id: 'architecture' as TabType, icon: '🏗️', label: 'Bauform' },
             { id: 'lighting' as TabType, icon: '💡', label: 'Licht' },
+            { id: 'curation' as TabType, icon: '🖼️', label: 'Exponate' },
             { id: 'environment' as TabType, icon: '⭕', label: 'Studio' },
             { id: 'camera' as TabType, icon: '🎬', label: 'Kamera' },
           ].map((tab) => {
@@ -172,7 +170,7 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '2px',
-                  fontSize: '11px',
+                  fontSize: '10px',
                   fontWeight: isActive ? 700 : 500,
                   transition: 'all 0.15s ease',
                 }}
@@ -367,7 +365,6 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
                         onChange({
                           egDoorsOpen: 0.9,
                           ogDoorsOpen: 0.9,
-                          slidingDoorOpen: 0.9,
                         })
                       }
                       style={{
@@ -389,7 +386,6 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
                         onChange({
                           egDoorsOpen: 0,
                           ogDoorsOpen: 0,
-                          slidingDoorOpen: 0,
                         })
                       }
                       style={{
@@ -447,25 +443,6 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
                     />
                   </div>
                 )}
-
-                {/* Front Sliding Door */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '11px', color: '#cbd5e1' }}>EG Glas-Schiebetür:</span>
-                    <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
-                      {Math.round(state.slidingDoorOpen * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.02"
-                    value={state.slidingDoorOpen}
-                    onChange={(e) => onChange({ slidingDoorOpen: parseFloat(e.target.value) })}
-                    style={{ width: '100%', accentColor: '#38bdf8' }}
-                  />
-                </div>
               </div>
             </div>
           )}
@@ -666,7 +643,118 @@ export const GalleryControlDrawer: React.FC<GalleryControlDrawerProps> = ({
           )}
 
           {/* ========================================================= */}
-          {/* TAB 3: STUDIO SHOWROOM & DREHTELLER-MOTOR                 */}
+          {/* TAB 3: EXPONATE & KURATION (PDF GEZWANZIG ORIGINAL)       */}
+          {/* ========================================================= */}
+          {activeTab === 'curation' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      color: '#94a3b8',
+                    }}
+                  >
+                    🖼️ Kunstwerke & Exponate
+                  </label>
+                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    Skulptur im 1. OG & Bilder im EG
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={state.showArtworks}
+                  onChange={(e) => onChange({ showArtworks: e.target.checked })}
+                  style={{ width: '18px', height: '18px', accentColor: '#38bdf8', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Pedestrians / Scale Figures Toggle */}
+              <div
+                style={{
+                  padding: '12px',
+                  background: 'rgba(2, 6, 23, 0.4)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 600 }}>👥 Maßstabsfiguren (PDF Skizzen)</div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8' }}>Architektonische Personen (Kurator, Passanten)</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={state.showPedestrians}
+                  onChange={(e) => onChange({ showPedestrians: e.target.checked })}
+                  style={{ width: '18px', height: '18px', accentColor: '#38bdf8', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Exhibition Collection List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>
+                  Kuratierte Sammlung:
+                </label>
+                {Object.values(ART_COLLECTIONS).map((col) => {
+                  const isSelected = state.currentExhibition === col.id;
+                  return (
+                    <button
+                      key={col.id}
+                      type="button"
+                      onClick={() => onChange({ currentExhibition: col.id as ArtExhibitionId, showArtworks: true })}
+                      style={{
+                        background: isSelected ? 'rgba(56, 189, 248, 0.18)' : 'rgba(30, 41, 59, 0.5)',
+                        border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        color: '#f8fafc',
+                      }}
+                    >
+                      <span style={{ fontSize: '20px' }}>{col.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: isSelected ? '#38bdf8' : '#f8fafc' }}>
+                          {col.name}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#94a3b8' }}>{col.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Artwork Spotlight Slider */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '12px', color: '#cbd5e1' }}>Exponat-Spotlights:</label>
+                  <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>
+                    {Math.round((state.spotlightsIntensity / 2.5) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="2.5"
+                  step="0.1"
+                  value={state.spotlightsIntensity}
+                  onChange={(e) => onChange({ spotlightsIntensity: parseFloat(e.target.value) })}
+                  style={{ width: '100%', accentColor: '#38bdf8' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 4: STUDIO SHOWROOM & DREHTELLER-MOTOR                 */}
           {/* ========================================================= */}
           {activeTab === 'environment' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

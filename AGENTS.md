@@ -760,35 +760,32 @@ graph TD
   * Intelligentes Orbit-Target Framing: Automatische Zoom-Distanz-Skalierung, damit große 3D-Modelle (wie der 15.2m Supertechno 50 Ausleger oder der MAN TGL LKW) auf Smartphones im Hochformat nicht abgeschnitten werden.
   * Synchronisation von UI-Ebenen mit 3D-Weltkoordinaten (z. B. Tooltips, Tennis-Hawk-Eye-Overlays, Schiedsrichter-Call-Fenster).
 
-### 28. `gallery_container` (🎨 Modular 2-Story Shipping Container Art Gallery & Architecture Master)
+### 28. `gallery_container` (🎨 Modular 2-Story Shipping Container Art Gallery & gezwanzig Architecture Master)
 * **Dateien**: 
-  * [`src/components/gallery/GalleryContainer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryContainer.tsx) (Scene Orchestrator & Viewport Master)
-  * [`src/components/gallery/ContainerStructure.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerStructure.tsx) (20ft ISO Double-Stack Container Baugruppe)
-  * [`src/components/gallery/ContainerGlassAndDoors.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerGlassAndDoors.tsx) (Panorama-Glasfassaden & Türkinematik)
-  * [`src/components/gallery/ContainerInterior.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerInterior.tsx) (Galerie-Innenraum, Podeste & Treppenaufgang)
-  * [`src/components/gallery/ContainerArtworks.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerArtworks.tsx) (Kuratierte Kunstwerke, Skulpturen & Spots)
-  * [`src/components/gallery/ContainerLighting.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerLighting.tsx) (Lineare LED-Lichtbänder & CCT-Steuerung)
-  * [`src/components/gallery/VotivkircheEnvironment.tsx`](file:///e:/3D-headings/src/components/gallery/VotivkircheEnvironment.tsx) (Wiener Votivkirche Gotik-Kathedrale & Piazza)
-  * [`src/components/gallery/GalleryControlDrawer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryControlDrawer.tsx) (Neurodidaktischer Glassmorphism UI-Drawer)
-  * [`src/types/galleryTypes.ts`](file:///e:/3D-headings/src/types/galleryTypes.ts) (Typdefinitionen & Presets)
+  * [`src/components/gallery/GalleryContainer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryContainer.tsx) (Scene Orchestrator, gezwanzig HUD & Viewport Master)
+  * [`src/components/gallery/ContainerStructure.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerStructure.tsx) (20ft ISO Double-Stack Baugruppe, 100% blickdichte Massivbleche)
+  * [`src/components/gallery/ContainerGlassAndDoors.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerGlassAndDoors.tsx) (Panorama-Glasfassaden, Portal-Schwenktüren & Festglas-Stirnwand)
+  * [`src/components/gallery/ContainerInterior.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerInterior.tsx) (Stufenfreie 14,8m² Galerie-Räume & plane weiße Hängewände)
+  * [`src/components/gallery/ContainerArtworks.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerArtworks.tsx) (gezwanzig Original-Skulptur 1. OG, 2x EG-Bilder & architektonische Maßstabsfiguren)
+  * [`src/components/gallery/ContainerLighting.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerLighting.tsx) (Lineare LED-Deckenlamellen & CCT-Steuerung)
+  * [`src/components/gallery/StudioShowroomEnvironment.tsx`](file:///e:/3D-headings/src/components/gallery/StudioShowroomEnvironment.tsx) (Studio-Showroom & Ø 18m Drehteller-Plattform)
+  * [`src/components/gallery/GalleryControlDrawer.tsx`](file:///e:/3D-headings/src/components/gallery/GalleryControlDrawer.tsx) (gezwanzig 5-Tab Neurodidaktik Glassmorphism Drawer)
+  * [`src/types/galleryTypes.ts`](file:///e:/3D-headings/src/types/galleryTypes.ts) (Typdefinitionen, gezwanzig Kuration & PDF-Kamerapresets)
 * **Zuständigkeit**:
-  * **1. Zweistöckige Pop-up Kunstgalerie (2-Story Modular Art Pavilion)**:
-    * Vorbildgetreue 3D-Nachbildung des zweistöckigen, anthrazitfarbenen 20ft Seecontainer-Pavillons aus dem Referenzfoto.
-    * Modularer Doppel-Stack (EG + 1. OG): 2x 20ft ISO Standardcontainer ($L=6.058\,\text{m}, B=2.438\,\text{m}, H=2.591\,\text{m}$), Gesamthöhe $5.182\,\text{m}$.
-    * Realistische Eckbeschläge (Corner Castings), Twistlock-Verriegelungen und stählerne Nivellier-Bodenplatten (Spreader Base Pads).
-  * **2. Panorama-Verglasung & Begehbare Innenräume**:
-    * Großflächige, bodentiefe Panorama-Glasfassaden mit filigranen Aluminium-Profilen, Antireflex-Eigenschaften und Innenbeleuchtungsdurchlässigkeit.
-    * Öffnungsfähige Container-Endtüren mit rotierenden Verriegelungsstangen (Locking Bars), Nocken (Cams/Keepers) und Glasschiebetür-Haupteingang.
-  * **3. Museums-Lichttechnik & CCT-Regelung**:
-    * Durchgehende lineare LED-Deckenlichtbänder mit variabler Farbtemperatur (2700K Warmweiß bis 6500K Tageslichtweiß).
-    * Dimmbare Galerie-Spots zur Ausleuchtung von Gemälden und Skulpturen-Podesten.
-    * Bodenbündige Außenfluter für dramatische Fassadenillumination bei Nacht.
-  * **4. Historische Wiener Gotik-Kulisse (Votivkirche Wien)**:
-    * 3D-Architektur der neugotischen Wiener Votivkirche (Zwillingsspitzen, Maßwerk-Rosette, Strebepfeiler, Maßwerkfenster) am Sigmund-Freud-Park / Rooseveltplatz.
-    * Umschaltbare Plätze und Atmosphären (Wiener Votivkirche, Modern Art Plaza, Nacht-Museum, Sunset Panorama, Studio Cyclorama).
-  * **5. Kamera-Regie & Interaktive Kuration**:
-    * 6 cineastische Kameraperspektiven (Hero 3/4 Gotik-Perspektive wie im Foto, EG Walk-In, 1. OG Galerie-Fenster, Gotik-Kathedrale Total, Drohne, 360° Orbit).
-    * Wechselbare Kunst-Kollektionen (Modern Abstract, Supertechno Cine Photography, Bauhaus & Minimalismus, Skulpturenschau) mit interaktiven Beschriftungsschildern.
+  * **1. gezwanzig Showcase Gallery (Maßstab 1:40 nach Original-PDF)**:
+    * 1:1 Abbildung des Architekturplans *„gezwanzig contemporary showcase gallery“*.
+    * Abmessungen: Länge $6.058\,\text{m}$, Breite $2.438\,\text{m}$, Höhe pro Ebene $2.591\,\text{m}$, Gesamthöhe $5.182\,\text{m}$.
+    * Nutzfläche: $14,8\,\text{m}^2$ pro Ebene (aufgeteilt in $2\times 7,4\,\text{m}^2$ Quadranten).
+  * **2. Versetzte Schachbrett-Fassaden (Zero Transparency & Blickachsen-Guardrail)**:
+    * Gegenüber jeder seitlichen Glasöffnung liegt immer eine 100% blickdichte, massive Cortenstahl-Vollblechwand mit 45mm Kernplatte.
+    * Reine Panorama-Festverglasung an den Längsseiten ohne störende Seitentüren.
+    * Stirnseiten: Linkes Eingangsportal mit Schwenktür ($X = -3.03\,\text{m}$), rechtes Portal mit Vollglas-Stirnwand ($X = +3.03\,\text{m}$).
+  * **3. Original-Kuration (PDF Seiten 4, 5, 6)**:
+    * **1. OG**: Monumentale weiße organische Ringskulptur (*gezwanzig loop*) auf Kunstsockel im verglasten Quadranten.
+    * **EG**: Zwei gerahmte Original-Fine-Art-Prints nebeneinander auf der weißen Innenwand mit Passepartout.
+    * **Maßstabsfiguren**: Architektonische Personen-Silhouetten (Kurator im Anzug, Passanten, Besucher) wie in den PDF-Skizzen gezeichnet.
+  * **4. PDF-Kameraregie & Orthogonale Ansichten**:
+    * Presets für jede Seite der PDF: `Axonometrie 3D` (S. 5), `Ansicht 1:40` (S. 2), `Grundriss 1:40` (S. 1), `Showcase Front` (S. 4), `Detail EG Showcase` (S. 6), `EG Walk-In` (S. 3) und `Freie Regie`.
 
 #### 28.1 `container_architecture_structure` (🏗️ 20ft ISO Double-Stack Rahmen, Trapezblech & Twistlocks)
 * **Dateien**: [`src/components/gallery/ContainerStructure.tsx`](file:///e:/3D-headings/src/components/gallery/ContainerStructure.tsx)

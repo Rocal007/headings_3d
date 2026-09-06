@@ -8,12 +8,12 @@ import {
   DEFAULT_GALLERY_STATE,
   GALLERY_CAMERA_PRESETS,
   GALLERY_ENVIRONMENTS,
-  kelvinToHex,
 } from '../../types/galleryTypes';
 import { ContainerStructure } from './ContainerStructure';
 import { ContainerGlassAndDoors } from './ContainerGlassAndDoors';
 import { ContainerInterior } from './ContainerInterior';
 import { ContainerLighting } from './ContainerLighting';
+import { ContainerArtworks } from './ContainerArtworks';
 import { StudioShowroomEnvironment } from './StudioShowroomEnvironment';
 import { VotivkircheEnvironment } from './VotivkircheEnvironment';
 import { GalleryControlDrawer } from './GalleryControlDrawer';
@@ -115,7 +115,8 @@ function SceneLights({
 }: {
   envId: keyof typeof GALLERY_ENVIRONMENTS;
 }) {
-  const env = GALLERY_ENVIRONMENTS[envId] || GALLERY_ENVIRONMENTS.dark_studio;
+  const env = GALLERY_ENVIRONMENTS[envId] || GALLERY_ENVIRONMENTS.afternoon_5pm;
+  const sunColor = env.sunColor || '#ffffff';
 
   return (
     <>
@@ -123,15 +124,17 @@ function SceneLights({
       <directionalLight
         position={env.sunPosition}
         intensity={env.sunIntensity}
+        color={sunColor}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0001}
-        shadow-camera-left={-18}
-        shadow-camera-right={18}
-        shadow-camera-top={24}
-        shadow-camera-bottom={-6}
-        shadow-camera-near={0.5}
-        shadow-camera-far={60}
+        shadow-bias={-0.00005}
+        shadow-normalBias={0.03}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-4}
+        shadow-camera-near={1.0}
+        shadow-camera-far={45}
       />
       {/* Sky fill light from opposite angle */}
       <directionalLight
@@ -167,8 +170,13 @@ export const GalleryContainer: React.FC = () => {
       {/* 3D WebGL Canvas */}
       <Canvas
         shadows
-        camera={{ position: [7.2, 3.2, 8.2], fov: state.cameraFov }}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        camera={{ position: [7.2, 3.2, 8.2], fov: state.cameraFov, near: 0.1, far: 250 }}
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: 'high-performance',
+          logarithmicDepthBuffer: true,
+        }}
       >
         <color attach="background" args={[envConfig.skyColor]} />
         <fog
@@ -238,17 +246,27 @@ export const GalleryContainer: React.FC = () => {
             exteriorUpLightsIntensity={state.exteriorUpLightsIntensity}
             stackMode={state.stackMode}
           />
+
+          {/* 5. Curated Artworks & Sculpture (PDF gezwanzig Original-Kuration) */}
+          <ContainerArtworks
+            exhibitionId={state.currentExhibition}
+            selectedArtworkId={state.selectedArtworkId}
+            onSelectArtwork={(id) => handleStateChange({ selectedArtworkId: id })}
+            spotlightIntensity={state.spotlightsIntensity}
+            stackMode={state.stackMode}
+            showArtworks={state.showArtworks}
+          />
         </ContainerRotator>
       </Canvas>
 
-      {/* Top Floating Telemetry & Quick Header */}
+      {/* Top Floating Telemetry & gezwanzig Blueprint Header */}
       <div
         className="gallery-telemetry-hud"
         style={{
           position: 'absolute',
           top: '76px',
           left: '20px',
-          background: 'rgba(15, 23, 42, 0.82)',
+          background: 'rgba(15, 23, 42, 0.88)',
           backdropFilter: 'blur(16px)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           borderRadius: '12px',
@@ -258,71 +276,79 @@ export const GalleryContainer: React.FC = () => {
           flexDirection: 'column',
           gap: '6px',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
-          maxWidth: '380px',
+          maxWidth: '420px',
           pointerEvents: 'auto',
           zIndex: 10,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px' }}>🎨</span>
+            <span style={{ fontSize: '20px' }}>🏛️</span>
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 800, letterSpacing: '0.6px', color: '#38bdf8' }}>
-                POP-UP GALLERY CONTAINER
+              <div style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '0.8px', color: '#f8fafc' }}>
+                gezwanzig
               </div>
               <div style={{ fontSize: '10px', color: '#94a3b8' }}>
-                2-Story 20ft ISO (6.06m × 2.44m × 5.18m)
+                contemporary showcase gallery gezwanzig
               </div>
             </div>
           </div>
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: '6px',
-              background: 'rgba(56, 189, 248, 0.2)',
-              color: '#38bdf8',
-              border: '1px solid rgba(56, 189, 248, 0.4)',
-            }}
-          >
-            STUDIO SHOWROOM
-          </span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '6px',
+                background: 'rgba(56, 189, 248, 0.2)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+              }}
+            >
+              Maßstab 1:40
+            </span>
+          </div>
         </div>
 
-        {/* Live Metrics Row */}
+        {/* Live Metrics Row matching PDF */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '8px',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '6px',
             marginTop: '4px',
             paddingTop: '6px',
             borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           }}
         >
           <div>
-            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>CCT LICHT</div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: kelvinToHex(state.cctKelvin) }}>
-              {state.cctKelvin} K
+            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>LÄNGE</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc' }}>
+              6,058 m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>TÜREN (EG)</div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: state.egDoorsOpen > 0 ? '#4ade80' : '#cbd5e1' }}>
-              {state.egDoorsOpen > 0 ? `${Math.round(state.egDoorsOpen * 150)}° NACH AUSSEN` : 'GESCHLOSSEN'}
+            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>BREITE</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc' }}>
+              2,438 m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>BAUFORM</div>
+            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>HÖHE (2-STÖCKIG)</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc' }}>
+              5,182 m
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase' }}>FLÄCHE / EBENE</div>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8' }}>
-              {state.stackMode === 'double_stack' ? '2-STORY ISO' : state.stackMode === 'cantilever_offset' ? 'L-AUSKRAGUNG' : state.stackMode === 'side_by_side' ? 'SIDE-BY-SIDE' : 'SINGLE 20FT'}
+              14,8 m² (2× 7,4m²)
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Quick-Action Toolbar */}
+      {/* Bottom Quick-Action Toolbar (PDF Kamera-Modi & Regie) */}
       <div
         className="gallery-quick-toolbar"
         style={{
@@ -337,11 +363,118 @@ export const GalleryContainer: React.FC = () => {
           padding: '6px 12px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45)',
           zIndex: 10,
+          maxWidth: '92vw',
+          overflowX: 'auto',
         }}
       >
+        <button
+          type="button"
+          onClick={() => handleStateChange({ activeCamera: 'axonometrie_3d' })}
+          style={{
+            background: state.activeCamera === 'axonometrie_3d' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            border: state.activeCamera === 'axonometrie_3d' ? '1px solid #38bdf8' : '1px solid transparent',
+            color: '#f8fafc',
+            padding: '6px 10px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>🏛️</span> Axonometrie (S. 5)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStateChange({ activeCamera: 'ansicht_1_40' })}
+          style={{
+            background: state.activeCamera === 'ansicht_1_40' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            border: state.activeCamera === 'ansicht_1_40' ? '1px solid #38bdf8' : '1px solid transparent',
+            color: '#f8fafc',
+            padding: '6px 10px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>📐</span> Ansicht 1:40 (S. 2)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStateChange({ activeCamera: 'grundriss_1_40' })}
+          style={{
+            background: state.activeCamera === 'grundriss_1_40' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            border: state.activeCamera === 'grundriss_1_40' ? '1px solid #38bdf8' : '1px solid transparent',
+            color: '#f8fafc',
+            padding: '6px 10px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>📋</span> Grundriss (S. 1)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStateChange({ activeCamera: 'showcase_front' })}
+          style={{
+            background: state.activeCamera === 'showcase_front' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            border: state.activeCamera === 'showcase_front' ? '1px solid #38bdf8' : '1px solid transparent',
+            color: '#f8fafc',
+            padding: '6px 10px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>🖼️</span> Showcase (S. 4)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleStateChange({ activeCamera: 'detail_eg' })}
+          style={{
+            background: state.activeCamera === 'detail_eg' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+            border: state.activeCamera === 'detail_eg' ? '1px solid #38bdf8' : '1px solid transparent',
+            color: '#f8fafc',
+            padding: '6px 10px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>🔍</span> Detail EG (S. 6)
+        </button>
+
         <button
           type="button"
           onClick={() => handleStateChange({ activeCamera: 'free' })}
@@ -349,77 +482,18 @@ export const GalleryContainer: React.FC = () => {
             background: state.activeCamera === 'free' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
             border: state.activeCamera === 'free' ? '1px solid #38bdf8' : '1px solid transparent',
             color: '#f8fafc',
-            padding: '6px 12px',
+            padding: '6px 10px',
             borderRadius: '20px',
             cursor: 'pointer',
             fontSize: '11px',
             fontWeight: 700,
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
+            whiteSpace: 'nowrap',
           }}
         >
           <span>🎬</span> Freie Regie
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleStateChange({ activeCamera: 'hero' })}
-          style={{
-            background: state.activeCamera === 'hero' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-            border: state.activeCamera === 'hero' ? '1px solid #38bdf8' : '1px solid transparent',
-            color: '#f8fafc',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <span>👑</span> Hero Shot
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleStateChange({ activeCamera: 'interior_eg' })}
-          style={{
-            background: state.activeCamera === 'interior_eg' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-            border: state.activeCamera === 'interior_eg' ? '1px solid #38bdf8' : '1px solid transparent',
-            color: '#f8fafc',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <span>🚶‍♂️</span> EG Walk-In
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleStateChange({ activeCamera: 'interior_og' })}
-          style={{
-            background: state.activeCamera === 'interior_og' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-            border: state.activeCamera === 'interior_og' ? '1px solid #38bdf8' : '1px solid transparent',
-            color: '#f8fafc',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <span>🖼️</span> 1. OG Ausblick
         </button>
 
         <button
@@ -433,17 +507,18 @@ export const GalleryContainer: React.FC = () => {
             background: state.turntableMotorActive ? 'rgba(34, 197, 94, 0.25)' : 'transparent',
             border: state.turntableMotorActive ? '1px solid #22c55e' : '1px solid transparent',
             color: '#f8fafc',
-            padding: '6px 12px',
+            padding: '6px 10px',
             borderRadius: '20px',
             cursor: 'pointer',
             fontSize: '11px',
             fontWeight: 700,
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
+            whiteSpace: 'nowrap',
           }}
         >
-          <span>🔄</span> {state.turntableMotorActive ? 'Drehteller Stop' : 'Drehteller An'}
+          <span>🔄</span> {state.turntableMotorActive ? 'Stop' : 'Drehteller'}
         </button>
 
         <button
@@ -452,77 +527,24 @@ export const GalleryContainer: React.FC = () => {
             handleStateChange({
               egDoorsOpen: state.egDoorsOpen > 0.1 ? 0 : 0.85,
               ogDoorsOpen: state.ogDoorsOpen > 0.1 ? 0 : 0.85,
-              slidingDoorOpen: state.slidingDoorOpen > 0.1 ? 0 : 0.9,
             })
           }
           style={{
             background: state.egDoorsOpen > 0.1 ? 'rgba(229, 197, 0, 0.25)' : 'transparent',
             border: state.egDoorsOpen > 0.1 ? '1px solid #e5c500' : '1px solid transparent',
             color: '#f8fafc',
-            padding: '6px 12px',
+            padding: '6px 10px',
             borderRadius: '20px',
             cursor: 'pointer',
             fontSize: '11px',
             fontWeight: 700,
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '4px',
+            whiteSpace: 'nowrap',
           }}
         >
           <span>🚪</span> {state.egDoorsOpen > 0.1 ? 'Türen zu' : 'Türen auf'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            const nextMode: Record<typeof state.stackMode, typeof state.stackMode> = {
-              double_stack: 'cantilever_offset',
-              cantilever_offset: 'side_by_side',
-              side_by_side: 'single_story',
-              single_story: 'double_stack',
-            };
-            handleStateChange({ stackMode: nextMode[state.stackMode] });
-          }}
-          style={{
-            background: 'rgba(56, 189, 248, 0.12)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            color: '#38bdf8',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <span>🏗️</span> {state.stackMode === 'double_stack' ? '2-Story' : state.stackMode === 'cantilever_offset' ? 'L-Form' : state.stackMode === 'side_by_side' ? 'Side-by-Side' : 'Single EG'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            handleStateChange({
-              environment: state.environment === 'dark_studio' ? 'bright_studio' : 'dark_studio',
-            })
-          }
-          style={{
-            background: state.environment === 'dark_studio' ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
-            border: state.environment === 'dark_studio' ? '1px solid #a855f7' : '1px solid transparent',
-            color: '#f8fafc',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <span>{state.environment === 'dark_studio' ? '💡' : '🌑'}</span>
-          {state.environment === 'dark_studio' ? 'Dark' : 'White'}
         </button>
       </div>
 

@@ -96,13 +96,15 @@ export const CONTAINER_STACK_OPTIONS: Record<ContainerStackMode, ContainerStackO
 
 export type GalleryCameraId = 
   | 'free'
+  | 'ansicht_1_40'
+  | 'grundriss_1_40'
+  | 'axonometrie_3d'
+  | 'showcase_front'
+  | 'detail_eg'
+  | 'interior_eg'
+  | 'interior_og'
   | 'front'
   | 'rear'
-  | 'hero' 
-  | 'interior_eg' 
-  | 'interior_og' 
-  | 'side' 
-  | 'drone' 
   | 'orbit';
 
 export interface GalleryCameraPreset {
@@ -125,74 +127,92 @@ export const GALLERY_CAMERA_PRESETS: Record<GalleryCameraId, GalleryCameraPreset
     target: [0, 2.2, 0],
     fov: 42,
   },
+  axonometrie_3d: {
+    id: 'axonometrie_3d',
+    name: '🏛️ Axonometrie 3D (PDF S. 5)',
+    icon: '🏛️',
+    description: 'Isometrische 3D-Axonometrie der zweistöckigen gestapelten Container (PDF Seite 5)',
+    position: [8.2, 5.4, 8.2],
+    target: [0, 2.6, 0],
+    fov: 38,
+  },
+  ansicht_1_40: {
+    id: 'ansicht_1_40',
+    name: '📐 Ansicht 1:40 (PDF S. 2)',
+    icon: '📐',
+    description: 'Orthogonale Fassadenansicht im Maßstab 1:40 (5.182m × 6.058m)',
+    position: [0, 2.6, 9.8],
+    target: [0, 2.6, 0],
+    fov: 32,
+  },
+  grundriss_1_40: {
+    id: 'grundriss_1_40',
+    name: '📋 Grundriss 1:40 (PDF S. 1)',
+    icon: '📋',
+    description: 'Senkrechte Draufsicht / Grundriss im Maßstab 1:40 (2.438m × 6.058m)',
+    position: [0, 11.5, 0.01],
+    target: [0, 0, 0],
+    fov: 34,
+  },
+  showcase_front: {
+    id: 'showcase_front',
+    name: '🖼️ Showcase Front (PDF S. 4)',
+    icon: '🖼️',
+    description: 'Frontale Ausstellungsansicht mit Skulptur im 1. OG und gerahmten Bildern im EG',
+    position: [0, 2.6, 7.2],
+    target: [0, 2.6, 0],
+    fov: 42,
+  },
+  detail_eg: {
+    id: 'detail_eg',
+    name: '🔍 Detail EG Showcase (PDF S. 6)',
+    icon: '🔍',
+    description: 'Nahaufnahme der beiden Ausstellungsbilder an der massiven Rückwand im Erdgeschoss',
+    position: [-1.45, 1.45, 3.8],
+    target: [-1.45, 1.45, -1.06],
+    fov: 35,
+  },
+  interior_eg: {
+    id: 'interior_eg',
+    name: '🚶‍♂️ EG Walk-In (PDF S. 3)',
+    icon: '🚶‍♂️',
+    description: 'Erdgeschoss-Innenraum mit Blick auf Deckenlamellen und Ausstellungsfläche',
+    position: [0.8, 1.45, 0.5],
+    target: [-1.8, 1.45, -1.06],
+    fov: 65,
+  },
+  interior_og: {
+    id: 'interior_og',
+    name: '🌟 1. OG Skulptur-Cube',
+    icon: '🌟',
+    description: 'Obergeschoss-Ausstellungsraum mit direktem Blick auf die gezwanzig-Skulptur',
+    position: [-0.8, 4.05, 0.5],
+    target: [1.45, 3.8, 0.0],
+    fov: 62,
+  },
   front: {
     id: 'front',
-    name: '🏛️ Frontportal (Vorne)',
-    icon: '🏛️',
-    description: 'Orthogonaler frontaler Blick auf Glas- & Stahltür-Wechselarchitektur (Vorne)',
-    position: [9.6, 2.6, 0.0],
+    name: '🚪 Stirnseite Links / Portal',
+    icon: '🚪',
+    description: 'Blick auf das linke Eingangsportal mit Schwenktür (PDF Seite 1)',
+    position: [-9.6, 2.6, 0.0],
     target: [0.0, 2.6, 0.0],
     fov: 34,
   },
   rear: {
     id: 'rear',
-    name: '🚪 Heckportal (Hinten)',
-    icon: '🚪',
-    description: 'Orthogonaler Blick auf die hinteren Glas- & Stahltüren (Rückseite)',
-    position: [-9.6, 2.6, 0.0],
+    name: '🪟 Stirnseite Rechts / Glas',
+    icon: '🪟',
+    description: 'Blick auf das rechte vollverglaste Stirnportal (PDF Seite 1 & 5)',
+    position: [9.6, 2.6, 0.0],
     target: [0.0, 2.6, 0.0],
     fov: 34,
   },
-  hero: {
-    id: 'hero',
-    name: 'Front 3/4 Hero Shot',
-    icon: '👑',
-    description: 'Klassische 3/4 Studio-Perspektive mit Fokus auf Glasfront & Containerstruktur',
-    position: [6.8, 2.6, 7.8],
-    target: [0, 2.4, 0],
-    fov: 40,
-  },
-  interior_eg: {
-    id: 'interior_eg',
-    name: 'EG Galerie Walk-In',
-    icon: '🚶‍♂️',
-    description: 'Erdgeschoss-Innenraum mit Blick auf Kunstwerke und Ausstellungsflächen',
-    position: [0.8, 1.45, 1.8],
-    target: [-1.8, 1.4, -1.2],
-    fov: 65,
-  },
-  interior_og: {
-    id: 'interior_og',
-    name: '1. OG Fenster-Ausblick',
-    icon: '🖼️',
-    description: 'Obergeschoss-Ausstellungsraum mit Blick durch die Panorama-Glasfassade',
-    position: [1.2, 4.05, 1.6],
-    target: [-2.0, 3.9, -1.0],
-    fov: 62,
-  },
-  side: {
-    id: 'side',
-    name: 'Seitenprofil (6.06m)',
-    icon: '📐',
-    description: 'Orthogonale Seitenansicht der 2-stöckigen Container-Silhouette',
-    position: [11.5, 2.5, 0],
-    target: [0, 2.5, 0],
-    fov: 36,
-  },
-  drone: {
-    id: 'drone',
-    name: 'Drohne Draufsicht',
-    icon: '🛸',
-    description: 'Senkrechte Vogelperspektive auf Drehteller & Containerdach',
-    position: [0.1, 14.5, 0.1],
-    target: [0, 0, 0],
-    fov: 42,
-  },
   orbit: {
     id: 'orbit',
-    name: '360° Studio Orbit (Frei)',
-    icon: '🌟',
-    description: 'Rundumperspektive mit flüssiger 360°-Freirotation um den Drehteller',
+    name: '360° Studio Orbit',
+    icon: '🔄',
+    description: 'Rundumperspektive mit flüssiger 360°-Freirotation um den Pavillon',
     position: [8.5, 4.5, 8.5],
     target: [0, 2.6, 0],
     fov: 40,
@@ -200,10 +220,11 @@ export const GALLERY_CAMERA_PRESETS: Record<GalleryCameraId, GalleryCameraPreset
 };
 
 export type GalleryEnvironmentId = 
-  | 'dark_studio' 
+  | 'afternoon_5pm'
   | 'bright_studio' 
-  | 'cyber_studio' 
   | 'warm_studio'
+  | 'dark_studio' 
+  | 'cyber_studio' 
   | 'votivkirche';
 
 export interface GalleryEnvironmentOption {
@@ -213,6 +234,7 @@ export interface GalleryEnvironmentOption {
   description: string;
   skyColor: string;
   groundColor: string;
+  sunColor?: string;
   sunIntensity: number;
   ambientIntensity: number;
   sunPosition: [number, number, number];
@@ -220,17 +242,18 @@ export interface GalleryEnvironmentOption {
 }
 
 export const GALLERY_ENVIRONMENTS: Record<GalleryEnvironmentId, GalleryEnvironmentOption> = {
-  dark_studio: {
-    id: 'dark_studio',
-    name: 'Dark Tech Studio (wie LKW)',
-    icon: '⭕',
-    description: 'Eleganter dunkler Showroom mit Leuchtring-Drehteller & Studio-Softboxen',
-    skyColor: '#0a0e14',
-    groundColor: '#161c24',
-    sunIntensity: 2.2,
-    ambientIntensity: 0.85,
-    sunPosition: [12, 18, 12],
-    isDark: true,
+  afternoon_5pm: {
+    id: 'afternoon_5pm',
+    name: '☀️ 17:00 Uhr Studio-Sonne (5 PM)',
+    icon: '🌇',
+    description: 'Flacher Sonnenstand um 17:00 Uhr mit warmen goldenen Lichtstrahlen & langen architektonischen Schatten',
+    skyColor: '#f6f1e9',
+    groundColor: '#ded5c5',
+    sunColor: '#ffdfa4',
+    sunIntensity: 3.2,
+    ambientIntensity: 1.05,
+    sunPosition: [18, 7.2, 14],
+    isDark: false,
   },
   bright_studio: {
     id: 'bright_studio',
@@ -239,10 +262,37 @@ export const GALLERY_ENVIRONMENTS: Record<GalleryEnvironmentId, GalleryEnvironme
     description: 'Minimalistischer weißer Endlos-Showroom für puren Designfokus',
     skyColor: '#f8fafc',
     groundColor: '#cbd5e1',
+    sunColor: '#ffffff',
     sunIntensity: 2.0,
     ambientIntensity: 1.2,
     sunPosition: [10, 20, 10],
     isDark: false,
+  },
+  warm_studio: {
+    id: 'warm_studio',
+    name: 'Warm Amber Dusk Studio',
+    icon: '🌅',
+    description: 'Warme Studioatmosphäre mit weichen Reflexionen auf Glas & Stahl',
+    skyColor: '#181210',
+    groundColor: '#291b15',
+    sunColor: '#f59e0b',
+    sunIntensity: 2.2,
+    ambientIntensity: 0.8,
+    sunPosition: [16, 8, 12],
+    isDark: true,
+  },
+  dark_studio: {
+    id: 'dark_studio',
+    name: 'Dark Tech Studio (wie LKW)',
+    icon: '⭕',
+    description: 'Eleganter dunkler Showroom mit Leuchtring-Drehteller & Studio-Ausleuchtung',
+    skyColor: '#0a0e14',
+    groundColor: '#161c24',
+    sunColor: '#e2e8f0',
+    sunIntensity: 2.2,
+    ambientIntensity: 0.85,
+    sunPosition: [12, 18, 12],
+    isDark: true,
   },
   cyber_studio: {
     id: 'cyber_studio',
@@ -251,21 +301,10 @@ export const GALLERY_ENVIRONMENTS: Record<GalleryEnvironmentId, GalleryEnvironme
     description: 'Futuristischer dunkler Raum mit intensivem Cyan & Amber Leuchtring',
     skyColor: '#050811',
     groundColor: '#0f172a',
+    sunColor: '#38bdf8',
     sunIntensity: 1.6,
     ambientIntensity: 0.6,
     sunPosition: [0, 18, 10],
-    isDark: true,
-  },
-  warm_studio: {
-    id: 'warm_studio',
-    name: 'Warm Amber Studio',
-    icon: '🌅',
-    description: 'Warme Studioatmosphäre mit weichen Reflexionen auf Glas & Stahl',
-    skyColor: '#181210',
-    groundColor: '#291b15',
-    sunIntensity: 2.0,
-    ambientIntensity: 0.8,
-    sunPosition: [12, 16, 12],
     isDark: true,
   },
   votivkirche: {
@@ -275,6 +314,7 @@ export const GALLERY_ENVIRONMENTS: Record<GalleryEnvironmentId, GalleryEnvironme
     description: 'Originaler historischer Platz der Fotoreferenz vor der neugotischen Kathedrale in Wien',
     skyColor: '#87ceeb',
     groundColor: '#d6c7a1',
+    sunColor: '#fef3c7',
     sunIntensity: 2.5,
     ambientIntensity: 1.1,
     sunPosition: [14, 22, 16],
@@ -282,7 +322,7 @@ export const GALLERY_ENVIRONMENTS: Record<GalleryEnvironmentId, GalleryEnvironme
   },
 };
 
-export type ArtExhibitionId = 'abstract' | 'supertechno_cine' | 'bauhaus' | 'sculptures';
+export type ArtExhibitionId = 'gezwanzig' | 'abstract' | 'supertechno_cine' | 'bauhaus' | 'sculptures';
 
 export interface ArtItem {
   id: string;
@@ -312,6 +352,64 @@ export interface ArtCollection {
 }
 
 export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
+  gezwanzig: {
+    id: 'gezwanzig',
+    name: 'gezwanzig: contemporary showcase',
+    curator: 'Architektur-Kuration gezwanzig',
+    theme: 'Original Showcase-Exponate (PDF Maßstab 1:40)',
+    icon: '🏛️',
+    description: 'Exakte 1:1 Abbildung der PDF-Originalkuration mit monolithischer Skulptur im 1. OG und 2 gerahmten Kunstwerken im EG.',
+    artworks: [
+      {
+        id: 'gezwanzig_sculpture_og',
+        floor: 'OG',
+        title: 'Monolithische Torsion (gezwanzig loop)',
+        artist: 'Studio gezwanzig',
+        year: '2026',
+        medium: 'Polierter weißer Marmor / Polymer',
+        dimensions: '180 × 160 × 140 cm',
+        description: 'Organische Ringskulptur im verglasten Obergeschoss-Quadranten (PDF Seite 4 & 5).',
+        primaryColor: '#f8fafc',
+        accentColor: '#38bdf8',
+        patternType: 'sculpture',
+        position: [1.45, 3.45, 0.0],
+        rotation: [0, -0.35, 0],
+        scale: [0.85, 1.1, 0.85],
+      },
+      {
+        id: 'gezwanzig_art_eg_1',
+        floor: 'EG',
+        title: 'gezwanzig Frame I',
+        artist: 'contemporary gallery',
+        year: '2026',
+        medium: 'Fine Art Print im Anthrazit-Alurahmen',
+        dimensions: '90 × 110 cm',
+        description: 'Gerahmtes Kunstwerk an der massiven weißen Innenwand (PDF Seite 4 & 6).',
+        primaryColor: '#1e293b',
+        accentColor: '#38bdf8',
+        patternType: 'minimalist',
+        position: [-1.95, 1.45, -1.06],
+        rotation: [0, 0, 0],
+        scale: [0.75, 0.95, 0.04],
+      },
+      {
+        id: 'gezwanzig_art_eg_2',
+        floor: 'EG',
+        title: 'gezwanzig Frame II',
+        artist: 'contemporary gallery',
+        year: '2026',
+        medium: 'Fine Art Print im Anthrazit-Alurahmen',
+        dimensions: '90 × 110 cm',
+        description: 'Gerahmtes Kunstwerk an der massiven weißen Innenwand (PDF Seite 4 & 6).',
+        primaryColor: '#0f172a',
+        accentColor: '#e5c500',
+        patternType: 'minimalist',
+        position: [-0.85, 1.45, -1.06],
+        rotation: [0, 0, 0],
+        scale: [0.75, 0.95, 0.04],
+      },
+    ],
+  },
   abstract: {
     id: 'abstract',
     name: 'Chroma & Form: Zeitgenössische Abstraktion',
@@ -332,7 +430,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#1d4ed8',
         accentColor: '#eab308',
         patternType: 'gradient',
-        position: [1.15, 1.45, -1.06],
+        position: [-1.85, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.6, 1.2, 0.05],
       },
@@ -348,7 +446,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#0f172a',
         accentColor: '#f43f5e',
         patternType: 'geometric',
-        position: [0.6, 1.45, -0.98],
+        position: [-0.75, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.2, 1.0, 0.05],
       },
@@ -364,7 +462,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#059669',
         accentColor: '#38bdf8',
         patternType: 'gradient',
-        position: [-1.15, 4.05, -1.06],
+        position: [0.85, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.8, 1.2, 0.05],
       },
@@ -380,7 +478,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#18181b',
         accentColor: '#fbbf24',
         patternType: 'minimalist',
-        position: [0.8, 4.05, -0.98],
+        position: [1.95, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.1, 1.1, 0.05],
       },
@@ -406,7 +504,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#0284c7',
         accentColor: '#e0f2fe',
         patternType: 'cinema',
-        position: [1.15, 1.45, -1.06],
+        position: [-1.85, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.7, 1.1, 0.05],
       },
@@ -422,7 +520,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#0f172a',
         accentColor: '#f97316',
         patternType: 'cinema',
-        position: [0.6, 1.45, -0.98],
+        position: [-0.75, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.2, 0.95, 0.05],
       },
@@ -438,7 +536,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#7c2d12',
         accentColor: '#fdba74',
         patternType: 'cinema',
-        position: [-1.15, 4.05, -1.06],
+        position: [0.85, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.8, 1.1, 0.05],
       },
@@ -454,7 +552,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#27272a',
         accentColor: '#e5c500',
         patternType: 'cinema',
-        position: [0.8, 4.05, -0.98],
+        position: [1.95, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.1, 1.1, 0.05],
       },
@@ -480,7 +578,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#dc2626',
         accentColor: '#2563eb',
         patternType: 'geometric',
-        position: [1.15, 1.45, -1.06],
+        position: [-1.85, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.5, 1.1, 0.05],
       },
@@ -496,7 +594,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#1e293b',
         accentColor: '#facc15',
         patternType: 'geometric',
-        position: [0.6, 1.45, -0.98],
+        position: [-0.75, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.2, 0.95, 0.05],
       },
@@ -512,7 +610,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#475569',
         accentColor: '#ef4444',
         patternType: 'geometric',
-        position: [-1.15, 4.05, -1.06],
+        position: [0.85, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.7, 1.1, 0.05],
       },
@@ -528,7 +626,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#f8fafc',
         accentColor: '#94a3b8',
         patternType: 'minimalist',
-        position: [0.8, 4.05, -0.98],
+        position: [1.95, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.1, 1.1, 0.05],
       },
@@ -554,7 +652,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#b45309',
         accentColor: '#d97706',
         patternType: 'sculpture',
-        position: [-1.2, 0.85, 0.0],
+        position: [-1.45, 0.85, 0.0],
         rotation: [0, 0.4, 0],
         scale: [0.45, 0.65, 0.45],
       },
@@ -570,7 +668,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#e2e8f0',
         accentColor: '#38bdf8',
         patternType: 'sculpture',
-        position: [1.2, 3.45, 0.0],
+        position: [1.45, 3.45, 0.0],
         rotation: [0, -0.6, 0],
         scale: [0.5, 0.75, 0.5],
       },
@@ -586,7 +684,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#f1f5f9',
         accentColor: '#64748b',
         patternType: 'minimalist',
-        position: [1.15, 1.45, -1.06],
+        position: [-1.45, 1.45, -1.06],
         rotation: [0, 0, 0],
         scale: [1.2, 0.95, 0.05],
       },
@@ -602,7 +700,7 @@ export const ART_COLLECTIONS: Record<ArtExhibitionId, ArtCollection> = {
         primaryColor: '#065f46',
         accentColor: '#34d399',
         patternType: 'gradient',
-        position: [-1.15, 4.05, -1.06],
+        position: [1.45, 4.05, -1.06],
         rotation: [0, 0, 0],
         scale: [1.7, 1.1, 0.05],
       },
@@ -666,28 +764,28 @@ export const DEFAULT_GALLERY_STATE: GalleryContainerState = {
   ogDoorsOpen: 0.0,
   slidingDoorOpen: 0.0,
   
-  linearLedIntensity: 1.6,
-  egLinearLed: 1.6,
-  ogLinearLed: 1.6,
+  linearLedIntensity: 1.8,
+  egLinearLed: 1.8,
+  ogLinearLed: 1.8,
   cctKelvin: 4000,
   rgbColorGlow: '#00dcff',
   useRgbGlow: false,
-  spotlightsIntensity: 1.4,
+  spotlightsIntensity: 1.8,
   exteriorUpLights: true,
   exteriorUpLightsIntensity: 1.8,
   neonRingColorHex: '#00dcff',
   
-  environment: 'dark_studio',
+  environment: 'afternoon_5pm',
   showVotivkirche: false,
-  showPedestrians: false,
+  showPedestrians: true,
   autoRotate: false,
   
-  currentExhibition: 'abstract',
+  currentExhibition: 'gezwanzig',
   selectedArtworkId: null,
-  showArtworks: false,
+  showArtworks: true,
   
-  activeCamera: 'free',
-  cameraFov: 42,
+  activeCamera: 'axonometrie_3d',
+  cameraFov: 38,
 };
 
 export function kelvinToHex(kelvin: number): string {
